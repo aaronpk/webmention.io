@@ -1,0 +1,10 @@
+development:
+  database_url: "mysql://root@127.0.0.1/pingback"
+  session_secret: SUPERSECRET
+  ga_id: 
+  geoloqi:
+    api_key: 
+    api_secret: 
+  github:
+    client_id: 
+    client_secret: 
