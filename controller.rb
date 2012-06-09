@@ -45,9 +45,9 @@ class Controller < Sinatra::Base
 
     puts "RECEIVED PINGBACK REQUEST"
 
-    @target_user = User.first :username => username
+    @target_account = Account.first :username => username
 
-    if @target_user.nil?
+    if @target_account.nil?
       rpc_error 404, 0, "Not Found"
     end
 
@@ -74,11 +74,11 @@ class Controller < Sinatra::Base
 
     return rpc_error 200, 0, "Malformed target URI" if target_domain.nil?
 
-    site = Site.first_or_create :user => @target_user, :domain => target_domain
-    page = Page.first_or_create({:site => site, :href => target}, {:user => @target_user})
+    site = Site.first_or_create :account => @target_account, :domain => target_domain
+    page = Page.first_or_create({:site => site, :href => target}, {:account => @target_account})
     link = Link.first_or_create(:page => page, :href => source)
 
-    unless link.nil?
+    if link[:verified]
       rpc_error 200, 0x0030, "The pingback has already been registered"
     end
 

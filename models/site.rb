@@ -4,7 +4,7 @@ class Site
 
   property :domain, String, :length => 255
 
-  belongs_to :user
+  belongs_to :account
   has n, :pages
 
   property :created_at, DateTime

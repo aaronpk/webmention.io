@@ -4,6 +4,7 @@ class Link
 
   property :href, String, :length => 512
   property :verified, Boolean
+  property :summary, Text
 
   belongs_to :page
 

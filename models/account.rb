@@ -1,4 +1,4 @@
-class User
+class Account
   include DataMapper::Resource
   property :id, Serial
 
@@ -7,7 +7,6 @@ class User
 
   has n, :sites
 
-  property :last_login_date, DateTime
   property :created_at, DateTime
   property :updated_at, DateTime
 

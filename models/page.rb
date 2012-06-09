@@ -4,7 +4,7 @@ class Page
 
   property :href, String, :length => 512
 
-  belongs_to :user
+  belongs_to :account
   belongs_to :site
   has n, :links
 
