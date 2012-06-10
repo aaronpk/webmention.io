@@ -41,7 +41,7 @@ class Controller < Sinatra::Base
   # Chances are some people will click the links in the href tags, so show a nice message here
   get '/:username/xmlrpc' do |username|
     title "Hosted Pingback Service"
-    erb :about
+    error 501, erb(:about)
   end
 
   # Web Hooks
