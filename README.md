@@ -5,6 +5,12 @@ This project is an implementation of the Pingback protocol. It allows the pingba
 
 Say you have a statically-generated website using Jekyll or something similar, you can simply add the appropriate <link> tags to this service, and now you have pingbacks enabled on your static site!
 
+    <link rel="pingback" href="http://pingback.me/username/xmlrpc" />
+    
+The Pingback protocol also supports sending the URL in the headers,
+
+    X-Pingback: http://pingback.me/username/xmlrpc
+
 About the Pingback Protocol
 ---------------------------
 
