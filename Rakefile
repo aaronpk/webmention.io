@@ -5,6 +5,7 @@ namespace :db do
   task :bootstrap do
     init
     DataMapper.auto_migrate!
+    Account.create :username => 'pingback'
   end
   
   task :migrate do
