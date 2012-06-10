@@ -57,7 +57,12 @@ class Controller < Sinatra::Base
       rpc_error 404, 0, "Not Found"
     end
 
-    xml = request.body.read
+    utf8 = request.body.read.force_encoding "UTF-8"
+    if utf8.valid_encoding?
+      xml = utf8
+    else
+      rpc_error 400, 0, "Invalid string encoding"
+    end
     method, arguments = XMLRPC::Marshal.load_call(xml)
 
     method.gsub! /\./, '_'
