@@ -14,3 +14,15 @@ namespace :db do
   end
 end
 
+namespace :test do
+  def pingback_client
+    XMLRPC::Client.new "localhost", "/test/xmlrpc", 9019
+  end
+
+  task :sample1 do
+    source_uri = "http://techslides.com/tumblr-api-example-using-oauth-and-php/?id=" + rand(100).to_s
+    target_uri = "http://oauth.net/code/"
+    c = pingback_client
+    c.call('pingback.ping', source_uri, target_uri)
+  end
+end
