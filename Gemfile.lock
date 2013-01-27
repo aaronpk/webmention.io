@@ -38,13 +38,13 @@ GEM
     json (1.6.5)
     kgio (2.7.4)
     mechanize (2.3)
-      domain_name (>= 0.5.1, ~> 0.5)
-      mime-types (>= 1.17.2, ~> 1.17)
-      net-http-digest_auth (>= 1.1.1, ~> 1.1)
-      net-http-persistent (>= 2.5.2, ~> 2.5)
+      domain_name (~> 0.5, >= 0.5.1)
+      mime-types (~> 1.17, >= 1.17.2)
+      net-http-digest_auth (~> 1.1, >= 1.1.1)
+      net-http-persistent (~> 2.5, >= 2.5.2)
       nokogiri (~> 1.4)
-      ntlm-http (>= 0.1.1, ~> 0.1)
-      webrobots (>= 0.0.9, ~> 0.0)
+      ntlm-http (~> 0.1, >= 0.1.1)
+      webrobots (~> 0.0, >= 0.0.9)
     mime-types (1.18)
     multi_json (1.1.0)
     multipart-post (1.1.5)
@@ -84,6 +84,9 @@ GEM
       rack-openid (~> 1.3.1)
     omniauth-twitter (0.0.8)
       omniauth-oauth (~> 1.0)
+    pingback (1.1.0)
+      nokogiri
+      rack
     rack (1.4.1)
     rack-openid (1.3.1)
       rack (>= 1.1.0)
@@ -102,9 +105,9 @@ GEM
     shotgun (0.9)
       rack (>= 1.0)
     sinatra (1.3.2)
-      rack (>= 1.3.6, ~> 1.3)
+      rack (~> 1.3, >= 1.3.6)
       rack-protection (~> 1.2)
-      tilt (>= 1.3.3, ~> 1.3)
+      tilt (~> 1.3, >= 1.3.3)
     sinatra-contrib (1.3.1)
       backports (>= 2.0)
       eventmachine
@@ -154,6 +157,7 @@ DEPENDENCIES
   omniauth-google
   omniauth-openid
   omniauth-twitter
+  pingback
   rainbows
   rake
   shotgun
