@@ -8,6 +8,7 @@ class Account
   has n, :sites
 
   property :token, String, :length => 255
+  property :zenircbot_uri, String, :length => 255
 
   property :created_at, DateTime
   property :updated_at, DateTime

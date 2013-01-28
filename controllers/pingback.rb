@@ -62,12 +62,26 @@ class Controller < Sinatra::Base
 
     valid = scraper.link_with(:href => target) != nil
 
+    if !site.account.zenircbot_uri.empty? and !site.irc_channel.empty? and valid
+      message = "[pingback] #{source} linked to #{target}"
+
+      uri = "#{site.account.zenircbot_uri}#{URI.encode_www_form_component site.irc_channel}"
+
+      begin
+        puts RestClient.post uri, {
+          message: message
+        }
+      rescue 
+        # noop
+      end
+    end
+
     if valid
       link.verified = true
       link.save
       rpc_respond 200, "Pingback from #{source} to #{target} was successful! Keep the web talking!"
     else
-      rpc_error 200, 0x0011, "There appears to be no link to us!"
+      rpc_error 200, 0x0011, "There appears to be no link to this page!"
     end
 
     # See http://www.hixie.ch/specs/pingback/pingback for a list of error codes to return
