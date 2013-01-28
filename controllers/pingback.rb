@@ -12,6 +12,8 @@ class Controller < Sinatra::Base
   post '/:username/xmlrpc' do |username|
 
     puts "RECEIVED PINGBACK REQUEST"
+    utf8 = request.body.read.force_encoding "UTF-8"
+    puts utf8
 
     @target_account = Account.first :username => username
 
@@ -19,7 +21,6 @@ class Controller < Sinatra::Base
       rpc_error 404, 0, "Not Found"
     end
 
-    utf8 = request.body.read.force_encoding "UTF-8"
     if utf8.valid_encoding?
       xml = utf8
     else
