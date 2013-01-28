@@ -40,6 +40,9 @@ GET http://pingback.me/api/links?target=http://pingback.me/
 }
 ```
 
+The API also supports JSONP so you can use it to show pingbacks on your own sites via Javascript. Simply add a parameter `jsonp` to the API call, for example, http://pingback.me/api/links?jsonp=f&target=http%3A%2F%2Fpingback.me
+
+
 ## IRC Notifications
 
 If you are running an instance of [ZenIRCBot](https://github.com/wraithan/zenircbot), you can use it to receive IRC notifications when a new pingback is received. You'll need to be running the [web-proxy](https://github.com/aaronpk/zenircbot/blob/master/services/web-proxy.js) service, and then you can configure the URL and channel the message should be delivered to.

@@ -100,11 +100,16 @@ class Controller < Sinatra::Base
   end
 
   def json_response(code, data)
+    if params[:jsonp]
+      string = "#{params[:jsonp]}(#{data.to_json})"
+    else
+      string = data.to_json
+    end
+    
     halt code, {
         'Content-Type' => 'application/json;charset=UTF-8',
         'Cache-Control' => 'no-store'
-      }, 
-      data.to_json
+      }, string
   end
 
   def xml_response(code, data)
