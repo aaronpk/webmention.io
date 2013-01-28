@@ -6,6 +6,7 @@ class Site
 
   belongs_to :account
   has n, :pages
+  property :public_access, Boolean, :default => false
 
   property :created_at, DateTime
   property :updated_at, DateTime

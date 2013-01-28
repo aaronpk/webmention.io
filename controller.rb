@@ -5,8 +5,9 @@ class Controller < Sinatra::Base
     # puts "IP: #{request.ip}"
     # puts 
 
-    # Require login on everything except home page
-    if request.path.match /[a-zA-Z0-9_\.]\/xmlrpc/
+    # Require login on everything except home page and API
+    puts request.path
+    if request.path.match /[a-zA-Z0-9_\.]\/xmlrpc/ or request.path.match /^\/api\//
       # No login required for /xmlrpc routes
     else
       if !["/", "/auth/github", "/auth/github/callback"].include? request.path
@@ -83,19 +84,19 @@ class Controller < Sinatra::Base
   end
 
   def json_error(code, data)
-    return [code, {
+    halt code, {
         'Content-Type' => 'application/json;charset=UTF-8',
         'Cache-Control' => 'no-store'
       }, 
-      data.to_json]
+      data.to_json
   end
 
   def json_respond(code, data)
-    return [code, {
+    halt code, {
         'Content-Type' => 'application/json;charset=UTF-8',
         'Cache-Control' => 'no-store'
       }, 
-      data.to_json]
+      data.to_json
   end
 
 end
