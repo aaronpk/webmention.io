@@ -4,8 +4,15 @@ class Controller < Sinatra::Base
 
     if params['format'].nil?
       format = 'json'
+    else
+      format = params['format']
     end
-    format = params['format']
+
+    if params[:limit]
+      limit = params[:limit].to_i
+    else
+      limit = 20
+    end
 
     if params[:target].empty? and params[:access_token].empty?
       api_response format, 400, {
@@ -30,7 +37,7 @@ class Controller < Sinatra::Base
         }
       end
 
-      links = target.links.all(:order => [:created_at.desc])
+      links = target.links.all(:order => [:created_at.desc], :limit => limit)
     else
       account = Account.first :token => params[:access_token]
 
@@ -42,7 +49,7 @@ class Controller < Sinatra::Base
       end
 
       if params[:target].empty?
-        links = account.sites.pages.links.all(:order => [:created_at.desc])
+        links = account.sites.pages.links.all(:order => [:created_at.desc], :limit => limit)
       else
         page = account.sites.pages.first(:href => params[:target])
 
@@ -53,7 +60,7 @@ class Controller < Sinatra::Base
           }
         end
 
-        links = page.links.all(:order => [:created_at.desc])
+        links = page.links.all(:order => [:created_at.desc], :limit => limit)
       end
     end
 
