@@ -132,6 +132,7 @@ GEM
       rack
       raindrops (~> 0.7)
     webrobots (0.0.13)
+    xml-simple (1.1.1)
 
 PLATFORMS
   ruby
@@ -165,3 +166,4 @@ DEPENDENCIES
   sinatra-namespace
   sinatra-support
   thin
+  xml-simple

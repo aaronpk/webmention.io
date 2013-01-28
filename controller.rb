@@ -83,7 +83,23 @@ class Controller < Sinatra::Base
     error code, XMLRPC::Marshal.dump_response(XMLRPC::FaultException.new(error.to_i, string))
   end
 
+  def api_response(format, code, data)
+    if format == 'json'
+      json_response(code, data)
+    elsif format == 'xml'
+      xml_response(code, data)
+    end
+  end
+
   def json_error(code, data)
+    json_response(code, data)
+  end
+
+  def json_respond(code, data)
+    json_response(code, data)
+  end
+
+  def json_response(code, data)
     halt code, {
         'Content-Type' => 'application/json;charset=UTF-8',
         'Cache-Control' => 'no-store'
@@ -91,12 +107,9 @@ class Controller < Sinatra::Base
       data.to_json
   end
 
-  def json_respond(code, data)
-    halt code, {
-        'Content-Type' => 'application/json;charset=UTF-8',
-        'Cache-Control' => 'no-store'
-      }, 
-      data.to_json
+  def xml_response(code, data)
+    xml = XmlSimple.xml_out(data, {'KeepRoot' => true})
+    halt code, xml
   end
 
 end

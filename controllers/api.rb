@@ -1,9 +1,14 @@
 class Controller < Sinatra::Base
 
-  get "/api/links" do
+  get %r{/api/links(:?\.(?<format>json|xml))?} do
+
+    if params['format'].nil?
+      format = 'json'
+    end
+    format = params['format']
 
     if params[:target].empty? and params[:access_token].empty?
-      json_error 400, {
+      api_response format, 400, {
         error: "invalid_input",
         error_description: "Either an access token or a target URI is required"
       }
@@ -12,14 +17,14 @@ class Controller < Sinatra::Base
     if params[:access_token].empty?
       target = Page.first :href => params[:target]
       if target.nil?
-        json_error 404, {
+        api_response format, 404, {
           error: "not_found",
           error_description: "The specified link was not found"
         }
       end
 
       if !target.site.public_access
-        json_error 401, {
+        api_response format, 401, {
           error: "forbidden",
           error_description: "This site does not allow public access to its pingbacks"
         }
@@ -30,7 +35,7 @@ class Controller < Sinatra::Base
       account = Account.first :token => params[:access_token]
 
       if account.nil?
-        json_error 401, {
+        api_response format, 401, {
           error: "forbidden",
           error_description: "Access token was not valid"
         }
@@ -42,7 +47,7 @@ class Controller < Sinatra::Base
         page = account.sites.pages.first(:href => params[:target])
 
         if page.nil?
-          json_error 404, {
+          api_response format, 404, {
             error: "not_found",
             error_description: "There are no links for the specified page"
           }
@@ -62,9 +67,14 @@ class Controller < Sinatra::Base
       }
     end
 
-    json_respond 200, {
-      links: link_array
-    }
+    if format == 'json'
+      api_response format, 200, {
+        links: link_array
+      }
+    else
+      atom_feed = {links: link_array}
+      api_response format, 200, atom_feed
+    end
   end
 
 end
