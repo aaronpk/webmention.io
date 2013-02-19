@@ -34,8 +34,8 @@ class Controller < Sinatra::Base
       }, {
         'Accept' => 'application/json'
       }
-    rescue RestClient::Exception => e
-      create_rpc_error e.response
+    rescue => e
+      create_rpc_error(e.respond_to?('response') ? e.response : e)
     end
 
     # Find out if the request succeeded or failed
@@ -58,26 +58,30 @@ class Controller < Sinatra::Base
   end
 
   def create_rpc_error(body)
-    begin
-      # Attempt to parse the JSON body
-      json = JSON.parse body
-      code = 0
-      case json['error']
-      when 'source_not_found'
-        code = 0x0010
-      when 'target_not_found'
-        code = 0x0020
-      when 'target_not_supported'
-        code = 0x0021
-      when 'already_registered'
-        code = 0x0030
-      when 'no_link_found'
-        code = 0x0011
+    if body.class == String
+      begin
+        # Attempt to parse the JSON body
+        json = JSON.parse body
+        code = 0
+        case json['error']
+        when 'source_not_found'
+          code = 0x0010
+        when 'target_not_found'
+          code = 0x0020
+        when 'target_not_supported'
+          code = 0x0021
+        when 'already_registered'
+          code = 0x0030
+        when 'no_link_found'
+          code = 0x0011
+        end
+        rpc_error 400, code, json['error']
+      rescue
+        # If the body was not JSON, return a generic error
+        rpc_error 400, 0, "Unknown Error"
       end
-      rpc_error 400, code, json['error']
-    rescue
-      # If the body was not JSON, return a generic error
-      rpc_error 400, 0, "Unknown Error"
+    else
+      rpc_error 400, 0, body.to_s
     end
   end
 
