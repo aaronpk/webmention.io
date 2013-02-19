@@ -22,6 +22,130 @@ The Pingback protocol also supports sending the URL in the headers,
 * Provide an API method for sending outgoing pingbacks from your own site to pages you link to
 
 
+## WebMention
+
+[WebMention](http://webmention.org) is a modern alternative to Pingback. It's analogous to the Pingback protocol except does not use XML-RPC and is much easier to implement. This project also includes a simple API for converting XML-RPC Pingbacks to WebMentions.
+
+To use, add a Pingback header like the following:
+
+    <link rel="pingback" href="http://pingback.me/webmention?forward=http://example.com/webmention" />
+
+Any Pingbacks received will be forwarded on to the specified WebMention endpoint. It is up to you to handle the WebMention and return an expected result. The WebMention result will be converted to a Pingback result and passed back to the sender.
+
+### Full Example
+
+#### A blog links to your site, makes a GET request for the page to retrieve the Pingback header
+
+```
+GET http://example.com/post/1000
+
+<html>
+  <head>
+    <title>Example Post 1000</title>
+    <link rel="pingback" href="http://pingback.me/webmention?forward=http://example.com/webmention" />
+    ...
+```
+
+#### The blog sends a Pingback request to pingback.me
+
+```
+POST http://pingback.me/webmention?forward=http://example.com/webmention
+Content-Type: application/xml
+
+<?xml version="1.0" ?>
+<methodCall>
+  <methodName>pingback.ping</methodName>
+  <params>
+    <param>
+      <value>
+        <string>http://aaronparecki.com/notes/2013/02/16/1/little-printer</string>
+      </value>
+    </param>
+    <param>
+      <value>
+        <string>http://example.com/post/1000</string>
+      </value>
+    </param>
+  </params>
+</methodCall>
+```
+
+#### The pingback.me server forwards this on to your site as a WebMention
+
+```
+POST http://example.com/webmention
+Content-Type: application/x-www-url-form-encoded
+
+source=http://aaronparecki.com/notes/2013/02/16/1/little-printer&
+target=http://example.com/post/1000
+```
+
+#### Your server replies with a WebMention response indicating success
+
+```
+HTTP/1.1 202 Accepted
+Content-Type: application/json
+
+{
+  "result": "WebMention was successful"
+}
+```
+
+#### Pingback.me converts this to a Pingback success reply and sends it back to the original blog
+
+```
+HTTP/1.1 200 OK
+Content-Type: application/xml
+
+<?xml version="1.0" ?>
+<methodResponse>
+  <params>
+    <param>
+      <value>
+        <string>Pingback from http://aaronparecki.com/notes/2013/02/16/1/little-printer to http://example.com/post/1000 was successful!</string>
+      </value>
+    </param>
+  </params>
+</methodResponse>
+```
+
+#### Errors
+
+WebMention errors are converted to Pingback errors as well! For example,
+
+```
+{
+  "error": "no_link_found"
+}
+```
+
+Is converted to:
+
+```
+<?xml version="1.0" ?>
+<methodResponse>
+  <fault>
+    <value>
+      <struct>
+        <member>
+          <name>faultCode</name>
+          <value><i4>17</i4></value>
+        </member>
+        <member>
+          <name>faultString</name>
+          <value>
+            <string>no_link_found</string>
+          </value>
+        </member>
+      </struct>
+    </value>
+  </fault>
+</methodResponse>
+```
+
+You can start using this right now to quickly handle Pingbacks as WebMentions on your own domain. This is a way to bootstrap the WebMention protocol until more services adopt it.
+
+
 ## API
 
 This service provides an API for returning a list of pages that have linked to a given page. For example:

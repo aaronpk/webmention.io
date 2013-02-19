@@ -7,7 +7,7 @@ class Controller < Sinatra::Base
 
     # Require login on everything except home page and API
     puts request.path
-    if request.path.match /[a-zA-Z0-9_\.]\/xmlrpc/ or request.path.match /^\/api\//
+    if request.path.match /[a-zA-Z0-9_\.]\/xmlrpc/ or request.path.match /^\/api\// or request.path.match /^\/webmention/
       # No login required for /xmlrpc routes
     else
       if !["/", "/auth/github", "/auth/github/callback"].include? request.path
