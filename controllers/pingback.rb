@@ -1,111 +1,62 @@
 class Controller < Sinatra::Base
 
-  # Forward pingbacks to webmentions
-  post '/webmention' do
-
-    # Check for a valid "forward" parameter
-    if !params[:forward]
-      rpc_error 404, 0, "Not Found"
-    end
-
-    # Validate the url checking for http or https protocol
-    uri = URI.parse params[:forward]
-
-    if !['http','https'].include? uri.scheme
-      rpc_error 400, 0, "Invalid 'forward' parameter"
-    end
-
-    xml = request.body.read.force_encoding "UTF-8"
-    if !xml.valid_encoding?
-      rpc_error 400, 0, "Invalid string encoding"
-    end
-    method, arguments = XMLRPC::Marshal.load_call(xml)
-
-    if method != "pingback.ping"
-      rpc_error 404, 0, "Method not found"
-    end
-
-    source, target = arguments
-
-    begin
-      response = RestClient.post params[:forward], {
-        source: source,
-        target: target
-      }, {
-        'Accept' => 'application/json'
-      }
-    rescue => e
-      create_rpc_error(e.respond_to?('response') ? e.response : e)
-    end
-
-    # Find out if the request succeeded or failed
-
-    if response.code == 202
-      begin
-        # Attempt to parse the JSON body
-        json = JSON.parse response.body
-        if json and json.class == Hash and json['result']
-          rpc_respond 200, json['result']
-        end
-      rescue
-        # fall through
-      end
-      # If the body was not JSON, or did not contain a message, return a generic message
-      rpc_respond 200, "Pingback from #{source} to #{target} was successful!"
-    else
-      create_rpc_error response.body
-    end
-  end
-
-  def create_rpc_error(body)
-    if body.class == String
-      begin
-        # Attempt to parse the JSON body
-        json = JSON.parse body
-        code = 0
-        case json['error']
-        when 'source_not_found'
-          code = 0x0010
-        when 'target_not_found'
-          code = 0x0020
-        when 'target_not_supported'
-          code = 0x0021
-        when 'already_registered'
-          code = 0x0030
-        when 'no_link_found'
-          code = 0x0011
-        end
-        rpc_error 400, code, json['error']
-      rescue
-        # If the body was not JSON, return a generic error
-        rpc_error 400, 0, "Unknown Error"
-      end
-    else
-      rpc_error 400, 0, body.to_s
-    end
-  end
-
-
   # Chances are some people will click the links in the href tags, so show a nice message here
   get '/:username/xmlrpc' do |username|
     title "Hosted Pingback Service"
     error 404, erb(:about)
   end
 
-  # Web Hooks
+  get '/:username/webmention' do |username|
+    title "Hosted Webmention Service"
+    error 404, erb(:about)
+  end
 
-  # XML RPC
+  # Receive Webmentions
+  post '/:username/webmention' do |username|
+
+    puts "RECEIVED WEBMENTION REQUEST"
+
+    result = process_mention(username, params[:source], params[:target], 'webmention')
+
+    case result
+    when 'success'
+      json_response 202, {
+        :result => 'WebMention was successful'
+      }
+    when 'source_not_found'
+      json_response 400, {
+        :error => result,
+        :error_description => 'The source URI does not exist'
+      }
+    when 'target_not_found'
+      json_response 400, {
+        :error => result,
+        :error_description => 'The target URI does not exist'
+      }
+    when 'target_not_supported'
+      json_response 400, {
+        :error => result,
+        :error_description => 'The specified target URI is not a WebMention-enabled resource'
+      }
+    when 'no_link_found'
+      json_response 400, {
+        :error => result,
+        :error_description => 'The source URI does not contain a link to the target URI'
+      }
+    when 'already_registered'
+      json_response 400, {
+        :error => result,
+        :error_description => 'The specified WebMention has already been registered'
+      }
+    end
+  end
+
+  # Receive Pingbacks
   post '/:username/xmlrpc' do |username|
 
     puts "RECEIVED PINGBACK REQUEST"
     utf8 = request.body.read.force_encoding "UTF-8"
     puts utf8
-
-    @target_account = Account.first :username => username
-
-    if @target_account.nil?
-      rpc_error 404, 0, "Not Found"
-    end
 
     if utf8.valid_encoding?
       xml = utf8
@@ -117,40 +68,64 @@ class Controller < Sinatra::Base
     method.gsub! /\./, '_'
     puts "Method: #{method} Args: #{arguments}"
 
-    if respond_to?(method)
+    if method == 'pingback_ping'
       content_type("text/xml", :charset => "utf-8")
-      send method, arguments
+      source, target = arguments
+      result = process_mention(username, source, target, 'pingback')
+
+      case result
+      when 'success'
+        rpc_respond 200, "Pingback from #{source} to #{target} was successful! Keep the web talking!"
+      when 'source_not_found'
+        rpc_error 200, 0x0010, "The source URI does not exist"
+      when 'target_not_found'
+        rpc_error 200, 0x0020, "The target URI does not exist"
+      when 'target_not_supported'
+        rpc_error 200, 0x0021, "The specified target URI is not a Pingback-enabled resource"
+      when 'no_link_found'
+        rpc_error 200, 0x0011, "There appears to be no link to this page!"
+      when 'already_registered'
+        rpc_error 200, 0x0030, "The pingback has already been registered"
+      end
     else
       rpc_error 404, 0, "Not Found"
     end
   end
 
-  def pingback_ping(args)
-    source, target = args
+  # Handles actually verifying source links to target, returning the list of errors based on the webmention errors
+  def process_mention(username, source, target, protocol)
 
     puts "Verifying link exists from #{source} to #{target}"
 
-    target_domain = URI.parse(target).host
+    target_account = Account.first :username => username
+    return 'target_not_found' if target_account.nil?
 
-    return rpc_error 200, 0, "Malformed target URI" if target_domain.nil?
+    begin
+      target_domain = URI.parse(target).host 
+    rescue
+      return 'target_not_found' if target_domain.nil?
+    end
+    return 'target_not_found' if target_domain.nil?
 
-    site = Site.first_or_create :account => @target_account, :domain => target_domain
-    page = Page.first_or_create({:site => site, :href => target}, {:account => @target_account})
+    site = Site.first_or_create :account => target_account, :domain => target_domain
+    page = Page.first_or_create({:site => site, :href => target}, {:account => target_account})
     link = Link.first_or_create(:page => page, :href => source)
 
-    if link[:verified]
-      rpc_error 200, 0x0030, "The pingback has already been registered"
-    end
+    return 'already_registered' if link[:verified]
 
     agent = Mechanize.new {|agent|
       agent.user_agent_alias = "Mac Safari"
     }
-    scraper = agent.get source
+    begin
+      scraper = agent.get source
+    rescue
+      return 'source_not_found' if scraper.nil?
+    end
 
     valid = scraper.link_with(:href => target) != nil
 
     if !site.account.zenircbot_uri.empty? and !site.irc_channel.empty? and valid
-      message = "[pingback] #{source} linked to #{target}"
+      message = "[mention] #{source} linked to #{target} (#{protocol})"
 
       uri = "#{site.account.zenircbot_uri}#{URI.encode_www_form_component site.irc_channel}"
 
@@ -159,19 +134,15 @@ class Controller < Sinatra::Base
           message: message
         }
       rescue 
-        # noop
+        # ignore errors sending to IRC
       end
     end
 
-    if valid
-      link.verified = true
-      link.save
-      rpc_respond 200, "Pingback from #{source} to #{target} was successful! Keep the web talking!"
-    else
-      rpc_error 200, 0x0011, "There appears to be no link to this page!"
-    end
+    return 'no_link_found' if !valid
 
-    # See http://www.hixie.ch/specs/pingback/pingback for a list of error codes to return
+    link.verified = true
+    link.save
+    return 'success'
   end
 
 end
