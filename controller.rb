@@ -7,7 +7,7 @@ class Controller < Sinatra::Base
 
     # Require login on everything except home page and API
     puts request.path
-    if request.path.match /[a-zA-Z0-9_\.]\/xmlrpc/ or request.path.match /^\/api\// or request.path.match /^\/webmention/
+    if request.path.match /[a-zA-Z0-9_\.]\/(xmlrpc|webmention)/ or request.path.match /^\/api\// or request.path.match /^\/webmention/
       # No login required for /xmlrpc routes
     else
       if !["/", "/auth/github", "/auth/github/callback"].include? request.path
@@ -115,6 +115,34 @@ class Controller < Sinatra::Base
   def xml_response(code, data)
     xml = XmlSimple.xml_out(data, {'KeepRoot' => true})
     halt code, xml
+  end
+
+  def create_rpc_error(body)
+    if body.class == String
+      begin
+        # Attempt to parse the JSON body
+        json = JSON.parse body
+        code = 0
+        case json['error']
+        when 'source_not_found'
+          code = 0x0010
+        when 'target_not_found'
+          code = 0x0020
+        when 'target_not_supported'
+          code = 0x0021
+        when 'already_registered'
+          code = 0x0030
+        when 'no_link_found'
+          code = 0x0011
+        end
+        rpc_error 400, code, json['error']
+      rescue
+        # If the body was not JSON, return a generic error
+        rpc_error 400, 0, "Unknown Error"
+      end
+    else
+      rpc_error 400, 0, body.to_s
+    end
   end
 
 end

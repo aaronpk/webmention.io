@@ -1,12 +1,7 @@
 class Controller < Sinatra::Base
 
   get %r{/api/links(:?\.(?<format>json|xml))?} do
-
-    if params['format'].nil?
-      format = 'json'
-    else
-      format = params['format']
-    end
+    format = params['format'] || 'json'
 
     if params[:limit]
       limit = params[:limit].to_i
