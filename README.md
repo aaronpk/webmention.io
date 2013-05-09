@@ -1,6 +1,6 @@
 # Pingbacks
 
-This project is an implementation of the Pingback and WebMention protocols. It allows the receiving service to be run separately from the blogging software or website environment, making it easier to manage and integrate with other services.
+This project is an implementation of the [Pingback](http://indiewebcamp.com/pingback) and [WebMention](http://indiewebcamp.com/webmention) protocols. It allows the receiving service to be run separately from the blogging software or website environment, making it easier to manage and integrate with other services.
 
 Say you have a statically-generated website using Jekyll or something similar, you can simply add the appropriate <link> tags to this service, and now you have WebMention and Pingback enabled on your static site!
 
@@ -84,6 +84,7 @@ GET http://pingback.me/api/links
     }
   ]
 }
+```
 
 
 ### Paging
