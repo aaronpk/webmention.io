@@ -3,10 +3,16 @@ class Controller < Sinatra::Base
   get %r{/api/links(:?\.(?<format>json|xml))?} do
     format = params['format'] || 'json'
 
-    if params[:limit]
-      limit = params[:limit].to_i
+    if params[:perPage]
+      limit = params[:perPage].to_i
     else
       limit = 20
+    end
+
+    if params[:page]
+      pageNum = params[:page].to_i
+    else
+      pageNum = 0
     end
 
     if params[:target].empty? and params[:access_token].empty?
@@ -32,7 +38,7 @@ class Controller < Sinatra::Base
         }
       end
 
-      links = target.links.all(:order => [:created_at.desc], :limit => limit)
+      links = target.links.all(:verified => true, :order => [:created_at.desc], :offset => (pageNum * limit), :limit => limit)
     else
       account = Account.first :token => params[:access_token]
 
@@ -43,30 +49,36 @@ class Controller < Sinatra::Base
         }
       end
 
-      if params[:target].empty?
-        links = account.sites.pages.links.all(:order => [:created_at.desc], :limit => limit)
-      else
-        page = account.sites.pages.first(:href => params[:target])
+      if params[:target]
+        page = account.sites.pages.first :href => params[:target]
 
         if page.nil?
           api_response format, 404, {
             error: "not_found",
-            error_description: "There are no links for the specified page"
+            error_description: "The specified page was not found on this account"
           }
         end
 
-        links = page.links.all(:order => [:created_at.desc], :limit => limit)
+        links = page.links.all(:verified => true, :order => [:created_at.desc], :offset => (pageNum * limit), :limit => limit)
+      elsif params[:domain]
+        links = account.sites.all(:domain => params[:domain]).pages.links.all(:verified => true, :order => [:created_at.desc], :offset => (pageNum * limit), :limit => limit)
+      else
+        links = account.sites.pages.links.all(:verified => true, :order => [:created_at.desc], :offset => (pageNum * limit), :limit => limit)
       end
     end
 
     link_array = []
 
     links.each do |link|
-      link_array << {
-        href: link.href,
+      obj = {
+        source: link.href,
         verified: link.verified == true,
         verified_date: link.updated_at
       }
+      if params[:target].empty?
+        obj[:target] = link.page.href
+      end
+      link_array << obj
     end
 
     if format == 'json'
