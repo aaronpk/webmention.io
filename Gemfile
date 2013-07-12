@@ -24,6 +24,7 @@ gem 'mechanize'
 gem 'pingback'
 gem 'xml-simple', :require => 'xmlsimple'
 gem 'rest-client'
+gem 'xmpp4r', :require => 'xmpp4r/client'
 
 gem 'mysql2',          '0.3.7'
 gem 'dm-core'

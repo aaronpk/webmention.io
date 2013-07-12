@@ -135,6 +135,7 @@ GEM
       raindrops (~> 0.7)
     webrobots (0.0.13)
     xml-simple (1.1.1)
+    xmpp4r (0.5)
 
 PLATFORMS
   ruby
@@ -170,3 +171,4 @@ DEPENDENCIES
   sinatra-support
   thin
   xml-simple
+  xmpp4r
