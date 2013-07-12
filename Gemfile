@@ -1,4 +1,4 @@
-source :rubygems
+source "https://rubygems.org"
 
 gem 'sinatra',             :require => 'sinatra/base'
 gem 'sinatra-namespace',   :require => 'sinatra/namespace'
