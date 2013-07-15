@@ -63,7 +63,11 @@ class Controller < Sinatra::Base
     else
       rpc_error 400, 0, "Invalid string encoding"
     end
-    method, arguments = XMLRPC::Marshal.load_call(xml)
+    begin
+      method, arguments = XMLRPC::Marshal.load_call(xml)
+    rescue
+      rpc_error 400, 0, "Invalid request" 
+    end
 
     method.gsub! /\./, '_'
     puts "Method: #{method} Args: #{arguments}"
