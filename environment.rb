@@ -40,7 +40,7 @@ class Controller < Sinatra::Base
     set :root, File.dirname(__FILE__)
     set :show_exceptions, true
     set :raise_errors,    false
-    set :protection, :except => :frame_options
+    set :protection, :except => [:frame_options, :json_csrf]
 
     use OmniAuth::Builder do
       use OmniAuth::Strategies::GitHub, SiteConfig.github.client_id, SiteConfig.github.client_secret
