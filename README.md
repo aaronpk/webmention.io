@@ -248,4 +248,9 @@ Is converted to:
 You can start using this right now to quickly handle Pingbacks as WebMentions on your own domain. This is a way to bootstrap the WebMention protocol until more services adopt it.
 
 
+## License
+
+Copyright 2013 by Aaron Parecki. 
+
+Available under the BSD License. See LICENSE.txt
 
