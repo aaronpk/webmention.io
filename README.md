@@ -102,10 +102,15 @@ The default number of results per page is 20. Results are always sorted newest f
 The API also supports JSONP so you can use it to show pingbacks on your own sites via Javascript. Simply add a parameter `jsonp` to the API call, for example, http://pingback.me/api/links?jsonp=f&target=http%3A%2F%2Fpingback.me
 
 
-## IRC Notifications
+## Notifications
+
+### IRC
 
 If you are running an instance of [ZenIRCBot](https://github.com/wraithan/zenircbot), you can use it to receive IRC notifications when a new pingback is received. You'll need to be running the [web-proxy](https://github.com/aaronpk/zenircbot/blob/master/services/web-proxy.js) service, and then you can configure the URL and channel the message should be delivered to.
 
+### Jabber
+
+You may receive a notification using XMPP. Configure the Jabber account to send notifications from (JID as `foo@bar.tld/Resource` and password) as well as the JID the messages should be sent to. Jabber notification has to be enabled on a per-site basis.
 
 ## About the Pingback Protocol
 
