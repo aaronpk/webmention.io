@@ -4,6 +4,9 @@ class Account
 
   property :username, String, :length => 255
   property :email, String, :length => 255
+  property :xmpp_to, String, :length => 255
+  property :xmpp_user, String, :length => 255
+  property :xmpp_password, String, :length => 255
 
   has n, :sites
 

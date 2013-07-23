@@ -1,5 +1,5 @@
 GEM
-  remote: http://rubygems.org/
+  remote: https://rubygems.org/
   specs:
     addressable (2.2.7)
     backports (2.4.0)
@@ -135,6 +135,7 @@ GEM
       raindrops (~> 0.7)
     webrobots (0.0.13)
     xml-simple (1.1.1)
+    xmpp4r (0.5)
 
 PLATFORMS
   ruby
@@ -170,3 +171,4 @@ DEPENDENCIES
   sinatra-support
   thin
   xml-simple
+  xmpp4r
