@@ -34,7 +34,7 @@ class Controller < Sinatra::Base
       if target.site.public_access == false
         api_response format, 401, {
           error: "forbidden",
-          error_description: "This site does not allow public access to its pingbacks"
+          error_description: "This site does not allow public access to its mentions"
         }
       end
 

@@ -30,6 +30,7 @@ class Controller < Sinatra::Base
   end
 
   get '/?' do
+    title "Webmention.io"
     erb :index
   end
 
