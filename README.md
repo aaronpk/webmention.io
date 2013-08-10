@@ -1,27 +1,24 @@
-# Pingbacks
+# Webmention.io
 
-This project is an implementation of the [Pingback](http://indiewebcamp.com/pingback) and [WebMention](http://indiewebcamp.com/webmention) protocols. It allows the receiving service to be run separately from the blogging software or website environment, making it easier to manage and integrate with other services.
+This project is an implementation of the [WebMention](http://indiewebcamp.com/webmention) and [Pingback](http://indiewebcamp.com/pingback) protocols. It allows the receiving service to be run separately from the blogging software or website environment, making it easier to manage and integrate with other services.
 
 Say you have a statically-generated website using Jekyll or something similar, you can simply add the appropriate <link> tags to this service, and now you have WebMention and Pingback enabled on your static site!
 
-    <link rel="pingback" href="http://pingback.me/username/xmlrpc" />
-    <link rel="http://webmention.org/" href="http://pingback.me/username/webmention" />
+    <link rel="pingback" href="http://webmention.io/username/xmlrpc" />
+    <link rel="http://webmention.org/" href="http://webmention.io/username/webmention" />
 
-The Pingback protocol also supports specifying the URL in the headers,
+The WebMention and Pingback protocols also support specifying the endpoint in the headers,
 
-    X-Pingback: http://pingback.me/username/xmlrpc
-
-WebMention also supports specifying the URL in the headers,
-
-    Link: <http://pingback.me/username/webmention>; rel="http://webmention.org/"
+    Link: <http://webmention.io/username/webmention>; rel="http://webmention.org/"
+    X-Pingback: http://webmention.io/username/xmlrpc
 
 
 ## Features
 
-* Accept Pingbacks for any site by adding a simple html tag: `<link rel="pingback" href="http://pingback.me/username/xmlrpc" />`
-* Accept WebMentions for any site by adding a simple html tag: `<link rel="http://webmention.org/" href="http://pingback.me/username/webmention" />`
+* Accept WebMentions for any site by adding a simple html tag: `<link rel="http://webmention.org/" href="http://webmention.io/username/webmention" />`
+* Accept Pingbacks for any site by adding a simple html tag: `<link rel="pingback" href="http://webmention.io/username/xmlrpc" />`
 * API to get a list of pages linking to your site or a specific page
-* If you want to receive WebMentions on your site directly, you can use this service to convert Pingbacks to WebMentions
+* If you want to receive Pingbacks on your site but don't want to deal with XMLRPC, then you can use this service to convert Pingbacks to WebMentions
 
 
 ### Future Features
@@ -35,7 +32,7 @@ WebMention also supports specifying the URL in the headers,
 This service provides an API for returning a list of pages that have linked to a given page. For example:
 
 ```
-GET http://pingback.me/api/links?target=http://indiewebcamp.com
+GET http://webmention.io/api/links?target=http://indiewebcamp.com
 
 {
   "links": [
@@ -53,7 +50,7 @@ GET http://pingback.me/api/links?target=http://indiewebcamp.com
 You can also find all links to your domain:
 
 ```
-GET http://pingback.me/api/links?domain=indiewebcamp.com
+GET http://webmention.io/api/links?domain=indiewebcamp.com
 
 {
   "links": [
@@ -72,7 +69,7 @@ GET http://pingback.me/api/links?domain=indiewebcamp.com
 With no parameters, the API will return all links to any site in your account:
 
 ```
-GET http://pingback.me/api/links
+GET http://webmention.io/api/links
 
 {
   "links": [
@@ -99,7 +96,7 @@ The default number of results per page is 20. Results are always sorted newest f
 
 ### JSONP
 
-The API also supports JSONP so you can use it to show pingbacks on your own sites via Javascript. Simply add a parameter `jsonp` to the API call, for example, http://pingback.me/api/links?jsonp=f&target=http%3A%2F%2Fpingback.me
+The API also supports JSONP so you can use it to show pingbacks on your own sites via Javascript. Simply add a parameter `jsonp` to the API call, for example, http://webmention.io/api/links?jsonp=f&target=http%3A%2F%2Fwebmention.io
 
 
 ## Notifications
@@ -135,7 +132,7 @@ Using Pingback.me in this mode does not require an account, and this service doe
 
 To use, add a Pingback header like the following:
 
-    <link rel="pingback" href="http://pingback.me/webmention?forward=http://example.com/webmention" />
+    <link rel="pingback" href="http://webmention.io/webmention?forward=http://example.com/webmention" />
 
 Any Pingbacks received will be forwarded on to the specified WebMention endpoint. It is up to you to handle the WebMention and return an expected result. The WebMention result will be converted to a Pingback result and passed back to the sender.
 
@@ -149,14 +146,14 @@ GET http://example.com/post/1000
 <html>
   <head>
     <title>Example Post 1000</title>
-    <link rel="pingback" href="http://pingback.me/webmention?forward=http://example.com/webmention" />
+    <link rel="pingback" href="http://webmention.io/webmention?forward=http://example.com/webmention" />
     ...
 ```
 
-#### The blog sends a Pingback request to pingback.me
+#### The blog sends a Pingback request to webmention.io
 
 ```
-POST http://pingback.me/webmention?forward=http://example.com/webmention
+POST http://webmention.io/webmention?forward=http://example.com/webmention
 Content-Type: application/xml
 
 <?xml version="1.0" ?>
@@ -177,7 +174,7 @@ Content-Type: application/xml
 </methodCall>
 ```
 
-#### The pingback.me server forwards this on to your site as a WebMention
+#### The webmention.io server forwards this on to your site as a WebMention
 
 ```
 POST http://example.com/webmention
