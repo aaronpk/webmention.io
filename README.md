@@ -128,7 +128,7 @@ Read the full protocol here: http://www.hixie.ch/specs/pingback/pingback
 
 [WebMention](http://webmention.org) is a modern alternative to Pingback. It's analogous to the Pingback protocol except does not use XML-RPC and is much easier to implement. This project also includes a simple API for converting XML-RPC Pingbacks to WebMentions and forwarding the request on to your own site.
 
-Using Pingback.me in this mode does not require an account, and this service does not store any of the information. The Pingback request is simply forwarded on to your server as a WebMention.
+Using Webmention.io in this mode does not require an account, and this service does not store any of the information. The Pingback request is simply forwarded on to your server as a WebMention.
 
 To use, add a Pingback header like the following:
 
@@ -195,7 +195,7 @@ Content-Type: application/json
 }
 ```
 
-#### Pingback.me converts this to a Pingback success reply and sends it back to the original blog
+#### Webmention.io converts this to a Pingback success reply and sends it back to the original blog
 
 ```
 HTTP/1.1 200 OK
