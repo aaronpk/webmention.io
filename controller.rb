@@ -86,7 +86,7 @@ class Controller < Sinatra::Base
   def api_response(format, code, data)
     if format == 'json'
       json_response(code, data)
-    elsif format == 'xml'
+    elsif format == 'atom'
       xml_response(code, data)
     end
   end
@@ -112,9 +112,10 @@ class Controller < Sinatra::Base
       }, string
   end
 
-  def xml_response(code, data)
-    xml = XmlSimple.xml_out(data, {'KeepRoot' => true})
-    halt code, xml
+  def xml_response(code, string)
+    halt code, {
+        'Content-Type' => 'application/atom+xml;charset=UTF-8'
+      }, string
   end
 
   def create_rpc_error(body)

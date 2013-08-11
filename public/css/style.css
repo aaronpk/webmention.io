@@ -30,6 +30,11 @@ body {
   padding: 0 10px;
 }
 
+.container-narrow {
+  margin: 0 auto;
+  max-width: 800px;
+}
+
 .navbar {
   position: relative;
 }

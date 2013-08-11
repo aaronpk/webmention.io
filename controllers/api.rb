@@ -1,6 +1,73 @@
 class Controller < Sinatra::Base
 
-  get %r{/api/links(:?\.(?<format>json|xml))?} do
+  get %r{/api/count(:?\.(?<format>json))?} do
+    format = params['format'] || 'json'
+
+    if params[:base].empty?
+      api_response format, 400, {
+        error: "invalid_input",
+        error_description: "Parameter \"base\" is required, example: http://example.com"
+      }
+    end
+
+    base = URI.parse params[:base]
+    if base.nil?
+      api_response format, 400, {
+        error: "invalid_input",
+        error_description: "Invalid parameter \"base\""
+      }
+    end
+
+    site = Site.first :domain => base.host
+    if site.nil?
+      api_response format, 404, {
+        error: "not_found",
+        error_description: "The site was not found"
+      }
+    end
+
+    if site.public_access == false
+      api_response format, 401, {
+        error: "forbidden",
+        error_description: "This site does not allow public access to its mentions"
+      }
+    end
+
+
+    if params[:targets].empty?
+      api_response format, 400, {
+        error: "invalid_input",
+        error_description: "Parameter \"target\" is required"
+      }
+    end
+
+    targets = Page.all :href => params[:targets].split(",").map{|t| "#{params[:base]}#{t}"}
+    if targets.nil?
+      api_response format, 404, {
+        error: "not_found",
+        error_description: "The specified link was not found"
+      }
+    end
+
+    puts targets.length
+
+    counts = {}
+    targets.each do |t|
+      links = t.links.count(:verified => true)
+      counts[t.href] = links
+    end
+
+    if format == 'json'
+      api_response format, 200, {
+        count: counts
+      }
+    else
+      atom_feed = {links: link_array}
+      api_response format, 200, atom_feed
+    end
+  end
+
+  get %r{/api/(links|mentions)(:?\.(?<format>json|atom))?} do
     format = params['format'] || 'json'
 
     if params[:perPage]
@@ -73,7 +140,8 @@ class Controller < Sinatra::Base
       obj = {
         source: link.href,
         verified: link.verified == true,
-        verified_date: link.updated_at
+        verified_date: link.updated_at,
+        id: link.id
       }
       if params[:target].empty?
         obj[:target] = link.page.href
@@ -86,8 +154,29 @@ class Controller < Sinatra::Base
         links: link_array
       }
     else
-      atom_feed = {links: link_array}
-      api_response format, 200, atom_feed
+      base_url = "http://webmention.io"
+      atom_url = "#{base_url}/api/mentions.atom"
+      feed = Atom::Feed.new{|f|
+        f.title = "Mentions"
+        f.links << Atom::Link.new(:href => atom_url)
+        f.updated = link_array.collect{|l| l[:verified_date]}.max
+        f.authors << Atom::Person.new(:name => "webmention.io")
+        f.id = atom_url
+        link_array.each do |link|
+          source = URI.parse link[:source]
+          target = URI.parse link[:target]
+          target.path = "/" if target.path == ""
+          f.entries << Atom::Entry.new do |entry|
+            entry.title = "#{source.host} linked to #{target.path}"
+            entry.id = "#{base_url}/api/mention/#{link[:id]}"
+            entry.updated = link[:verified_date]
+            entry.summary = "#{link[:source]} linked to #{link[:target]}"
+            entry.content = Atom::Content::Xhtml.new("<p><a href=\"#{link[:source]}\">#{link[:source]}</a> linked to <a href=\"#{link[:target]}\">#{link[:target]}</a></p>")
+          end
+        end
+      }
+
+      api_response format, 200, feed.to_xml
     end
   end
 

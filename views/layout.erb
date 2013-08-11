@@ -36,6 +36,7 @@
   </head>
   <body class="<%= browser.body_class %> <%= path_class %>">
 
+    <!--
     <div class="navbar navbar-fixed-top">
       <div class="navbar-inner">
         <div class="container">
@@ -47,12 +48,13 @@
           <a class="brand" href="/dashboard">Webmention.io</a>
           <div class="nav-collapse">
             <ul class="nav">
-              <li><a href="/dashboard">Dashboard</a></li>
+              <!- - <li><a href="/dashboard">Dashboard</a></li> - - >
             </ul>
-          </div><!--/.nav-collapse -->
+          </div>
         </div>
       </div>
     </div>
+    -->
 
     <%= yield %>
     <%= partial :'partials/_footer' %>

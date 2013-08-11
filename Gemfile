@@ -10,6 +10,7 @@ gem 'rake',                     :require => nil
 gem 'hashie'
 gem 'json'
 gem 'dalli'
+gem 'ratom', :require => 'atom'
 
 gem 'omniauth'
 gem 'omniauth-facebook'
