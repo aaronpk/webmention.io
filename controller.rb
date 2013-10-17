@@ -14,6 +14,8 @@ class Controller < Sinatra::Base
         require_login
       end
     end
+
+    @redis = Redis.new :host => SiteConfig.redis.host, :port => SiteConfig.redis.port
   end
 
   def require_login

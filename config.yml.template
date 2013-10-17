@@ -8,3 +8,6 @@ development:
   github:
     client_id: 
     client_secret: 
+  redis:
+    host: 127.0.0.1
+    port: 6379

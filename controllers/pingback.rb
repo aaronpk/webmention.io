@@ -115,7 +115,7 @@ class Controller < Sinatra::Base
     page = Page.first_or_create({:site => site, :href => target}, {:account => target_account})
     link = Link.first_or_create(:page => page, :href => source)
 
-    return 'already_registered' if link[:verified]
+    # return 'already_registered' if link[:verified]
 
     agent = Mechanize.new {|agent|
       agent.user_agent_alias = "Mac Safari"
@@ -160,6 +160,20 @@ class Controller < Sinatra::Base
         # ignore errors for jabber
       end
     end
+
+    parsed = {}
+
+    @redis.publish target, {
+        type: 'webmention',
+        element_id: "external_#{source.gsub(/[\/:\.]+/, '_')}",
+        author_photo: '',
+        author_url: '',
+        author_name: '',
+        content: '',
+        url: source,
+        published: '',
+        parsed: parsed
+      }.to_json
 
     return 'no_link_found' if !valid
 

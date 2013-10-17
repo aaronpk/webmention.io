@@ -2,7 +2,6 @@ Encoding.default_internal = 'UTF-8'
 require 'rubygems'
 require 'bundler/setup'
 require 'cgi'
-require 'openid/store/filesystem'
 require 'xmlrpc/marshal'
 
 Bundler.require
