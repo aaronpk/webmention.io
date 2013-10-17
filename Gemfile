@@ -13,13 +13,6 @@ gem 'dalli'
 gem 'ratom', :require => 'atom'
 
 gem 'omniauth'
-gem 'omniauth-facebook'
-gem 'omniauth-flickr'
-gem 'omniauth-geoloqi'
-gem 'omniauth-github'
-gem 'omniauth-google'
-gem 'omniauth-twitter'
-gem 'omniauth-openid'
 
 gem 'mechanize'
 gem 'pingback'
