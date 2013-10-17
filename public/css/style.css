@@ -119,6 +119,18 @@ hr {
   border-bottom: 1px solid white;
 }
 
+a.in-page-link {
+  margin-left: -18px;
+  margin-right: 2px;
+  font-size: 16px;
+  color: #ccc;
+  text-decoration: none;
+}
+
+a.in-page-link:hover {
+  color: #aaa;
+}
+
 /**
  * Code/Syntax Highlighting 
  */

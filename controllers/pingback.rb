@@ -164,19 +164,27 @@ class Controller < Sinatra::Base
       end
     end
 
-    parsed = {}
+    parsed = JSON.parse RestClient.get "#{SiteConfig.mf2_parser}?source=#{URI.encode_www_form_component source}"
+
+    link.html = scraper.body
+    link.author_name = parsed['author']['name']
+    link.author_url = parsed['author']['url']
+    link.author_photo = parsed['author']['photo']
+    link.name = parsed['name']
+    link.content = parsed['content']
+    link.published = DateTime.parse(parsed['published'])
+    link.published_ts = parsed['published_ts']
 
     if @redis
       @redis.publish "webmention.io::#{target}", {
         type: 'webmention',
         element_id: "external_#{source.gsub(/[\/:\.]+/, '_')}",
-        # author_photo: '',
-        # author_url: '',
-        # author_name: '',
-        # content: '',
+        author: parsed['author'],
+        name: parsed['name'],
+        content: parsed['content'],
         url: source,
-        # published: '',
-        # parsed: parsed
+        published: parsed['published'],
+        published_ts: parsed['published_ts']
       }.to_json
     end
 

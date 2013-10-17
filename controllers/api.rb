@@ -193,7 +193,19 @@ class Controller < Sinatra::Base
         source: link.href,
         verified: link.verified == true,
         verified_date: link.updated_at,
-        id: link.id
+        id: link.id,
+        data: {
+          author: {
+            name: link.author_name,
+            url: link.author_url,
+            photo: link.author_photo
+          },
+          name: link.name,
+          content: link.content,
+          published: link.published,
+          published_ts: link.published_ts,
+          url: link.href
+        }
       }
       if params[:target].empty?
         obj[:target] = link.page.href

@@ -20,7 +20,7 @@
   </div>
 
   <div style="background-color: #fff; padding: 10px 20px;">
-    <h2 id="use-it">Use it on your site</h2>
+    <h2 id="use-it"><a href="#use-it" class="in-page-link icon-link"></a>Use it on your site</h2>
 
     <p>Once you have a username, add the following tags to your HTML:</p>
 
@@ -34,7 +34,7 @@
 
 
   <div style="background-color: #fff; padding: 10px 20px; margin-top: 20px;">
-    <h2 id="forwarding">Forward pingbacks to webmentions</h2>
+    <h2 id="forwarding"><a href="#forwarding" class="in-page-link icon-link"></a>Forward pingbacks to webmentions</h2>
 
     <p>If you want to accept pingbacks but don't want to deal with the hassle of XMLRPC, you can use this service to forward pingbacks as webmentions to your server. You don't need an account for this to work.</p>
 
@@ -46,7 +46,7 @@
 
 
   <div style="background-color: #fff; padding: 10px 20px; margin-top: 20px;">
-    <h2 id="display-mention-counter">Display a mention counter</h2>
+    <h2 id="display-mention-counter"><a href="#display-mention-counter" class="in-page-link icon-link"></a>Display a mention counter</h2>
 
     <p>You can use the API from Javascript to display a mention count of one or more URLs</p>
 
@@ -81,7 +81,7 @@
 
 
   <div style="background-color: #fff; padding: 10px 20px; margin-top: 20px;">
-    <h2 id="show-all-mentions">Show all mentions</h2>
+    <h2 id="show-all-mentions"><a href="#show-all-mention" class="in-page-link icon-link"></a>Show all mentions</h2>
 
     <p>You can also use the API to show all mentions of a URL. This will work with jQuery or you can use the API directly from a server.</p>
 
@@ -98,9 +98,22 @@
     <p><pre><code>{
   "links": [
     {
-      "source": "http://tantek.com/2013/113/b1/first-federated-indieweb-comment-thread",
+      "source": "http://tantek.com/2013/112/t2/milestone-show-indieweb-comments-h-entry-pingback",
       "verified": true,
-      "verified_date": "2013-04-25T17:09:33-07:00"
+      "verified_date": "2013-04-25T17:09:33-07:00",
+      "id": 900,
+      "data": {
+        "author": {
+          "name": "Tantek Çelik",
+          "url": "http://tantek.com/",
+          "photo": "http://tantek.com/logo.jpg"
+        },
+        "name": "Another milestone: @eschnou automatically shows #indieweb comments with h-entry sent via pingback http://eschnou.com/entry/testing-indieweb-federation-with-waterpigscouk-aaronpareckicom-and--62-24908.html",
+        "content": "Another milestone: &lt;a class=\"auto-link h-x-username\" href=\"https:\/\/twitter.com\/eschnou\">@eschnou&lt;\/a> automatically shows #indieweb comments with h-entry sent via pingback &lt;a class=\"auto-link\" href=\"http:\/\/eschnou.com\/entry\/testing-indieweb-federation-with-waterpigscouk-aaronpareckicom-and--62-24908.html\">http:\/\/eschnou.com\/entry\/testing-indieweb-federation-with-waterpigscouk-aaronpareckicom-and--62-24908.html&lt;\/a>",
+        "published": "2013-04-22T15:03:00-07:00",
+        "published_ts": 1366668180,
+        "url": "http://tantek.com/2013/112/t2/milestone-show-indieweb-comments-h-entry-pingback"
+      }
     }
   ]
 }</code></pre></p>
@@ -108,8 +121,46 @@
 
 
 
+  <div style="background-color: #fff; padding: 10px 20px; margin-top: 20px;">
+    <h2 id="streaming-api"><a href="#streaming-api" class="in-page-link icon-link"></a>Streaming API</h2>
+
+    <p>You can use the Websockets API to receive comments on specific URLs in realtime!</p>
+
+    <p>Below is sample code for connecting to the Websockets API and rendering inline comments in real time on a specific post.</p>
+
+    <p><pre><code>&lt;script&gt;
+var commentContainerSelector = '#comments ul';
+ 
+if($(commentContainerSelector).length > 0 && "WebSocket" in window) {
+  var ws = new WebSocket("ws://webmention.io:8080");
+  ws.onopen = function(event) {
+    // Send the current window URL to the server to register to receive notifications about this URL
+    ws.send(window.location);
+  };
+  ws.onmessage = function(event) {
+    var data = JSON.parse(event.data);
+
+    if(data && data.type == "webmention") {
+      // Create a simple &lt;li&gt; element with the information from the post.
+      // Probably you will want to change the HTML generated here.
+      var comment = $('&lt;li/>').html('&lt;a href="'+data.author.url+'">&lt;img src="'+data.author.photo+'" width="48">&lt;/a> &lt;a href="'+data.author.url+'">'+data.author.name+'&lt;/a>&lt;br />'+data.content+'&lt;br />&lt;a href="'+data.url+'">'+data.published+'&lt;/a>');
+
+      // Check if we've already added a comment for this ID, and update the existing one if so
+      if($("#"+data.element_id).length == 0) {
+        $(commentContainerSelector).append(comment);
+      } else {
+        $("#"+data.element_id+" li").html(comment);
+      }
+    }
+  };
+}
+&gt;/script&gt;</code></pre></p>
+
+  </div>
+
+
   <div style="background-color: #fff; padding: 10px 20px;">
-    <h2 id="more">More Information</h2>
+    <h2 id="more"><a href="#more" class="in-page-link icon-link"></a>More Information</h2>
 
     <p>You can read more information in <a href="https://github.com/aaronpk/webmention.io">the project's README</a> file.</p>
   </div>

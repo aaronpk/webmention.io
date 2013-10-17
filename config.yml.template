@@ -11,3 +11,4 @@ development:
   redis:
     host: 127.0.0.1
     port: 6379
+  mf2_parser: "http://news.indiewebcamp.com/parse"
