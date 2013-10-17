@@ -127,6 +127,9 @@ class Controller < Sinatra::Base
     end
 
     valid = scraper.link_with(:href => target) != nil
+
+    return 'no_link_found' if !valid
+
     message = "[mention] #{source} linked to #{target} (#{protocol})"
 
     if !site.account.zenircbot_uri.empty? and !site.irc_channel.empty? and valid
@@ -163,19 +166,19 @@ class Controller < Sinatra::Base
 
     parsed = {}
 
-    @redis.publish target, {
+    if @redis
+      @redis.publish "webmention.io::#{target}", {
         type: 'webmention',
         element_id: "external_#{source.gsub(/[\/:\.]+/, '_')}",
-        author_photo: '',
-        author_url: '',
-        author_name: '',
-        content: '',
+        # author_photo: '',
+        # author_url: '',
+        # author_name: '',
+        # content: '',
         url: source,
-        published: '',
-        parsed: parsed
+        # published: '',
+        # parsed: parsed
       }.to_json
-
-    return 'no_link_found' if !valid
+    end
 
     link.verified = true
     link.save

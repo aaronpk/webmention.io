@@ -1,0 +1,9 @@
+{
+  "name": "p3k",
+  "version": "0.1.0",
+  "main": "server.js",
+  "dependencies": {
+    "redis": "~0.8.5",
+    "ws": "~0.4.31"
+  }
+}
