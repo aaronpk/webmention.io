@@ -19,7 +19,11 @@ class Controller < Sinatra::Base
     if !xml.valid_encoding?
       rpc_error 400, 0, "Invalid string encoding"
     end
-    method, arguments = XMLRPC::Marshal.load_call(xml)
+    begin
+      method, arguments = XMLRPC::Marshal.load_call(xml)
+    rescue
+      rpc_error 400, 0, "Invalid request" 
+    end
 
     if method != "pingback.ping"
       rpc_error 404, 0, "Method not found"
