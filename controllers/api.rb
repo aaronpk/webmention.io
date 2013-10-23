@@ -195,21 +195,23 @@ class Controller < Sinatra::Base
         verified_date: link.updated_at,
         id: link.id,
         data: {
-          author: {
-            name: link.author_name,
-            url: link.author_url,
-            photo: link.author_photo
-          },
-          name: link.name,
-          content: link.content,
-          published: link.published,
-          published_ts: link.published_ts,
           url: link.href
         }
       }
-      if params[:target].empty?
-        obj[:target] = link.page.href
+      if link.author_name || link.author_url || link.author_photo
+        obj[:data][:author] = {}
+        obj[:data][:author][:name] = link.author_name if link.author_name
+        obj[:data][:author][:url] = link.author_url if link.author_url
+        obj[:data][:author][:photo] = link.author_photo if link.author_photo
       end
+
+      obj[:data][:name] = link.name if link.name
+      obj[:data][:content] = link.content if link.content
+      obj[:data][:published] = link.published if link.published
+      obj[:data][:published_ts] = link.published_ts if link.published_ts
+
+      obj[:target] = link.page.href unless params[:target].empty?
+      
       link_array << obj
     end
 
