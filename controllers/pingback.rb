@@ -23,7 +23,7 @@ class Controller < Sinatra::Base
       puts "INTERNAL SERVER ERROR"
       puts e.inspect
       json_response 500, {
-        :error => 'Internal Server Error',
+        :error => 'internal_server_error',
         :error_description => e.message
       }
     end
@@ -92,10 +92,7 @@ class Controller < Sinatra::Base
         puts "!!!!!!!!!!!!!!!!!!!!!"
         puts "INTERNAL SERVER ERROR"
         puts e.inspect
-        json_response 500, {
-          :error => 'Internal Server Error',
-          :error_description => e.message
-        }
+        rpc_error 500, 0, "Internal Server Error: #{e.message}"
       end
 
       case result
