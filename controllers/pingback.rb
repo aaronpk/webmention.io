@@ -16,7 +16,17 @@ class Controller < Sinatra::Base
 
     puts "RECEIVED WEBMENTION REQUEST"
 
-    result = process_mention(username, params[:source], params[:target], 'webmention')
+    begin
+      result = process_mention(username, params[:source], params[:target], 'webmention')
+    rescue => e
+      puts "!!!!!!!!!!!!!!!!!!!!!"
+      puts "INTERNAL SERVER ERROR"
+      puts e.inspect
+      json_response 500, {
+        :error => 'Internal Server Error',
+        :error_description => e.message
+      }
+    end
 
     case result
     when 'success'
@@ -75,7 +85,18 @@ class Controller < Sinatra::Base
     if method == 'pingback_ping'
       content_type("text/xml", :charset => "utf-8")
       source, target = arguments
-      result = process_mention(username, source, target, 'pingback')
+
+      begin
+        result = process_mention(username, source, target, 'pingback')
+      rescue => e
+        puts "!!!!!!!!!!!!!!!!!!!!!"
+        puts "INTERNAL SERVER ERROR"
+        puts e.inspect
+        json_response 500, {
+          :error => 'Internal Server Error',
+          :error_description => e.message
+        }
+      end
 
       case result
       when 'success'
@@ -164,18 +185,24 @@ class Controller < Sinatra::Base
       end
     end
 
-    parsed = JSON.parse RestClient.get "#{SiteConfig.mf2_parser}?source=#{URI.encode_www_form_component source}"
+    parsed = false
+    begin
+      parsed = JSON.parse RestClient.get "#{SiteConfig.mf2_parser}?source=#{URI.encode_www_form_component source}"
 
-    link.html = scraper.body
-    link.author_name = parsed['author']['name']
-    link.author_url = parsed['author']['url']
-    link.author_photo = parsed['author']['photo']
-    link.name = parsed['name']
-    link.content = parsed['content']
-    link.published = DateTime.parse(parsed['published'])
-    link.published_ts = parsed['published_ts']
+      link.html = scraper.body
+      link.author_name = parsed['author']['name']
+      link.author_url = parsed['author']['url']
+      link.author_photo = parsed['author']['photo']
+      link.name = parsed['name']
+      link.content = parsed['content']
+      link.published = DateTime.parse(parsed['published'])
+      link.published_ts = parsed['published_ts']
+    rescue
+      # Ignore errors trying to parse for upgraded microformats
+    end
 
-    if @redis
+    # Publish on Redis for realtime comments
+    if @redis && parsed
       @redis.publish "webmention.io::#{target}", {
         type: 'webmention',
         element_id: "external_#{source.gsub(/[\/:\.]+/, '_')}",
