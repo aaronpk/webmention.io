@@ -193,7 +193,7 @@ class Controller < Sinatra::Base
     begin
       parsed = JSON.parse RestClient.get "#{SiteConfig.mf2_parser}?source=#{URI.encode_www_form_component source}"
 
-      link.html = scraper.body
+      #link.html = scraper.body
       link.author_name = parsed['author']['name']
       link.author_url = parsed['author']['url']
       link.author_photo = parsed['author']['photo']
