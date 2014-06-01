@@ -66,11 +66,12 @@ class Controller < Sinatra::Base
 
     puts "RECEIVED PINGBACK REQUEST"
     utf8 = request.body.read.force_encoding "UTF-8"
-    puts utf8
+    # puts utf8
 
     if utf8.valid_encoding?
       xml = utf8
     else
+      pust "Invalid string encoding"
       rpc_error 400, 0, "Invalid string encoding"
     end
     begin
