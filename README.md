@@ -1,13 +1,13 @@
 # Webmention.io
 
-This project is an implementation of the [WebMention](http://indiewebcamp.com/webmention) and [Pingback](http://indiewebcamp.com/pingback) protocols. It allows the receiving service to be run separately from the blogging software or website environment, making it easier to manage and integrate with other services.
+This project is an implementation of the [Webmention](http://indiewebcamp.com/webmention) and [Pingback](http://indiewebcamp.com/pingback) protocols. It allows the receiving service to be run separately from the blogging software or website environment, making it easier to manage and integrate with other services.
 
 Say you have a statically-generated website using Jekyll or something similar, you can simply add the appropriate <link> tags to this service, and now you have WebMention and Pingback enabled on your static site!
 
     <link rel="pingback" href="http://webmention.io/username/xmlrpc" />
     <link rel="http://webmention.org/" href="http://webmention.io/username/webmention" />
 
-The WebMention and Pingback protocols also support specifying the endpoint in the headers,
+The Webmention and Pingback protocols also support specifying the endpoint in the headers,
 
     Link: <http://webmention.io/username/webmention>; rel="http://webmention.org/"
     X-Pingback: http://webmention.io/username/xmlrpc
@@ -15,10 +15,10 @@ The WebMention and Pingback protocols also support specifying the endpoint in th
 
 ## Features
 
-* Accept WebMentions for any site by adding a simple html tag: `<link rel="http://webmention.org/" href="http://webmention.io/username/webmention" />`
+* Accept Webmentions for any site by adding a simple html tag: `<link rel="http://webmention.org/" href="http://webmention.io/username/webmention" />`
 * Accept Pingbacks for any site by adding a simple html tag: `<link rel="pingback" href="http://webmention.io/username/xmlrpc" />`
 * API to get a list of pages linking to your site or a specific page
-* If you want to receive Pingbacks on your site but don't want to deal with XMLRPC, then you can use this service to convert Pingbacks to WebMentions
+* If you want to receive Pingbacks on your site but don't want to deal with XMLRPC, then you can use this service to convert Pingbacks to Webmentions
 
 
 ### Future Features
@@ -103,7 +103,7 @@ The API also supports JSONP so you can use it to show pingbacks on your own site
 
 ### IRC
 
-If you are running an instance of [ZenIRCBot](https://github.com/wraithan/zenircbot), you can use it to receive IRC notifications when a new pingback is received. You'll need to be running the [web-proxy](https://github.com/aaronpk/zenircbot/blob/master/services/web-proxy.js) service, and then you can configure the URL and channel the message should be delivered to.
+If you are running an instance of [ZenIRCBot](https://github.com/wraithan/zenircbot), you can use it to receive IRC notifications when a new webmention or pingback is received. You'll need to be running the [web-proxy](https://github.com/aaronpk/zenircbot/blob/master/services/web-proxy.js) service, and then you can configure the URL and channel the message should be delivered to.
 
 ### Jabber
 
@@ -124,17 +124,17 @@ Read the full protocol here: http://www.hixie.ch/specs/pingback/pingback
 
 
 
-## Pingback to WebMention Service
+## Pingback to Webmention Service
 
-[WebMention](http://webmention.org) is a modern alternative to Pingback. It's analogous to the Pingback protocol except does not use XML-RPC and is much easier to implement. This project also includes a simple API for converting XML-RPC Pingbacks to WebMentions and forwarding the request on to your own site.
+[Webmention](http://webmention.org) is a modern alternative to Pingback. It's analogous to the Pingback protocol except does not use XML-RPC and is much easier to implement. This project also includes a simple API for converting XML-RPC Pingbacks to WebMentions and forwarding the request on to your own site.
 
-Using Webmention.io in this mode does not require an account, and this service does not store any of the information. The Pingback request is simply forwarded on to your server as a WebMention.
+Using Webmention.io in this mode does not require an registration, and this service does not store any of the information. The Pingback request is simply forwarded on to your server as a Webmention.
 
 To use, add a Pingback header like the following:
 
     <link rel="pingback" href="http://webmention.io/webmention?forward=http://example.com/webmention" />
 
-Any Pingbacks received will be forwarded on to the specified WebMention endpoint. It is up to you to handle the WebMention and return an expected result. The WebMention result will be converted to a Pingback result and passed back to the sender.
+Any Pingbacks received will be forwarded on to the specified Webmention endpoint. It is up to you to handle the Webmention and return an expected result. The Webmention result will be converted to a Pingback result and passed back to the sender.
 
 ### Full Example
 
@@ -174,7 +174,7 @@ Content-Type: application/xml
 </methodCall>
 ```
 
-#### The webmention.io server forwards this on to your site as a WebMention
+#### The webmention.io server forwards this on to your site as a Webmention
 
 ```
 POST http://example.com/webmention
@@ -184,14 +184,14 @@ source=http://aaronparecki.com/notes/2013/02/16/1/little-printer&
 target=http://example.com/post/1000
 ```
 
-#### Your server replies with a WebMention response indicating success
+#### Your server replies with a Webmention response indicating success
 
 ```
 HTTP/1.1 202 Accepted
 Content-Type: application/json
 
 {
-  "result": "WebMention was successful"
+  "result": "Webmention was successful"
 }
 ```
 
@@ -215,7 +215,7 @@ Content-Type: application/xml
 
 #### Errors
 
-WebMention errors are converted to Pingback errors as well! For example,
+Webmention errors are converted to Pingback errors as well! For example,
 
 ```
 {
@@ -247,7 +247,7 @@ Is converted to:
 </methodResponse>
 ```
 
-You can start using this right now to quickly handle Pingbacks as WebMentions on your own domain. This is a way to bootstrap the WebMention protocol until more services adopt it.
+You can start using this right now to quickly handle Pingbacks as Webmentions on your own domain. This is a way to bootstrap the Webmention protocol until more services adopt it.
 
 
 ## License
