@@ -38,6 +38,11 @@ class Controller < Sinatra::Base
         :error => result,
         :error_description => 'The source URI does not exist'
       }
+    when 'invalid_target'
+      json_response 400, {
+        :error => result,
+        :error_description => 'The target is not a valid URI'
+      }
     when 'target_not_found'
       json_response 400, {
         :error => result,
@@ -101,6 +106,8 @@ class Controller < Sinatra::Base
         rpc_respond 200, "Pingback from #{source} to #{target} was successful! Keep the web talking!"
       when 'source_not_found'
         rpc_error 200, 0x0010, "The source URI does not exist"
+      when 'invalid_target'
+        rpc_error 200, 0x0021, "The target is not a valid URI"
       when 'target_not_found'
         rpc_error 200, 0x0020, "The target URI does not exist"
       when 'target_not_supported'
@@ -126,7 +133,7 @@ class Controller < Sinatra::Base
     begin
       target_domain = URI.parse(target).host 
     rescue
-      return 'target_not_found' if target_domain.nil?
+      return 'invalid_target' if target_domain.nil?
     end
     return 'target_not_found' if target_domain.nil?
 
