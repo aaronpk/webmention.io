@@ -6,7 +6,7 @@ class Site
 
   belongs_to :account
   has n, :pages
-  property :public_access, Boolean, :default => false
+  property :public_access, Boolean, :default => true
   property :irc_channel, String, :length => 255
   property :xmpp_notify, Boolean, :default => false
 

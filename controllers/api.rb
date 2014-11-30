@@ -220,7 +220,7 @@ class Controller < Sinatra::Base
         links: link_array
       }
     else
-      base_url = "http://webmention.io"
+      base_url = "https://webmention.io"
       atom_url = "#{base_url}/api/mentions.atom"
       feed = Atom::Feed.new{|f|
         f.title = "Mentions"

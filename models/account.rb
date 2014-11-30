@@ -3,6 +3,7 @@ class Account
   property :id, Serial
 
   property :username, String, :length => 255
+  property :domain, String, :length => 255
   property :email, String, :length => 255
   property :xmpp_to, String, :length => 255
   property :xmpp_user, String, :length => 255
@@ -15,5 +16,6 @@ class Account
 
   property :created_at, DateTime
   property :updated_at, DateTime
+  property :last_login, DateTime
 
 end

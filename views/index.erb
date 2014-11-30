@@ -8,15 +8,15 @@
 
     <h1>Webmention.io</h1>
     <p>
-      Webmention.io is a hosted service created to easily handle webmentions (and legacy pingbacks) on any web page. Currently it is not open for signups, but you can <a href="https://github.com/aaronpk/webmention.io">download the source code</a> and run it on your own server.
+      Webmention.io is a hosted service created to easily handle webmentions (and legacy pingbacks) on any web page.
     </p>
     <p>
-      You might also be interested in reading about this project on the <a href="http://indiewebcamp.com/webmention.io">IndieWebCamp wiki</a>.
+      You might also be interested in reading about this project<br>on the <a href="http://indiewebcamp.com/webmention.io">IndieWebCamp wiki</a>.
     </p>
 
-      <!-- <a class="btn btn-primary btn-large" href="/auth/github">
-        Log in with Github
-      </a> -->
+    <a class="btn btn-primary btn-large" href="/auth/indieauth">
+      Sign in with IndieAuth
+    </a>
   </div>
 
   <div style="background-color: #fff; padding: 10px 20px;">
@@ -24,8 +24,8 @@
 
     <p>Once you have a username, add the following tags to your HTML:</p>
 
-    <p><pre><code>    &lt;link rel="pingback" href="http://webmention.io/username/xmlrpc" /&gt;
-    &lt;link rel="webmention" href="http://webmention.io/username/webmention" /&gt;
+    <p><pre><code>    &lt;link rel="pingback" href="https://webmention.io/username/xmlrpc" /&gt;
+    &lt;link rel="webmention" href="https://webmention.io/username/webmention" /&gt;
 </code></pre></p>
 
     <p>The system will begin collecting webmentions and pingbacks on your behalf.</p>
@@ -38,7 +38,7 @@
 
     <p>If you want to accept pingbacks but don't want to deal with the hassle of XMLRPC, you can use this service to forward pingbacks as webmentions to your server. You don't need an account for this to work.</p>
 
-    <p><pre><code>&lt;link rel="pingback" href="http://webmention.io/webmention?forward=http://example.com/endpoint" /&gt;</code></pre></p>
+    <p><pre><code>&lt;link rel="pingback" href="https://webmention.io/webmention?forward=http://example.com/endpoint" /&gt;</code></pre></p>
 
     <p>For further details and an example, please refer to the <a href="https://github.com/aaronpk/webmention.io#pingback-to-webmention-service">README</a>.</p>
   </div>

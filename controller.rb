@@ -9,7 +9,7 @@ class Controller < Sinatra::Base
     if request.path.match /[a-zA-Z0-9_\.]\/(xmlrpc|webmention)/ or request.path.match /^\/api\// or request.path.match /^\/webmention/
       # No login required for /xmlrpc routes
     else
-      if !["/", "/auth/github", "/auth/github/callback"].include? request.path
+      if !["/", "/auth/indieauth", "/auth/indieauth/callback"].include? request.path
         puts request.body.read
         require_login
       end
@@ -24,7 +24,7 @@ class Controller < Sinatra::Base
       redirect "/"
     end
 
-    @user = User.get session[:user_id]
+    @user = Account.get session[:user_id]
     if @user.nil?
       puts "No user found. Redirecting."
       redirect "/"
@@ -42,26 +42,6 @@ class Controller < Sinatra::Base
   end
 
   # Authentication
-
-  get '/auth/github/callback' do
-    auth = request.env["omniauth.auth"]
-    user = User.first :username => auth["info"]["nickname"]
-    if user.nil?
-      puts "Unauthorized github login"
-      title "Unauthorized"
-      @message = "Sorry, you are not authorized to log in"
-      erb :error
-    else
-      user.last_login_date = Time.now
-      if user.email == '' && auth["info"]["email"]
-        user.email = auth["info"]["email"]
-      end
-      user.save
-      session[:user_id] = user[:id]
-      puts "User successfully logged in"
-      redirect "/dashboard/"
-    end
-  end
 
   get '/auth/failure' do
     @message = "The authentication provider replied with an error: #{params['message']}"

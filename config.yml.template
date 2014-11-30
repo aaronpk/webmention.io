@@ -1,13 +1,8 @@
 development:
-  database_url: "mysql://root@127.0.0.1/pingback"
+  database_url: "mysql://webmention:webmention@127.0.0.1/webmention"
   session_secret: SUPERSECRET
   ga_id: 
-  geoloqi:
-    api_key: 
-    api_secret: 
-  github:
-    client_id: 
-    client_secret: 
+  base_url: "https://webmention.io"
   redis:
     host: 127.0.0.1
     port: 6379

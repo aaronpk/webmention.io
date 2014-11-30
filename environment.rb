@@ -42,7 +42,7 @@ class Controller < Sinatra::Base
     set :protection, :except => [:frame_options, :json_csrf]
 
     use OmniAuth::Builder do
-      use OmniAuth::Strategies::GitHub, SiteConfig.github.client_id, SiteConfig.github.client_secret
+      provider :indieauth, :client_id => SiteConfig.base_url
     end
 
     DataMapper.finalize

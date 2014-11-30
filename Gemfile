@@ -13,13 +13,13 @@ gem 'dalli'
 gem 'ratom', :require => 'atom'
 
 gem 'omniauth'
-gem 'omniauth-github'
+gem 'omniauth-indieauth'
 
 gem 'mechanize'
-gem 'pingback'
-gem 'xml-simple', :require => 'xmlsimple'
+#gem 'pingback'
+#gem 'xml-simple', :require => 'xmlsimple'
 gem 'rest-client'
-gem 'xmpp4r', :require => 'xmpp4r/client'
+#gem 'xmpp4r', :require => 'xmpp4r/client'
 gem 'redis'
 
 gem 'microformats2'
