@@ -250,9 +250,34 @@ Is converted to:
 You can start using this right now to quickly handle Pingbacks as Webmentions on your own domain. This is a way to bootstrap the Webmention protocol until more services adopt it.
 
 
+## Development
+
+Run these commands to set up your environment and start the server locally:
+
+```shell
+bundle install
+cp config.yml.template config.yml
+mysql -u root -e 'CREATE USER webmention@localhost IDENTIFIED BY "webmention"; CREATE DATABASE webmention; GRANT ALL ON webmention.* TO webmention@localhost; FLUSH PRIVILEGES;'
+export RACK_ENV=development
+bundle exec rake db:bootstrap
+./start.sh
+```
+
+Now open http://localhost:9019/ and check that you see the front page. You can also run `bundle exec rake test:sample1` to send a test pingback.
+
+
+### Troubleshooting
+
+When you open the front page, if you see an error that includes _Library not loaded: libmysqlclient.18.dylib_, your MySQL shared libraries may not be installed at a standard location, e.g. if you installed MySQL via Homebrew. Try `DYLD_LIBRARY_PATH=/usr/local/mysql/lib ./start.sh` (or wherever your MySQL libraries are located).
+
+If `rake db:bootstrap` complains _TypeError: no implicit conversion from nil to integer_, you may be hitting [this Ruby 2.0.0 bug/incompatibility](http://stackoverflow.com/a/25101398/186123). Try upgrading to Ruby 2.1.x.
+
+After that, if `bundle exec rake ...` complains _Could not find rake-10.4.0 in any of the sources_, and you run `bundle install` and `bundle check` and they're both happy, and both `vendor/bundle/ruby/2.0.0/gems/rake-10.4.0/` and `vendor/bundle/ruby/2.0.0/2.1.5/gems/rake-10.4.0/` exist, and you try moving the `2.1.5` dir up parallel to `2.0.0` inside `ruby/` and none of that works...I dunno. That's where I am right now. Whee!
+
+
 ## License
 
-Copyright 2013 by Aaron Parecki. 
+Copyright 2013 by Aaron Parecki.
 
 Available under the BSD License. See LICENSE.txt
 
