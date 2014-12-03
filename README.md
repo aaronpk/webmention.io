@@ -250,9 +250,39 @@ Is converted to:
 You can start using this right now to quickly handle Pingbacks as Webmentions on your own domain. This is a way to bootstrap the Webmention protocol until more services adopt it.
 
 
+## Development
+
+Run these commands to set up your environment and start the server locally:
+
+```shell
+bundle install
+cp config.yml.template config.yml
+mysql -u root -e 'CREATE USER webmention@localhost IDENTIFIED BY "webmention"; CREATE DATABASE webmention; GRANT ALL ON webmention.* TO webmention@localhost; FLUSH PRIVILEGES;'
+export RACK_ENV=development
+bundle exec rake db:bootstrap
+./start.sh
+```
+
+Now open http://localhost:9019/ and check that you see the front page. You can also run `bundle exec rake test:sample1` to send a test pingback.
+
+
+### Troubleshooting
+
+First, check your Ruby version. 2.0.0 _does not_ work; details below. Try 1.9.3, 2.1.3, or 2.1.5 instead, they all work. [Homebrew](http://brew.sh/), [chruby](https://github.com/postmodern/chruby), and [ruby-install](https://github.com/postmodern/ruby-install) (among others) may help you install and run a specific version, or more than one side by side.
+
+When you open the front page, if you see an error that includes _Library not loaded: libmysqlclient.18.dylib_, your MySQL shared libraries may not be installed at a standard location, e.g. if you installed MySQL via Homebrew. Try `DYLD_LIBRARY_PATH=/usr/local/mysql/lib ./start.sh` (or wherever your MySQL libraries are located).
+
+#### Ruby 2.0.0 woes
+If `rake db:bootstrap` raises an _TypeError: no implicit conversion from nil to integer_ exception in `quoting.rb`, you've hit [this Ruby 2.0.0 bug/incompatibility](http://stackoverflow.com/a/25101398/186123). Use a different Ruby version.
+
+If `rake db:bootstrap` hangs while attempting to create the `links` table , Ruby 2.0.0 strikes again! Use a different version. (You won't see progress details per table by default; it'll just hang.)
+
+If `bundle exec rake ...` complains _Could not find rake-10.4.0 in any of the sources_, and you run `bundle install` and `bundle check` and they're both happy, and `vendor/bundle/ruby/2.0.0/gems/rake-10.4.0/` exists...Ruby 2.0.0 strikes again. (Maybe?) Use a different version.
+
+
 ## License
 
-Copyright 2013 by Aaron Parecki. 
+Copyright 2013 by Aaron Parecki.
 
 Available under the BSD License. See LICENSE.txt
 
