@@ -22,6 +22,8 @@ class Controller < Sinatra::Base
       puts "!!!!!!!!!!!!!!!!!!!!!"
       puts "INTERNAL SERVER ERROR"
       puts e.inspect
+      # uncomment for console backtraces
+      # puts e.backtrace
       json_response 500, {
         :error => 'internal_server_error',
         :error_description => e.message
