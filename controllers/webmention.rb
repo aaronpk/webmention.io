@@ -22,6 +22,7 @@ class Controller < Sinatra::Base
       puts "!!!!!!!!!!!!!!!!!!!!!"
       puts "INTERNAL SERVER ERROR"
       puts e.inspect
+      puts e.backtrace
       json_response 500, {
         :error => 'internal_server_error',
         :error_description => e.message
@@ -31,7 +32,7 @@ class Controller < Sinatra::Base
     case result
     when 'success'
       json_response 202, {
-        :result => 'WebMention was successful'
+        :result => 'Webmention was successful'
       }
     when 'source_not_found'
       json_response 400, {
@@ -51,7 +52,7 @@ class Controller < Sinatra::Base
     when 'target_not_supported'
       json_response 400, {
         :error => result,
-        :error_description => 'The specified target URI is not a WebMention-enabled resource'
+        :error_description => 'The specified target URI is not a Webmention-enabled resource'
       }
     when 'no_link_found'
       json_response 400, {
@@ -61,7 +62,7 @@ class Controller < Sinatra::Base
     when 'already_registered'
       json_response 400, {
         :error => result,
-        :error_description => 'The specified WebMention has already been registered'
+        :error_description => 'The specified Webmention has already been registered'
       }
     end
   end
@@ -156,6 +157,62 @@ class Controller < Sinatra::Base
 
     return 'no_link_found' if !valid
 
+
+    # Parse for microformats and look for "like", "invite", "rsvp", or other post types
+
+    author_name = ''
+    author_url = ''
+    author_photo = ''
+    post_name = ''
+    post_content = ''
+    post_published = ''
+    post_published_ts = ''
+
+    parsed = false
+    begin
+      message = "[mention] #{source} linked to #{target} (#{protocol})"
+
+      parsed = Microformats2.parse source
+
+      if parsed && parsed.entry
+        entry = parsed.entry
+
+        if entry.author
+          author_name = entry.author.format.name.to_s
+          author_url = entry.author.format.url.to_s
+          author_photo = entry.author.format.photo.to_s
+        end
+
+        if entry.name
+          post_name = entry.name.to_s
+        end
+
+        if entry.content
+          post_content = entry.content.to_s
+        end
+
+        if entry.published
+          post_published = DateTime.parse(entry.published.to_s)
+          post_published_ts = DateTime.parse(entry.published.to_s).to_time.to_i
+        end
+
+      end
+
+      #link.html = scraper.body
+      link.author_name = author_name
+      link.author_url = author_url
+      link.author_photo = author_photo
+      link.name = post_name
+      link.content = post_content
+      link.published = DateTime.parse(post_published)
+      link.published_ts = post_published_ts
+    rescue => e
+      # Ignore errors trying to parse for upgraded microformats
+      puts "Error while parsing microformats #{e.message}"
+      message = "[mention] #{source} linked to #{target} (#{protocol})"
+    end
+
+
     # Only send notifications about new webmentions
     if !already_registered
       message = "[mention] #{source} linked to #{target} (#{protocol})"
@@ -194,36 +251,24 @@ class Controller < Sinatra::Base
       end
 
     else
-      puts "Already sent notification"
+      puts "Already sent notification: #{message}"
     end # notification
-
-    parsed = false
-    begin
-      parsed = JSON.parse RestClient.get "#{SiteConfig.mf2_parser}?source=#{URI.encode_www_form_component source}"
-
-      #link.html = scraper.body
-      link.author_name = parsed['author']['name']
-      link.author_url = parsed['author']['url']
-      link.author_photo = parsed['author']['photo']
-      link.name = parsed['name']
-      link.content = parsed['content']
-      link.published = DateTime.parse(parsed['published'])
-      link.published_ts = parsed['published_ts']
-    rescue
-      # Ignore errors trying to parse for upgraded microformats
-    end
 
     # Publish on Redis for realtime comments
     if @redis && parsed
       @redis.publish "webmention.io::#{target}", {
         type: 'webmention',
         element_id: "external_#{source.gsub(/[\/:\.]+/, '_')}",
-        author: parsed['author'],
-        name: parsed['name'],
-        content: parsed['content'],
+        author: {
+          name: author_name,
+          url: author_url,
+          photo: author_photo
+        },
+        name: post_name,
+        content: post_content,
         url: source,
-        published: parsed['published'],
-        published_ts: parsed['published_ts']
+        published: post_published,
+        published_ts: post_published_ts
       }.to_json
     end
 
