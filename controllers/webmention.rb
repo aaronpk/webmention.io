@@ -204,11 +204,12 @@ class Controller < Sinatra::Base
       link.author_photo = author_photo
       link.name = post_name
       link.content = post_content
-      link.published = DateTime.parse(post_published)
+      link.published = post_published
       link.published_ts = post_published_ts
     rescue => e
       # Ignore errors trying to parse for upgraded microformats
       puts "Error while parsing microformats #{e.message}"
+      puts e.backtrace
       message = "[mention] #{source} linked to #{target} (#{protocol})"
     end
 
