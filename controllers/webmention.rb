@@ -188,7 +188,8 @@ class Controller < Sinatra::Base
         end
 
         if entry.content
-          post_content = entry.content.to_s
+          post_content = Sanitize.fragment(entry.content.to_s, Sanitize::Config::BASIC)
+          #post_content = entry.content.to_s
         end
 
         if entry.published

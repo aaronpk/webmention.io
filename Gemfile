@@ -23,6 +23,7 @@ gem 'rest-client'
 gem 'redis'
 
 gem 'microformats2'
+gem 'sanitize', '~>3.0.3'
 
 gem 'mysql2',          '0.3.7'
 gem 'dm-core'

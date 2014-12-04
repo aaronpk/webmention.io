@@ -9,6 +9,7 @@ GEM
       tzinfo (~> 1.1)
     addressable (2.3.6)
     backports (3.6.4)
+    crass (0.2.1)
     daemons (1.1.9)
     dalli (2.7.2)
     data_objects (0.10.14)
@@ -69,6 +70,8 @@ GEM
     netrc (0.8.0)
     nokogiri (1.6.5)
       mini_portile (~> 0.6.0)
+    nokogumbo (1.1.12)
+      nokogiri
     ntlm-http (0.1.1)
     omniauth (1.2.2)
       hashie (>= 1.2, < 4)
@@ -94,6 +97,10 @@ GEM
     rest-client (1.7.2)
       mime-types (>= 1.16, < 3.0)
       netrc (~> 0.7)
+    sanitize (3.0.3)
+      crass (~> 0.2.0)
+      nokogiri (>= 1.4.4)
+      nokogumbo (= 1.1.12)
     shotgun (0.9)
       rack (>= 1.0)
     sinatra (1.4.5)
@@ -152,6 +159,7 @@ DEPENDENCIES
   ratom
   redis
   rest-client
+  sanitize (~> 3.0.3)
   shotgun
   sinatra
   sinatra-namespace
