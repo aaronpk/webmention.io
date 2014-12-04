@@ -1,4 +1,9 @@
+config.yml
 streaming/node_modules/
+
+# bundler noise
+.bundle
+vendor
 
 # osx noise
 .DS_Store
