@@ -163,6 +163,7 @@ class Controller < Sinatra::Base
     author_name = ''
     author_url = ''
     author_photo = ''
+    post_url = ''
     post_name = ''
     post_content = ''
     post_published = ''
@@ -181,6 +182,10 @@ class Controller < Sinatra::Base
           author_name = entry.author.format.name.to_s
           author_url = entry.author.format.url.to_s
           author_photo = entry.author.format.photo.to_s
+        end
+
+        if entry.respond_to? :@url
+          post_url = entry.url.to_s
         end
 
         if entry.respond_to? :@name
@@ -203,6 +208,7 @@ class Controller < Sinatra::Base
       link.author_name = author_name
       link.author_url = author_url
       link.author_photo = author_photo
+      link.url = post_url
       link.name = post_name
       link.content = post_content
       link.published = post_published
@@ -266,6 +272,7 @@ class Controller < Sinatra::Base
           url: author_url,
           photo: author_photo
         },
+        url: post_url,
         name: post_name,
         content: post_content,
         url: source,

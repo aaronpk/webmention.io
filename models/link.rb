@@ -6,6 +6,7 @@ class Link
   property :verified, Boolean
 
   property :html, Text
+  property :url, String, :length => 256
   property :author_url, String, :length => 256
   property :author_name, String, :length => 256
   property :author_photo, String, :length => 256
