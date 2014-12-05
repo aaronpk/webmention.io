@@ -170,9 +170,8 @@ class Controller < Sinatra::Base
     post_published_ts = ''
 
     parsed = false
+    message = "[mention] #{source} linked to #{target} (#{protocol})"
     begin
-      message = "[mention] #{source} linked to #{target} (#{protocol})"
-
       parsed = Microformats2.parse source
 
       if parsed && parsed.respond_to?(:@entry)
@@ -186,6 +185,7 @@ class Controller < Sinatra::Base
 
         if entry.respond_to? :@url
           post_url = entry.url.to_s
+          message = "[mention] #{post_url} linked to #{target} (#{protocol})"
         end
 
         if entry.respond_to? :@name
@@ -217,13 +217,11 @@ class Controller < Sinatra::Base
       # Ignore errors trying to parse for upgraded microformats
       puts "Error while parsing microformats #{e.message}"
       puts e.backtrace
-      message = "[mention] #{source} linked to #{target} (#{protocol})"
     end
 
 
     # Only send notifications about new webmentions
     if !already_registered
-      message = "[mention] #{source} linked to #{target} (#{protocol})"
       puts "Sending notification #{message}"
 
       if !site.account.zenircbot_uri.empty? and !site.irc_channel.empty? and valid
