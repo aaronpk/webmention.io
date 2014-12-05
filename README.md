@@ -268,7 +268,21 @@ Now open http://localhost:9019/ and check that you see the front page. You can a
 
 ### Troubleshooting
 
-First, check your Ruby version. 2.0.0 _does not_ work; details below. Try 1.9.3, 2.1.3, or 2.1.5 instead, they all work. [Homebrew](http://brew.sh/), [chruby](https://github.com/postmodern/chruby), and [ruby-install](https://github.com/postmodern/ruby-install) (among others) may help you install and run a specific version, or more than one side by side.
+First, check your Ruby version. 2.0.0 _does not_ work; [details below](#ruby-200-woes). Try 1.9.3, 2.1.3, or 2.1.5 instead, they all work. [Homebrew](http://brew.sh/), [chruby](https://github.com/postmodern/chruby), and [ruby-install](https://github.com/postmodern/ruby-install) (among others) may help you install and run a specific version, or more than one side by side.
+
+If `bundle install` dies like this while compiling libxml-ruby:
+
+```
+...
+ruby_xml_node.c:624:56: error: incomplete definition of type 'struct _xmlBuf'
+    result = rxml_new_cstr((const char*) output->buffer->content, xencoding);
+                                         ~~~~~~~~~~~~~~^
+...
+An error occurred while installing libxml-ruby (2.3.3), and Bundler cannot continue.
+Make sure that `gem install libxml-ruby -v '2.3.3'` succeeds before bundling.
+```
+
+You're in...um...a weird state. You probably have an old version of the repo checked out with a `Gemfile.lock` that asks for libxml-ruby 2.3.3, [which is incompatible with your system's libxml2 2.9.x](http://stackoverflow.com/a/19781873/186123). HEAD fixes this by asking for libxml-ruby 2.6.0. `git pull` and then rerun `bundle install`.
 
 When you open the front page, if you see an error that includes _Library not loaded: libmysqlclient.18.dylib_, your MySQL shared libraries may not be installed at a standard location, e.g. if you installed MySQL via Homebrew. Try `DYLD_LIBRARY_PATH=/usr/local/mysql/lib ./start.sh` (or wherever your MySQL libraries are located).
 
