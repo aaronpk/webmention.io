@@ -174,25 +174,25 @@ class Controller < Sinatra::Base
 
       parsed = Microformats2.parse source
 
-      if parsed && parsed.entry
+      if parsed && parsed.respond_to?(:@entry)
         entry = parsed.entry
 
-        if entry.author
+        if entry.respond_to? :@author
           author_name = entry.author.format.name.to_s
           author_url = entry.author.format.url.to_s
           author_photo = entry.author.format.photo.to_s
         end
 
-        if entry.name
+        if entry.respond_to? :@name
           post_name = entry.name.to_s
         end
 
-        if entry.content
+        if entry.respond_to? :@content
           post_content = Sanitize.fragment(entry.content.to_s, Sanitize::Config::BASIC)
           #post_content = entry.content.to_s
         end
 
-        if entry.published
+        if entry.respond_to? :@published
           post_published = DateTime.parse(entry.published.to_s)
           post_published_ts = DateTime.parse(entry.published.to_s).to_time.to_i
         end
