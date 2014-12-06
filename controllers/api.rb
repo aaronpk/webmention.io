@@ -205,6 +205,7 @@ class Controller < Sinatra::Base
         obj[:data][:author][:photo] = link.author_photo if link.author_photo
       end
 
+      obj[:data][:url] = link.url if link.url
       obj[:data][:name] = link.name if link.name
       obj[:data][:content] = link.content if link.content
       obj[:data][:published] = link.published if link.published
