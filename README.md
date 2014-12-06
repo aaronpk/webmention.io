@@ -250,9 +250,53 @@ Is converted to:
 You can start using this right now to quickly handle Pingbacks as Webmentions on your own domain. This is a way to bootstrap the Webmention protocol until more services adopt it.
 
 
+## Development
+
+Run these commands to set up your environment and start the server locally:
+
+```shell
+bundle install
+cp config.yml.template config.yml
+mysql -u root -e 'CREATE USER webmention@localhost IDENTIFIED BY "webmention"; CREATE DATABASE webmention; GRANT ALL ON webmention.* TO webmention@localhost; FLUSH PRIVILEGES;'
+export RACK_ENV=development
+bundle exec rake db:bootstrap
+./start.sh
+```
+
+Now open http://localhost:9019/ and check that you see the front page. You can also run `bundle exec rake test:sample1` to send a test pingback.
+
+
+### Troubleshooting
+
+First, check your Ruby version. 2.0.0 _does not_ work; [details below](#ruby-200-woes). Try 1.9.3, 2.1.3, or 2.1.5 instead, they all work. [Homebrew](http://brew.sh/), [chruby](https://github.com/postmodern/chruby), and [ruby-install](https://github.com/postmodern/ruby-install) (among others) may help you install and run a specific version, or more than one side by side.
+
+If `bundle install` dies like this while compiling libxml-ruby:
+
+```
+...
+ruby_xml_node.c:624:56: error: incomplete definition of type 'struct _xmlBuf'
+    result = rxml_new_cstr((const char*) output->buffer->content, xencoding);
+                                         ~~~~~~~~~~~~~~^
+...
+An error occurred while installing libxml-ruby (2.3.3), and Bundler cannot continue.
+Make sure that `gem install libxml-ruby -v '2.3.3'` succeeds before bundling.
+```
+
+You're in...um...a weird state. You probably have an old version of the repo checked out with a `Gemfile.lock` that asks for libxml-ruby 2.3.3, [which is incompatible with your system's libxml2 2.9.x](http://stackoverflow.com/a/19781873/186123). HEAD fixes this by asking for libxml-ruby 2.6.0. `git pull` and then rerun `bundle install`.
+
+When you open the front page, if you see an error that includes _Library not loaded: libmysqlclient.18.dylib_, your MySQL shared libraries may not be installed at a standard location, e.g. if you installed MySQL via Homebrew. Try `DYLD_LIBRARY_PATH=/usr/local/mysql/lib ./start.sh` (or wherever your MySQL libraries are located).
+
+#### Ruby 2.0.0 woes
+If `rake db:bootstrap` raises an _TypeError: no implicit conversion from nil to integer_ exception in `quoting.rb`, you've hit [this Ruby 2.0.0 bug/incompatibility](http://stackoverflow.com/a/25101398/186123). Use a different Ruby version.
+
+If `rake db:bootstrap` hangs while attempting to create the `links` table , Ruby 2.0.0 strikes again! Use a different version. (You won't see progress details per table by default; it'll just hang.)
+
+If `bundle exec rake ...` complains _Could not find rake-10.4.0 in any of the sources_, and you run `bundle install` and `bundle check` and they're both happy, and `vendor/bundle/ruby/2.0.0/gems/rake-10.4.0/` exists...Ruby 2.0.0 strikes again. (Maybe?) Use a different version.
+
+
 ## License
 
-Copyright 2013 by Aaron Parecki. 
+Copyright 2013 by Aaron Parecki.
 
 Available under the BSD License. See LICENSE.txt
 
