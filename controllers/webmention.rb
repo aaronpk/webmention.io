@@ -159,7 +159,11 @@ class Controller < Sinatra::Base
 
     # Parse for microformats and look for "like", "invite", "rsvp", or other post types
     parsed = false
+    bridgy = source.start_with? 'https://www.brid.gy/', 'https://brid-gy.appspot.com/'
+
+    # Default message. Overridden for some post types below.
     message = "[mention] #{source} linked to #{target} (#{protocol})"
+
     begin
       parsed = Microformats2.parse source
 
@@ -182,6 +186,39 @@ class Controller < Sinatra::Base
           link.published = DateTime.parse(published.to_s)
           link.published_ts = DateTime.parse(published.to_s).to_time.to_i
         end
+
+        # Detect post type (reply, like, reshare, RSVP, mention) and generate
+        # custom notification message.
+        url = link.url ? link.url : source
+        twitter = url.start_with? 'https://twitter.com/'
+        gplus = url.start_with? 'https://plus.google.com/'
+        subject = link.author_name ? link.author_name :
+                    link.author_url ? link.author_url : url
+
+        puts "#{link.url} #{url} #{twitter}"
+        # TODO(snarfed): include actual text when available
+        # TODO(snarfed): use twtr.io links
+        # TODO(snarfed): store in db
+        rsvps = maybe_get entry, 'rsvps'
+        if rsvps
+          phrase = "RSVPed #{rsvps.join(', ')} to"
+        elsif maybe_get entry, 'invitee'
+          phrase = 'was invited to'
+        elsif maybe_get entry, 'repost_of' or maybe_get entry, 'repost' or
+             entry.format_types.member? 'h-as-repost'
+          phrase = (twitter ? 'retweeted a tweet' : 'reshared a post') + ' linking to'
+        elsif maybe_get entry, 'like_of' or maybe_get entry, 'like' or
+             entry.format_types.member? 'h-as-like'
+          phrase = (twitter ? 'favorited a tweet' : gplus ? '+1ed a post' : 'liked a post') +
+                   ' linking to'
+        elsif maybe_get entry, 'in_reply_to'
+          phrase = (twitter ? 'replied to a tweet' : 'commented on a post') + ' linking to'
+        else
+          phrase = 'mentioned'
+        end
+        permalink = subject == url ? '' : " (#{url})"
+        prefix = "[#{bridgy ? 'bridgy' : 'mention'}]"
+        message = "#{prefix} #{subject} #{phrase} #{target}#{permalink}"
       end
 
       #link.html = scraper.body
@@ -190,7 +227,6 @@ class Controller < Sinatra::Base
       puts "Error while parsing microformats #{e.message}"
       puts e.backtrace
     end
-
 
     # Only send notifications about new webmentions
     if !already_registered
