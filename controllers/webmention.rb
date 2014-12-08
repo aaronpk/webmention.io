@@ -77,7 +77,7 @@ class Controller < Sinatra::Base
     if utf8.valid_encoding?
       xml = utf8
     else
-      pust "Invalid string encoding"
+      puts "Invalid string encoding"
       rpc_error 400, 0, "Invalid string encoding"
     end
     begin
@@ -157,62 +157,34 @@ class Controller < Sinatra::Base
 
     return 'no_link_found' if !valid
 
-
     # Parse for microformats and look for "like", "invite", "rsvp", or other post types
-
-    author_name = ''
-    author_url = ''
-    author_photo = ''
-    post_url = ''
-    post_name = ''
-    post_content = ''
-    post_published = ''
-    post_published_ts = ''
-
     parsed = false
     message = "[mention] #{source} linked to #{target} (#{protocol})"
     begin
       parsed = Microformats2.parse source
 
-      if parsed && parsed.respond_to?(:@entry)
-        entry = parsed.entry
-
-        if entry.respond_to? :@author
-          author_name = entry.author.format.name.to_s
-          author_url = entry.author.format.url.to_s
-          author_photo = entry.author.format.photo.to_s
+      entry = maybe_get parsed, 'entry'
+      if entry
+        author = maybe_get entry, 'author'
+        if author
+          link.author_name = author.format.name.to_s
+          link.author_url = author.format.url.to_s
+          link.author_photo = author.format.photo.to_s
         end
 
-        if entry.respond_to? :@url
-          post_url = entry.url.to_s
-          message = "[mention] #{post_url} linked to #{target} (#{protocol})"
-        end
+        link.url = maybe_get entry, 'url'
+        link.name = maybe_get entry, 'name'
+        link.content = Sanitize.fragment((maybe_get entry, 'content').to_s,
+                                         Sanitize::Config::BASIC)
 
-        if entry.respond_to? :@name
-          post_name = entry.name.to_s
+        published = maybe_get entry, 'published'
+        if published
+          link.published = DateTime.parse(published.to_s)
+          link.published_ts = DateTime.parse(published.to_s).to_time.to_i
         end
-
-        if entry.respond_to? :@content
-          post_content = Sanitize.fragment(entry.content.to_s, Sanitize::Config::BASIC)
-          #post_content = entry.content.to_s
-        end
-
-        if entry.respond_to? :@published
-          post_published = DateTime.parse(entry.published.to_s)
-          post_published_ts = DateTime.parse(entry.published.to_s).to_time.to_i
-        end
-
       end
 
       #link.html = scraper.body
-      link.author_name = author_name
-      link.author_url = author_url
-      link.author_photo = author_photo
-      link.url = post_url
-      link.name = post_name
-      link.content = post_content
-      link.published = post_published
-      link.published_ts = post_published_ts
     rescue => e
       # Ignore errors trying to parse for upgraded microformats
       puts "Error while parsing microformats #{e.message}"
@@ -232,7 +204,7 @@ class Controller < Sinatra::Base
           puts RestClient.post uri, {
             message: message
           }
-        rescue 
+        rescue
           # ignore errors sending to IRC
         end
       end
@@ -266,16 +238,15 @@ class Controller < Sinatra::Base
         type: 'webmention',
         element_id: "external_#{source.gsub(/[\/:\.]+/, '_')}",
         author: {
-          name: author_name,
-          url: author_url,
-          photo: author_photo
+          name: link.author_name,
+          url: link.author_url,
+          photo: link.author_photo
         },
-        url: post_url,
-        name: post_name,
-        content: post_content,
-        url: source,
-        published: post_published,
-        published_ts: post_published_ts
+        url: url,
+        name: link.name,
+        content: link.content,
+        published: link.published,
+        published_ts: link.published_ts
       }.to_json
     end
 
@@ -284,4 +255,11 @@ class Controller < Sinatra::Base
     return 'success'
   end
 
+  def maybe_get(obj, method)
+    begin
+      obj.send method
+    rescue
+      nil
+    end
+  end
 end
