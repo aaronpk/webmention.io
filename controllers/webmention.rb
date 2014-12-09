@@ -83,7 +83,7 @@ class Controller < Sinatra::Base
     begin
       method, arguments = XMLRPC::Marshal.load_call(xml)
     rescue
-      rpc_error 400, 0, "Invalid request" 
+      rpc_error 400, 0, "Invalid request"
     end
 
     method.gsub! /\./, '_'
@@ -132,7 +132,7 @@ class Controller < Sinatra::Base
     return 'target_not_found' if target_account.nil?
 
     begin
-      target_domain = URI.parse(target).host 
+      target_domain = URI.parse(target).host
     rescue
       return 'invalid_target' if target_domain.nil?
     end
@@ -187,17 +187,19 @@ class Controller < Sinatra::Base
           link.published_ts = DateTime.parse(published.to_s).to_time.to_i
         end
 
-        # Detect post type (reply, like, reshare, RSVP, mention) and generate
-        # custom notification message.
+        # Detect post type (reply, like, reshare, RSVP, mention) and silo and
+        # generate custom notification message.
         url = link.url ? link.url : source
         twitter = url.start_with? 'https://twitter.com/'
         gplus = url.start_with? 'https://plus.google.com/'
         subject = link.author_name ? link.author_name :
                     link.author_url ? link.author_url : url
 
-        puts "#{link.url} #{url} #{twitter}"
-        # TODO(snarfed): include actual text when available
-        # TODO(snarfed): use twtr.io links
+        snippet = Sanitize.fragment(link.content).strip.gsub "\n", ' '
+        if snippet.length > 140
+          snippet = snippet[0, 140] + '...'
+        end
+
         # TODO(snarfed): store in db
         rsvps = maybe_get entry, 'rsvps'
         if rsvps
@@ -212,13 +214,19 @@ class Controller < Sinatra::Base
           phrase = (twitter ? 'favorited a tweet' : gplus ? '+1ed a post' : 'liked a post') +
                    ' linking to'
         elsif maybe_get entry, 'in_reply_to'
-          phrase = (twitter ? 'replied to a tweet' : 'commented on a post') + ' linking to'
+          if twitter
+            phrase = "replied '#{snippet}' to a tweet linking to"
+          else
+            phrase = "commented '#{snippet}' on a post linking to"
+          end
         else
-          phrase = 'mentioned'
+          phrase = "posted '#{snippet}' linking to"
         end
-        permalink = subject == url ? '' : " (#{url})"
-        prefix = "[#{bridgy ? 'bridgy' : 'mention'}]"
-        message = "#{prefix} #{subject} #{phrase} #{target}#{permalink}"
+
+        message = "[#{bridgy ? 'bridgy' : 'mention'}] #{subject} #{phrase} #{target}"
+        if subject != url
+          message += " (#{url})"
+        end
       end
 
       #link.html = scraper.body
