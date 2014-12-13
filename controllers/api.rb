@@ -141,24 +141,9 @@ class Controller < Sinatra::Base
       }
     end
 
-    if params[:access_token].empty?
-      target = Page.first :href => params[:target]
-      if target.nil?
-        api_response format, 404, {
-          error: "not_found",
-          error_description: "The specified link was not found"
-        }
-      end
+    if params[:target].empty?
+      # access token required for everything except target requests
 
-      if target.site.public_access == false
-        api_response format, 401, {
-          error: "forbidden",
-          error_description: "This site does not allow public access to its mentions"
-        }
-      end
-
-      links = target.links.all(:verified => true, :order => [:created_at.desc], :offset => (pageNum * limit), :limit => limit)
-    else
       account = Account.first :token => params[:access_token]
 
       if account.nil?
@@ -168,22 +153,50 @@ class Controller < Sinatra::Base
         }
       end
 
-      if params[:target]
-        page = account.sites.pages.first :href => params[:target]
-
-        if page.nil?
-          api_response format, 404, {
-            error: "not_found",
-            error_description: "The specified page was not found on this account"
-          }
-        end
-
-        links = page.links.all(:verified => true, :order => [:created_at.desc], :offset => (pageNum * limit), :limit => limit)
-      elsif params[:domain]
+      if params[:domain]
         links = account.sites.all(:domain => params[:domain]).pages.links.all(:verified => true, :order => [:created_at.desc], :offset => (pageNum * limit), :limit => limit)
       else
         links = account.sites.pages.links.all(:verified => true, :order => [:created_at.desc], :offset => (pageNum * limit), :limit => limit)
       end
+
+    else
+
+      target = Page.first :href => params[:target]
+
+      if target.nil?
+        api_response format, 404, {
+          error: "not_found",
+          error_description: "The specified link was not found"
+        }
+      end
+
+      if params[:access_token]
+        account = Account.first :token => params[:access_token]
+
+        if account.nil?
+          api_response format, 401, {
+            error: "forbidden",
+            error_description: "Access token was not valid"
+          }
+        end
+
+        if account.id != target.account.id
+          api_response format, 401, {
+            error: "forbidden",
+            error_description: "You do not have permission to view webmentions of this target"
+          }
+        end
+      else
+        if target.site.public_access == false
+          api_response format, 401, {
+            error: "forbidden",
+            error_description: "This site does not allow public access to its mentions"
+          }
+        end
+      end
+
+      links = target.links.all(:verified => true, :order => [:created_at.desc], :offset => (pageNum * limit), :limit => limit)
+
     end
 
     link_array = []
