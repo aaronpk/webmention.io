@@ -32,7 +32,7 @@ The Webmention and Pingback protocols also support specifying the endpoint in th
 This service provides an API for returning a list of pages that have linked to a given page. For example:
 
 ```
-GET http://webmention.io/api/links?target=http://indiewebcamp.com
+GET http://webmention.io/api/mentions?target=http://indiewebcamp.com
 
 {
   "links": [
@@ -45,12 +45,30 @@ GET http://webmention.io/api/links?target=http://indiewebcamp.com
 }
 ```
 
+### Find links to multiple pages
+
+This is useful for retrieving mentions from a post if you've changed the URL.
+
+```
+GET http://webmention.io/api/mentions?target[]=http://indiewebcamp.com/a-blog-post&target[]=http://indiewebcamp.com/a-different-post
+
+{
+  "links": [
+    {
+      "source": "http://tantek.com/2013/113/b1/first-federated-indieweb-comment-thread",
+      "verified": true,
+      "verified_date": "2013-04-25T17:09:33-07:00"
+    }
+  ]
+}
+``
+
 ### Find all links to your domain
 
 You can also find all links to your domain:
 
 ```
-GET http://webmention.io/api/links?domain=indiewebcamp.com
+GET http://webmention.io/api/mentions?domain=indiewebcamp.com
 
 {
   "links": [
@@ -69,7 +87,7 @@ GET http://webmention.io/api/links?domain=indiewebcamp.com
 With no parameters, the API will return all links to any site in your account:
 
 ```
-GET http://webmention.io/api/links
+GET http://webmention.io/api/mentions
 
 {
   "links": [
@@ -96,7 +114,7 @@ The default number of results per page is 20. Results are always sorted newest f
 
 ### JSONP
 
-The API also supports JSONP so you can use it to show pingbacks on your own sites via Javascript. Simply add a parameter `jsonp` to the API call, for example, http://webmention.io/api/links?jsonp=f&target=http%3A%2F%2Fwebmention.io
+The API also supports JSONP so you can use it to show pingbacks on your own sites via Javascript. Simply add a parameter `jsonp` to the API call, for example, http://webmention.io/api/mentions?jsonp=f&target=http%3A%2F%2Fwebmention.io
 
 
 ## Notifications

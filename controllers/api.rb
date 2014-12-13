@@ -161,41 +161,16 @@ class Controller < Sinatra::Base
 
     else
 
-      target = Page.first :href => params[:target]
+      targets = Page.all :href => params[:target]
 
-      if target.nil?
+      if targets.nil?
         api_response format, 404, {
           error: "not_found",
           error_description: "The specified link was not found"
         }
       end
 
-      if params[:access_token]
-        account = Account.first :token => params[:access_token]
-
-        if account.nil?
-          api_response format, 401, {
-            error: "forbidden",
-            error_description: "Access token was not valid"
-          }
-        end
-
-        if account.id != target.account.id
-          api_response format, 401, {
-            error: "forbidden",
-            error_description: "You do not have permission to view webmentions of this target"
-          }
-        end
-      else
-        if target.site.public_access == false
-          api_response format, 401, {
-            error: "forbidden",
-            error_description: "This site does not allow public access to its mentions"
-          }
-        end
-      end
-
-      links = target.links.all(:verified => true, :order => [:created_at.desc], :offset => (pageNum * limit), :limit => limit)
+      links = targets.links.all(:verified => true, :order => [:created_at.desc], :offset => (pageNum * limit), :limit => limit)
 
     end
 
