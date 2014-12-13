@@ -206,6 +206,12 @@ class Controller < Sinatra::Base
       obj[:data][:published] = link.published
       obj[:data][:published_ts] = link.published_ts
 
+      obj[:activity] = {
+        :type => link.type,
+        :sentence => link.sentence,
+        :sentence_html => link.sentence_html
+      }
+
       obj[:target] = link.page.href
       
       link_array << obj

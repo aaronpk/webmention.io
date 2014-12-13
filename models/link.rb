@@ -15,6 +15,10 @@ class Link
   property :published, DateTime
   property :published_ts, Integer
 
+  property :type, String
+  property :sentence, Text
+  property :sentence_html, Text
+
   belongs_to :page
 
   property :created_at, DateTime

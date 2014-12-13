@@ -192,8 +192,17 @@ class Controller < Sinatra::Base
         url = link.url ? link.url : source
         twitter = url.start_with? 'https://twitter.com/'
         gplus = url.start_with? 'https://plus.google.com/'
-        subject = link.author_name ? link.author_name :
-                    link.author_url ? link.author_url : url
+
+        if link.author_name
+          subject = link.author_name
+          subject_html = "<a href=\"#{link.author_url}\">#{link.author_name}</a>"
+        elsif link.author_url
+          subject = link.author_url
+          subject_html = "<a href=\"#{link.author_url}\">#{link.author_url}</a>"
+        else
+          subject = url
+          subject_html = "<a href=\"#{url}\">#{url}</a>"
+        end
 
         snippet = Sanitize.fragment(link.content).strip.gsub "\n", ' '
         if snippet.length > 140
@@ -204,21 +213,25 @@ class Controller < Sinatra::Base
         rsvps = maybe_get entry, 'rsvps'
         if rsvps
           phrase = "RSVPed #{rsvps.join(', ')} to"
+          link.type = "rsvp"
 
         elsif maybe_get entry, 'invitee'
           phrase = 'was invited to'
+          link.type = "invite"
 
         elsif repost_of = get_referenced_url(entry, 'repost_of') or repost_of = get_referenced_url(entry, 'repost')
           phrase = (twitter ? 'retweeted a tweet' : 'reshared a post') 
           if (repost_of.respond_to? :include and !repost_of.include? target) or repost_of.to_s != target
             phrase += " that linked to"
           end
+          link.type = "repost"
 
         elsif like_of = get_referenced_url(entry, 'like_of') or like_of = get_referenced_url(entry, 'like')
           phrase = (twitter ? 'favorited a tweet' : gplus ? '+1ed a post' : 'liked a post')
           if (like_of.respond_to? :include and !like_of.include? target) or like_of.to_s != target
             phrase += " that linked to"
           end
+          link.type = "like"
 
         elsif in_reply_to = get_referenced_url(entry, 'in_reply_to')
           if twitter
@@ -230,15 +243,20 @@ class Controller < Sinatra::Base
             puts "in reply to URL is different from the target: #{in_reply_to}"
             phrase += " that linked to"
           end
+          link.type = "reply"
 
         else
           phrase = "posted '#{snippet}' linking to"
+          link.type = "post"
         end
 
         message = "[#{bridgy ? 'bridgy' : 'mention'}] #{subject} #{phrase} #{target}"
         if subject != url
           message += " (#{url})"
         end
+
+        link.sentence = "#{subject} #{phrase} #{target}"
+        link.sentence_html = "#{subject_html} #{phrase} <a href=\"#{target}\">#{target}</a>"
       end
 
       #link.html = scraper.body
