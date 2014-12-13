@@ -164,9 +164,8 @@ class Controller < Sinatra::Base
       targets = Page.all :href => params[:target]
 
       if targets.nil?
-        api_response format, 404, {
-          error: "not_found",
-          error_description: "The specified link was not found"
+        api_response format, 200, {
+          links: []
         }
       end
 
