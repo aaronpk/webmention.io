@@ -211,7 +211,7 @@ class Controller < Sinatra::Base
       obj[:data][:published] = link.published if link.published
       obj[:data][:published_ts] = link.published_ts if link.published_ts
 
-      obj[:target] = link.page.href unless params[:target].empty?
+      obj[:target] = link.page.href
       
       link_array << obj
     end
