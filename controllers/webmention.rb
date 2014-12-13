@@ -206,18 +206,15 @@ class Controller < Sinatra::Base
           phrase = "RSVPed #{rsvps.join(', ')} to"
         elsif maybe_get entry, 'invitee'
           phrase = 'was invited to'
-        elsif maybe_get entry, 'repost_of' or maybe_get entry, 'repost' or
-             entry.format_types.member? 'h-as-repost'
-          phrase = (twitter ? 'retweeted a tweet' : 'reshared a post') + ' linking to'
-        elsif maybe_get entry, 'like_of' or maybe_get entry, 'like' or
-             entry.format_types.member? 'h-as-like'
-          phrase = (twitter ? 'favorited a tweet' : gplus ? '+1ed a post' : 'liked a post') +
-                   ' linking to'
+        elsif maybe_get entry, 'repost_of' or maybe_get entry, 'repost' or entry.format_types.member? 'h-as-repost'
+          phrase = (twitter ? 'retweeted a tweet' : 'reshared a post') 
+        elsif maybe_get entry, 'like_of' or maybe_get entry, 'like' or entry.format_types.member? 'h-as-like'
+          phrase = (twitter ? 'favorited a tweet' : gplus ? '+1ed a post' : 'liked a post')
         elsif maybe_get entry, 'in_reply_to'
           if twitter
-            phrase = "replied '#{snippet}' to a tweet linking to"
+            phrase = "replied '#{snippet}' to a tweet"
           else
-            phrase = "commented '#{snippet}' on a post linking to"
+            phrase = "commented '#{snippet}' on a post"
           end
         else
           phrase = "posted '#{snippet}' linking to"
