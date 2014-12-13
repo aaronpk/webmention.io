@@ -70,7 +70,7 @@ class Controller < Sinatra::Base
   # Receive Pingbacks
   post '/:username/xmlrpc' do |username|
 
-    puts "RECEIVED PINGBACK REQUEST"
+    #puts "RECEIVED PINGBACK REQUEST"
     utf8 = request.body.read.force_encoding "UTF-8"
     # puts utf8
 

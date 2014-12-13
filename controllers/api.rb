@@ -189,15 +189,23 @@ class Controller < Sinatra::Base
       if link.author_name || link.author_url || link.author_photo
         obj[:data][:author] = {}
         obj[:data][:author][:name] = link.author_name if link.author_name
-        obj[:data][:author][:url] = link.author_url if link.author_url
-        obj[:data][:author][:photo] = link.author_photo if link.author_photo
+        if link.author_url
+          obj[:data][:author][:url] = Microformats2::AbsoluteUri.new(link.href, link.author_url).absolutize
+        else
+          obj[:data][:author][:url] = nil
+        end
+        if link.author_photo
+          obj[:data][:author][:photo] = Microformats2::AbsoluteUri.new(link.href, link.author_photo).absolutize
+        else
+          obj[:data][:author][:photo] = nil
+        end
       end
 
-      obj[:data][:url] = link.url if link.url
-      obj[:data][:name] = link.name if link.name
-      obj[:data][:content] = link.content if link.content
-      obj[:data][:published] = link.published if link.published
-      obj[:data][:published_ts] = link.published_ts if link.published_ts
+      obj[:data][:url] = link.url
+      obj[:data][:name] = link.name
+      obj[:data][:content] = link.content
+      obj[:data][:published] = link.published
+      obj[:data][:published_ts] = link.published_ts
 
       obj[:target] = link.page.href
       
