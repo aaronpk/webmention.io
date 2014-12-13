@@ -172,7 +172,7 @@ class Controller < Sinatra::Base
         author = maybe_get entry, 'author'
         if author
           link.author_name = author.format.name.to_s
-          link.author_url = author.format.url.to_s
+          link.author_url = maybe_get(author.format, 'url').to_s
           link.author_photo = author.format.photo.to_s
         end
 
@@ -204,18 +204,33 @@ class Controller < Sinatra::Base
         rsvps = maybe_get entry, 'rsvps'
         if rsvps
           phrase = "RSVPed #{rsvps.join(', ')} to"
+
         elsif maybe_get entry, 'invitee'
           phrase = 'was invited to'
-        elsif maybe_get entry, 'repost_of' or maybe_get entry, 'repost' or entry.format_types.member? 'h-as-repost'
+
+        elsif repost_of = get_referenced_url(entry, 'repost_of') or repost_of = get_referenced_url(entry, 'repost')
           phrase = (twitter ? 'retweeted a tweet' : 'reshared a post') 
-        elsif maybe_get entry, 'like_of' or maybe_get entry, 'like' or entry.format_types.member? 'h-as-like'
+          if (repost_of.respond_to? :include and !repost_of.include? target) or repost_of.to_s != target
+            phrase += " that linked to"
+          end
+
+        elsif like_of = get_referenced_url(entry, 'like_of') or like_of = get_referenced_url(entry, 'like')
           phrase = (twitter ? 'favorited a tweet' : gplus ? '+1ed a post' : 'liked a post')
-        elsif maybe_get entry, 'in_reply_to'
+          if (like_of.respond_to? :include and !like_of.include? target) or like_of.to_s != target
+            phrase += " that linked to"
+          end
+
+        elsif in_reply_to = get_referenced_url(entry, 'in_reply_to')
           if twitter
             phrase = "replied '#{snippet}' to a tweet"
           else
             phrase = "commented '#{snippet}' on a post"
           end
+          if (in_reply_to.respond_to? :include and !in_reply_to.include? target) or in_reply_to.to_s != target
+            puts "in reply to URL is different from the target: #{in_reply_to}"
+            phrase += " that linked to"
+          end
+
         else
           phrase = "posted '#{snippet}' linking to"
         end
@@ -294,6 +309,37 @@ class Controller < Sinatra::Base
     link.verified = true
     link.save
     return 'success'
+  end
+
+  def get_referenced_url(obj, method)
+    # if obj[method] is an h-cite object, fetch the "url" property from the properties object
+    # otherwise, if obj[method] is just a string, return it
+
+    value = maybe_get obj, method
+    # obj will be an h-entry
+    # method will be "in-reply-to"
+    # value will be the in-reply-to object which may be an h-cite or just a string
+
+    return nil if value.nil?
+
+    return value if value.class == Microformats2::Property::Url
+
+    # Currently the Ruby parser incorrectly parses the "in-reply-to" as text if it's actually a nested h-cite
+    # Drop down to the to_hash version instead
+
+    hash = value.to_hash
+
+    if type = hash[:type]
+      if type.include? 'h-cite'
+        if properties = hash[:properties]
+          if url = properties[:url]
+            return url
+          end
+        end
+      end
+    end
+
+    return nil  
   end
 
   def maybe_get(obj, method)
