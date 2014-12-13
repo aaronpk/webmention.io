@@ -90,7 +90,8 @@ class Controller < Sinatra::Base
     
     halt code, {
         'Content-Type' => 'application/json;charset=UTF-8',
-        'Cache-Control' => 'no-store'
+        'Cache-Control' => 'no-store',
+        'Access-Control-Allow-Origin' => '*'
       }, string
   end
 
