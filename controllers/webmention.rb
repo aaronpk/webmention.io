@@ -83,7 +83,7 @@ class Controller < Sinatra::Base
     begin
       method, arguments = XMLRPC::Marshal.load_call(xml)
     rescue
-      rpc_error 400, 0, "Invalid request" 
+      rpc_error 400, 0, "Invalid request"
     end
 
     method.gsub! /\./, '_'
@@ -132,7 +132,7 @@ class Controller < Sinatra::Base
     return 'target_not_found' if target_account.nil?
 
     begin
-      target_domain = URI.parse(target).host 
+      target_domain = URI.parse(target).host
     rescue
       return 'invalid_target' if target_domain.nil?
     end
@@ -159,7 +159,11 @@ class Controller < Sinatra::Base
 
     # Parse for microformats and look for "like", "invite", "rsvp", or other post types
     parsed = false
+    bridgy = source.start_with? 'https://www.brid.gy/', 'https://brid-gy.appspot.com/'
+
+    # Default message. Overridden for some post types below.
     message = "[mention] #{source} linked to #{target} (#{protocol})"
+
     begin
       parsed = Microformats2.parse source
 
@@ -182,6 +186,47 @@ class Controller < Sinatra::Base
           link.published = DateTime.parse(published.to_s)
           link.published_ts = DateTime.parse(published.to_s).to_time.to_i
         end
+
+        # Detect post type (reply, like, reshare, RSVP, mention) and silo and
+        # generate custom notification message.
+        url = link.url ? link.url : source
+        twitter = url.start_with? 'https://twitter.com/'
+        gplus = url.start_with? 'https://plus.google.com/'
+        subject = link.author_name ? link.author_name :
+                    link.author_url ? link.author_url : url
+
+        snippet = Sanitize.fragment(link.content).strip.gsub "\n", ' '
+        if snippet.length > 140
+          snippet = snippet[0, 140] + '...'
+        end
+
+        # TODO(snarfed): store in db
+        rsvps = maybe_get entry, 'rsvps'
+        if rsvps
+          phrase = "RSVPed #{rsvps.join(', ')} to"
+        elsif maybe_get entry, 'invitee'
+          phrase = 'was invited to'
+        elsif maybe_get entry, 'repost_of' or maybe_get entry, 'repost' or
+             entry.format_types.member? 'h-as-repost'
+          phrase = (twitter ? 'retweeted a tweet' : 'reshared a post') + ' linking to'
+        elsif maybe_get entry, 'like_of' or maybe_get entry, 'like' or
+             entry.format_types.member? 'h-as-like'
+          phrase = (twitter ? 'favorited a tweet' : gplus ? '+1ed a post' : 'liked a post') +
+                   ' linking to'
+        elsif maybe_get entry, 'in_reply_to'
+          if twitter
+            phrase = "replied '#{snippet}' to a tweet linking to"
+          else
+            phrase = "commented '#{snippet}' on a post linking to"
+          end
+        else
+          phrase = "posted '#{snippet}' linking to"
+        end
+
+        message = "[#{bridgy ? 'bridgy' : 'mention'}] #{subject} #{phrase} #{target}"
+        if subject != url
+          message += " (#{url})"
+        end
       end
 
       #link.html = scraper.body
@@ -190,7 +235,6 @@ class Controller < Sinatra::Base
       puts "Error while parsing microformats #{e.message}"
       puts e.backtrace
     end
-
 
     # Only send notifications about new webmentions
     if !already_registered
