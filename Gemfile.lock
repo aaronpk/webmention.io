@@ -9,6 +9,8 @@ GEM
       tzinfo (~> 1.1)
     addressable (2.3.6)
     backports (3.6.4)
+    celluloid (0.15.2)
+      timers (~> 1.1.0)
     crass (0.2.1)
     daemons (1.1.9)
     dalli (2.7.2)
@@ -118,12 +120,15 @@ GEM
       sinatra-contrib
     sinatra-support (1.2.2)
       sinatra (>= 1.0)
+    sucker_punch (1.0.2)
+      celluloid (~> 0.15.1)
     thin (1.6.3)
       daemons (~> 1.0, >= 1.0.9)
       eventmachine (~> 1.0)
       rack (~> 1.0)
     thread_safe (0.3.4)
     tilt (1.4.1)
+    timers (1.1.0)
     tzinfo (1.2.2)
       thread_safe (~> 0.1)
     unf (0.1.4)
@@ -164,4 +169,5 @@ DEPENDENCIES
   sinatra
   sinatra-namespace
   sinatra-support
+  sucker_punch (~> 1.0)
   thin

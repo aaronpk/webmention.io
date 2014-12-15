@@ -4,6 +4,8 @@ gem 'sinatra',             :require => 'sinatra/base'
 gem 'sinatra-namespace',   :require => 'sinatra/namespace'
 gem 'sinatra-support',     :require => 'sinatra/support'
 
+gem 'sucker_punch', '~> 1.0'
+
 gem 'erubis'
 gem 'rainbows', :require => nil
 gem 'rake',                     :require => nil
