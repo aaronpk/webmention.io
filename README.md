@@ -61,7 +61,7 @@ GET http://webmention.io/api/mentions?target[]=http://indiewebcamp.com/a-blog-po
     }
   ]
 }
-``
+```
 
 ### Find all links to your domain
 
