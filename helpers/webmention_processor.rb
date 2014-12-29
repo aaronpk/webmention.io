@@ -1,5 +1,8 @@
 class WebmentionProcessor
   include SuckerPunch::Job
+  # Run as a full thread instead of a fiber
+  # See https://github.com/celluloid/celluloid/wiki/Fiber-stack-errors
+  task_class TaskThread
 
   def perform(event)
     process_mention event[:username], event[:source], event[:target], event[:protocol]
