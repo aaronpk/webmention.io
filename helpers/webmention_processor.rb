@@ -100,31 +100,32 @@ class WebmentionProcessor
           phrase = "RSVPed #{rsvps.join(', ')} to"
           link.type = "rsvp"
 
-        elsif maybe_get entry, 'invitee'
+        elsif maybe_get entry, 'invitees'
           phrase = 'was invited to'
           link.type = "invite"
 
-        elsif repost_of = get_referenced_url(entry, 'repost_of') or repost_of = get_referenced_url(entry, 'repost')
+        elsif repost_of = get_referenced_url(entry, 'repost_ofs') or repost_of = get_referenced_url(entry, 'reposts')
           phrase = (twitter ? 'retweeted a tweet' : 'reshared a post') 
-          if repost_of.respond_to? :include and !repost_of.include? target
+          if !repost_of.include? target
             phrase += " that linked to"
           end
           link.type = "repost"
 
-        elsif like_of = get_referenced_url(entry, 'like_of') or like_of = get_referenced_url(entry, 'like')
+        elsif like_of = get_referenced_url(entry, 'like_ofs') or like_of = get_referenced_url(entry, 'likes')
+          puts like_of.inspect
           phrase = (twitter ? 'favorited a tweet' : gplus ? '+1ed a post' : 'liked a post')
-          if like_of.respond_to? :include and !like_of.include? target
+          if !like_of.include? target
             phrase += " that linked to"
           end
           link.type = "like"
 
-        elsif in_reply_to = get_referenced_url(entry, 'in_reply_to')
+        elsif in_reply_to = get_referenced_url(entry, 'in_reply_tos')
           if twitter
             phrase = "replied '#{snippet}' to a tweet"
           else
             phrase = "commented '#{snippet}' on a post"
           end
-          if in_reply_to.respond_to? :include and !in_reply_to.include? target
+          if !in_reply_to.include? target
             puts "in reply to URL is different from the target: #{in_reply_to}"
             phrase += " that linked to"
           end
@@ -218,31 +219,37 @@ class WebmentionProcessor
     # if obj[method] is an h-cite object, fetch the "url" property from the properties object
     # otherwise, if obj[method] is just a string, return it
 
-    value = maybe_get obj, method
+    values = maybe_get obj, method
     # obj will be an h-entry
-    # method will be "in-reply-to"
-    # value will be the in-reply-to object which may be an h-cite or just a string
+    # method will be "in-reply-tos"
+    # value will be the in-reply-tos array which may be h-cites or just strings
 
-    return nil if value.nil?
+    return nil if values.nil?
 
-    return value if value.class == Microformats2::Property::Url
+    urls = []
 
-    # Currently the Ruby parser incorrectly parses the "in-reply-to" as text if it's actually a nested h-cite
-    # Drop down to the to_hash version instead
+    values.each do |value|
+      # Currently the Ruby parser incorrectly parses the "in-reply-to" as text if it's actually a nested h-cite
+      # Drop down to the to_hash version instead
 
-    hash = value.to_hash
+      if value.class == Microformats2::Property::Url
+        urls << value.to_s
+      else
+        hash = value.to_hash
 
-    if type = hash[:type]
-      if type.include? 'h-cite'
-        if properties = hash[:properties]
-          if url = properties[:url]
-            return url
+        if type = hash[:type]
+          if type.include? 'h-cite'
+            if properties = hash[:properties]
+              if url = properties[:url]
+                urls << url
+              end
+            end
           end
         end
       end
     end
 
-    return nil  
+    return urls.flatten
   end
 
   def maybe_get(obj, method)
