@@ -1,7 +1,7 @@
 var WebSocketServer = require('ws').Server;
 var Redis = require('redis');
 
-var port = 8078;
+var port = 8080;
 
 var wss = new WebSocketServer({port: port});
 
