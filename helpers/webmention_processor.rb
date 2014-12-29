@@ -106,14 +106,14 @@ class WebmentionProcessor
 
         elsif repost_of = get_referenced_url(entry, 'repost_of') or repost_of = get_referenced_url(entry, 'repost')
           phrase = (twitter ? 'retweeted a tweet' : 'reshared a post') 
-          if (repost_of.respond_to? :include and !repost_of.include? target) or repost_of.to_s != target
+          if repost_of.respond_to? :include and !repost_of.include? target
             phrase += " that linked to"
           end
           link.type = "repost"
 
         elsif like_of = get_referenced_url(entry, 'like_of') or like_of = get_referenced_url(entry, 'like')
           phrase = (twitter ? 'favorited a tweet' : gplus ? '+1ed a post' : 'liked a post')
-          if (like_of.respond_to? :include and !like_of.include? target) or like_of.to_s != target
+          if like_of.respond_to? :include and !like_of.include? target
             phrase += " that linked to"
           end
           link.type = "like"
@@ -124,7 +124,7 @@ class WebmentionProcessor
           else
             phrase = "commented '#{snippet}' on a post"
           end
-          if (in_reply_to.respond_to? :include and !in_reply_to.include? target) or in_reply_to.to_s != target
+          if in_reply_to.respond_to? :include and !in_reply_to.include? target
             puts "in reply to URL is different from the target: #{in_reply_to}"
             phrase += " that linked to"
           end
