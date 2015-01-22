@@ -16,6 +16,8 @@ class WebmentionProcessor
     target_account = Account.first :username => username
     return 'target_not_found' if target_account.nil?
 
+    return 'invalid_target' if source == target
+
     begin
       target_domain = URI.parse(target).host
     rescue
