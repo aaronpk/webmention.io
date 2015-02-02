@@ -2,7 +2,7 @@
 
 This project is an implementation of the [Webmention](http://indiewebcamp.com/webmention) and [Pingback](http://indiewebcamp.com/pingback) protocols. It allows the receiving service to be run separately from the blogging software or website environment, making it easier to manage and integrate with other services.
 
-Say you have a statically-generated website using Jekyll or something similar, you can simply add the appropriate <link> tags to this service, and now you have WebMention and Pingback enabled on your static site!
+Say you have a statically-generated website using Jekyll or something similar, you can simply add the appropriate `<link>` tags to this service, and now you have WebMention and Pingback enabled on your static site!
 
     <link rel="pingback" href="http://webmention.io/username/xmlrpc" />
     <link rel="http://webmention.org/" href="http://webmention.io/username/webmention" />
@@ -61,7 +61,7 @@ GET http://webmention.io/api/mentions?target[]=http://indiewebcamp.com/a-blog-po
     }
   ]
 }
-``
+```
 
 ### Find all links to your domain
 
