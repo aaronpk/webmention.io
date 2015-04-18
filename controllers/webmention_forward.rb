@@ -1,5 +1,9 @@
 class Controller < Sinatra::Base
 
+  get '/webmention' do
+    redirect params[:forward]
+  end
+
   # Forward pingbacks to webmentions
   post '/webmention' do
 
