@@ -36,7 +36,8 @@ class Controller < Sinatra::Base
         source: source,
         target: target
       }, {
-        'Accept' => 'application/json'
+        'Accept' => 'application/json',
+        'Original-Remote-Addr' => request.ip
       }
     rescue => e
       create_rpc_error(e.respond_to?('response') ? e.response : e)
