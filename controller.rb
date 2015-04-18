@@ -1,20 +1,5 @@
 class Controller < Sinatra::Base
-  before do 
-    # puts "================="
-    # puts "Path: #{request.path}"
-    # puts "IP: #{request.ip}"
-    # puts 
-
-    # Require login on everything except home page and API
-    if request.path.match /[a-zA-Z0-9_\.]\/(xmlrpc|webmention)/ or request.path.match /^\/api\// or request.path.match /^\/webmention/
-      # No login required for /xmlrpc routes
-    else
-      if !["/", "/auth/indieauth", "/auth/indieauth/callback"].include? request.path
-        puts request.body.read
-        require_login
-      end
-    end
-
+  before do
     @redis = Redis.new :host => SiteConfig.redis.host, :port => SiteConfig.redis.port
   end
 
@@ -37,6 +22,7 @@ class Controller < Sinatra::Base
   end
 
   get '/dashboard/?' do
+    require_login
     title "Dashboard"
     erb :dashboard
   end
