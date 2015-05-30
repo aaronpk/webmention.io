@@ -3,6 +3,7 @@ development:
   session_secret: SUPERSECRET
   ga_id: 
   base_url: "https://webmention.io"
+  indieauth_server: "https://indieauth.com"
   redis:
     host: 127.0.0.1
     port: 6379

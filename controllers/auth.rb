@@ -1,7 +1,7 @@
 class Controller < Sinatra::Base
 
   get '/auth/start' do
-    redirect "https://indieauth.com/auth?client_id=#{SiteConfig.base_url}/&redirect_uri=#{SiteConfig.base_url}/auth/callback"
+    redirect "#{SiteConfig.indieauth_server}/auth?client_id=#{SiteConfig.base_url}/&redirect_uri=#{SiteConfig.base_url}/auth/callback"
   end
 
   get '/auth/indieauth/callback' do
