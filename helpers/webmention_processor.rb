@@ -57,6 +57,7 @@ class WebmentionProcessor
       entry = maybe_get parsed, 'entry'
       if entry
         author = maybe_get entry, 'author'
+        author = maybe_get entry, 'invitee' if author.nil?
         if author
           link.author_name = author.format.name.to_s
           link.author_url = maybe_get(author.format, 'url').to_s
