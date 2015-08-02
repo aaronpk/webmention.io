@@ -16,7 +16,7 @@ class NotificationQueue
     @redis.sadd "webmention::queued", site_id
 
     # Create clusters for source and target, adding the notification to both
-    @redis.sadd "webmention::#{site_id}::source::#{link.type}::#{link.source}", link.id
+    @redis.sadd "webmention::#{site_id}::source::#{link.type}::#{link.is_direct}::#{link.source}", link.id
     @redis.sadd "webmention::#{site_id}::target::#{link.target}", link.id
 
     # Set a timer for this webmention for 60 seconds from now
@@ -43,11 +43,13 @@ class NotificationQueue
         link = Link.get link_id
         return if link.nil?
 
+        is_direct = link.is_direct
+
         puts "Processing timer #{link_id} (source: #{link.source} target: #{link.target}"
 
         # Get the members of both the source and target lists.
         # Yes, it looks like the variable names are wrong, but this makes the code below easier to read.
-        target_links = @redis.smembers "webmention::#{site_id}::source::#{link.type}::#{link.source}"
+        target_links = @redis.smembers "webmention::#{site_id}::source::#{link.type}::#{link.is_direct}::#{link.source}"
         source_links = @redis.smembers "webmention::#{site_id}::target::#{link.target}"
 
         notifications = []
@@ -118,10 +120,13 @@ class NotificationQueue
             case type
             when "rsvp-yes"
               action = "RSVPd yes to"
+              action += " an event that linked to" unless is_direct
             when "rsvp-no"
               action = "RSVPd no to"
+              action += " an event that linked to" unless is_direct
             when "rsvp-maybe"
               action = "RSVPd maybe to"
+              action += " an event that linked to" unless is_direct
             when "invite"
               if source_authors.length == 1
                 verb = "was"
@@ -129,12 +134,16 @@ class NotificationQueue
                 verb = "were"
               end
               action = "#{verb} invited to"
+              action += " an event that linked to" unless is_direct
             when "like"
               action = "liked"
+              action += " a post that linked to" unless is_direct
             when "repost"
               action = "reposted"
+              action += " a post that linked to" unless is_direct
             when "reply"
-              action = "replied"
+              action = "commented on"
+              action += " a post that linked to" unless is_direct
             end
 
             text += " #{action} "
@@ -143,11 +152,11 @@ class NotificationQueue
             text += target_links.map{|id| 
               link = Link.get(id)
               if link.page.type and link.page.name
-                "#{link.page.type.with_indefinite_article}: \"#{link.page.name}\""
+                "#{link.page.type.with_indefinite_article}: \"#{link.page.name}\" #{link.page.href}"
               elsif link.page.name
-                "\"link.page.name\""
+                "\"#{link.page.name}\" #{link.page.href}"
               elsif link.page.type
-                link.page.type.with_indefinite_article
+                "#{link.page.type.with_indefinite_article} #{link.page.href}"
               else
                 link.page.href
               end
@@ -178,11 +187,11 @@ class NotificationQueue
         # Remove the mentions that were include in this notification
         links.each do |id|
           link = Link.get(id)
-          @redis.srem "webmention::#{site_id}::source::#{link.type}::#{link.source}", id
+          @redis.srem "webmention::#{site_id}::source::#{link.type}::#{link.is_direct}::#{link.source}", id
           @redis.srem "webmention::#{site_id}::target::#{link.target}", id
 
-          if @redis.scard "webmention::#{site_id}::source::#{link.type}::#{link.source}" == 0
-            @redis.del "webmention::#{site_id}::source::#{link.type}::#{link.source}"
+          if @redis.scard "webmention::#{site_id}::source::#{link.type}::#{link.is_direct}::#{link.source}" == 0
+            @redis.del "webmention::#{site_id}::source::#{link.type}::#{link.is_direct}::#{link.source}"
           end
           if @redis.scard "webmention::#{site_id}::target::#{link.target}" == 0
             @redis.del "webmention::#{site_id}::target::#{link.target}"
@@ -193,9 +202,10 @@ class NotificationQueue
 
         notifications.each do |notification|
           puts ""
+          puts "\t#{notification.url}"
           puts "\t#{notification.text}"
           puts ""
-          NotificationQueue.send_notification site, notification.text
+          NotificationQueue.send_notification site, "[mention] #{notification.text} #{notification.url}"
         end
 
       end
@@ -203,7 +213,7 @@ class NotificationQueue
   end
 
   def self.send_notification(site, message)
-    puts "SENDING NOTIFICATION: #{message}"
+    puts "Sending notification: #{message}"
 
     if !site.account.zenircbot_uri.empty? and !site.irc_channel.empty? and valid
 

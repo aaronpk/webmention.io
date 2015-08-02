@@ -151,18 +151,20 @@ class WebmentionProcessor
           phrase = 'was invited to'
           link.type = "invite"
 
-        elsif repost_of = get_referenced_url(entry, 'repost_ofs') or repost_of = get_referenced_url(entry, 'reposts')
+        elsif repost_of = get_referenced_url(entry, 'repost_ofs')
           phrase = (twitter ? 'retweeted a tweet' : 'reshared a post') 
           if !repost_of.include? target
             phrase += " that linked to"
+            link.is_direct = false
           end
           link.type = "repost"
 
-        elsif like_of = get_referenced_url(entry, 'like_ofs') or like_of = get_referenced_url(entry, 'likes')
+        elsif like_of = get_referenced_url(entry, 'like_ofs')
           puts like_of.inspect
           phrase = (twitter ? 'favorited a tweet' : gplus ? '+1ed a post' : 'liked a post')
           if !like_of.include? target
             phrase += " that linked to"
+            link.is_direct = false
           end
           link.type = "like"
 
@@ -175,6 +177,7 @@ class WebmentionProcessor
           if !in_reply_to.include? target
             puts "in reply to URL is different from the target: #{in_reply_to}"
             phrase += " that linked to"
+            link.is_direct = false
           end
           link.type = "reply"
 

@@ -16,6 +16,7 @@ class Link
   property :published_ts, Integer
 
   property :type, String
+  property :is_direct, Boolean, :default => true
   property :sentence, Text
   property :sentence_html, Text
 
