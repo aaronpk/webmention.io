@@ -3,6 +3,8 @@ class NotificationQueue
   def self.queue_notification(link, message)
     #self.send_notification link, message
 
+    buffer_period = 10
+
     if !@redis
       puts "Connecting to Redis"
       @redis = Redis.new :host => SiteConfig.redis.host, :port => SiteConfig.redis.port
@@ -14,11 +16,11 @@ class NotificationQueue
     @redis.sadd "webmention::queued", account_id
 
     # Create clusters for source and target, adding the notification to both
-    @redis.sadd "webmention::#{account_id}::source::#{link.source}", link.id
+    @redis.sadd "webmention::#{account_id}::source::#{link.type}::#{link.source}", link.id
     @redis.sadd "webmention::#{account_id}::target::#{link.target}", link.id
 
-    # Set a timer for this notification for 60 seconds from now
-    @redis.zadd "webmention::#{account_id}::timers", (Time.now.to_i+60), link.id
+    # Set a timer for this webmention for 60 seconds from now
+    @redis.zadd "webmention::#{account_id}::timers", (Time.now.to_i+buffer_period), link.id
   end
 
   def self.process_notifications
@@ -32,38 +34,99 @@ class NotificationQueue
 
       # Find any timers that have expired
       timers = @redis.zrangebyscore "webmention::#{account_id}::timers", 0, Time.now.to_i
+
+      if timers.count == 0
+        puts "\tno timers"
+      end
+
       timers.each do |link_id|
         link = Link.first :id => link_id
         puts "Processing timer #{link_id} (source: #{link.source} target: #{link.target}"
 
-        # Get the members of both the source and target lists
-        source_links = @redis.smembers "webmention::#{account_id}::source::#{link.source}"
-        target_links = @redis.smembers "webmention::#{account_id}::target::#{link.target}"
+        # Get the members of both the source and target lists.
+        # Yes, it looks like the variable names are wrong, but this makes the code below easier to read.
+        target_links = @redis.smembers "webmention::#{account_id}::source::#{link.type}::#{link.source}"
+        source_links = @redis.smembers "webmention::#{account_id}::target::#{link.target}"
 
         # Process the one with more mentions
-        if source_links.length > target_links.length
-          text = source_links.map{|id| link = Link.first(:id => id).source}.uniq.join(" and ")
-          text += " linked to "
-          target = source_links.map{|id| link = Link.first(:id => id).target}.uniq.join(" and ")
-          text += target
+        if target_links.length > source_links.length
+          # One source linked to many targets.
+          # Most often this is when someone writes a blog post that references a bunch
+          # of wiki pages.
 
-          links = source_links
-        else
-          source = target_links.map{|id| link = Link.first(:id => id).source}.uniq.join(" and ")
-          text = "#{source} linked to "
-          text += target_links.map{|id| link = Link.first(:id => id).target}.uniq.join(" and ")
+          text = target_links.map{|id| link = Link.first(:id => id).source}.uniq.join(" and ")
+          text += " linked to "
+          targets = target_links.map{|id| link = Link.first(:id => id).target}.uniq.join(" and ")
+          text += targets
 
           links = target_links
+        else
+          # Many sources linked to one target.
+          # Most often this is when many "likes" are received in a row, or when bridgy
+          # sends the flood of invites for a POSSE'd event.
+          source_types = {}
+          links = [] 
+
+          puts "source links:"
+          jj source_links
+          puts "target links:"
+          jj target_links
+
+          # The source links may be different "types" of objects, such as a "like" vs "reply",
+          # or an "RSVP yes" vs "RSVP no". We want to generate notifications for each
+          # type of interaction, not collapsing webmentions of different types.
+          # For example, "X was invited to Y" and "W RSVPd to Y" should be separate notifications.
+          source_links.each{|id|
+            link = Link.first(:id => id)
+            if source_types[link.type].nil?
+              source_types[link.type] = []
+            end
+            source_types[link.type] << link
+          }
+
+          puts "source types:"
+          jj source_types
+
+          # Process each type of source separately
+          source_types.each do |type, source_links|
+            text = source_links.map{|link|
+              links << link.id
+              link.author_text
+            }.uniq.join(" and ")
+
+            case type
+            when "rsvp-yes"
+              action = "RSVPd yes to"
+            when "rsvp-no"
+              action = "RSVPd no to"
+            when "rsvp-maybe"
+              action = "RSVPd maybe to"
+            when "invite"
+              action = "was invited to"
+            when "like"
+              action = "liked"
+            when "repost"
+              action = "reposted"
+            when "reply"
+              action = "replied"
+            end
+
+            text += " #{action} "
+            text += target_links.map{|id| link = Link.first(:id => id).target}.uniq.join(" and ")
+            puts "::: #{text}"
+          end
+
+          exit
         end
 
         # Remove the mentions that were include in this notification
         links.each do |id|
           link = Link.first(:id => id)
-          @redis.srem "webmention::#{account_id}::source::#{link.source}", id
+          @redis.srem "webmention::#{account_id}::source::#{link.type}::#{link.source}", id
           @redis.srem "webmention::#{account_id}::target::#{link.target}", id
 
-          if @redis.scard "webmention::#{account_id}::source::#{link.source}" == 0
-            @redis.del "webmention::#{account_id}::source::#{link.source}"
+          if @redis.scard "webmention::#{account_id}::source::#{link.type}::#{link.source}" == 0
+            @redis.del "webmention::#{account_id}::source::#{link.type}::#{link.source}"
           end
           if @redis.scard "webmention::#{account_id}::target::#{link.target}" == 0
             @redis.del "webmention::#{account_id}::target::#{link.target}"

@@ -5,7 +5,14 @@ class WebmentionProcessor
   task_class TaskThread
 
   def perform(event)
-    process_mention event[:username], event[:source], event[:target], event[:protocol]
+    link, result = process_mention event[:username], event[:source], event[:target], event[:protocol]
+
+    # Delete invalid mentions from the database
+    # TODO: Delay this, or cache this when we implement a webmention status endpoint
+    if link and result != 'success'
+      puts "mention was invalid, deleting"
+      link.destroy
+    end
   end
 
   # Handles actually verifying source links to target, returning the list of errors based on the webmention errors
@@ -14,16 +21,16 @@ class WebmentionProcessor
     puts "Verifying link exists from #{source} to #{target}"
 
     target_account = Account.first :username => username
-    return 'target_not_found' if target_account.nil?
+    return nil, 'target_not_found' if target_account.nil?
 
-    return 'invalid_target' if source == target
+    return nil, 'invalid_target' if source == target
 
     begin
       target_domain = URI.parse(target).host
     rescue
-      return 'invalid_target' if target_domain.nil?
+      return nil, 'invalid_target' if target_domain.nil?
     end
-    return 'target_not_found' if target_domain.nil?
+    return nil, 'target_not_found' if target_domain.nil?
 
     site = Site.first_or_create :account => target_account, :domain => target_domain
     page = Page.first_or_create({:site => site, :href => target}, {:account => target_account})
@@ -37,12 +44,12 @@ class WebmentionProcessor
     begin
       scraper = agent.get source
     rescue
-      return 'source_not_found' if scraper.nil?
+      return link, 'source_not_found' if scraper.nil?
     end
 
     valid = scraper.link_with(:href => target) != nil
 
-    return 'no_link_found' if !valid
+    return link, 'no_link_found' if !valid
 
     # Parse for microformats and look for "like", "invite", "rsvp", or other post types
     parsed = false
@@ -101,7 +108,7 @@ class WebmentionProcessor
         rsvps = maybe_get entry, 'rsvps'
         if rsvps
           phrase = "RSVPed #{rsvps.join(', ')} to"
-          link.type = "rsvp"
+          link.type = "rsvp-#{rsvps[0]}"
 
         elsif maybe_get entry, 'invitees'
           phrase = 'was invited to'
@@ -136,7 +143,7 @@ class WebmentionProcessor
 
         else
           phrase = "posted '#{snippet}' linking to"
-          link.type = "post"
+          link.type = "link"
         end
 
         message = "[#{bridgy ? 'bridgy' : 'mention'}] #{subject} #{phrase} #{target}"
@@ -184,7 +191,7 @@ class WebmentionProcessor
 
     link.verified = true
     link.save
-    return 'success'
+    return link, 'success'
   end
 
   def get_referenced_url(obj, method)

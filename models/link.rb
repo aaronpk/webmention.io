@@ -24,6 +24,24 @@ class Link
   property :created_at, DateTime
   property :updated_at, DateTime
 
+  def author_text
+    if author_name
+      "#{author_name} (#{author_url})"
+    else
+      author_url
+    end
+  end
+
+  def author_html
+    if author_name
+      "<a href=\"#{author_url}\">#{author_name}</a>"
+    elsif author_url
+      "<a href=\"#{author_url}\">#{author_url}</a>"
+    else
+      nil
+    end
+  end
+
   def source
     self.href
   end
