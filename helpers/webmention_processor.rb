@@ -32,15 +32,49 @@ class WebmentionProcessor
     end
     return nil, 'target_not_found' if target_domain.nil?
 
+    agent = Mechanize.new {|agent|
+      agent.user_agent_alias = "Mac Safari"
+    }
+
     site = Site.first_or_create :account => target_account, :domain => target_domain
-    page = Page.first_or_create({:site => site, :href => target}, {:account => target_account})
+
+    # If the page already exists, use that record. Otherwise create it and find out what kind of object is on the page
+    page = Page.first :site => site, :href => target
+    if page.nil?
+      page = Page.new 
+      page.site = site
+      page.account = target_account
+      page.href = target
+
+      begin
+        parsed = Microformats2.parse target
+
+        # Determine the type of page the target is. It might be an event or a photo for example
+        if event = maybe_get(parsed, 'event')
+          page.type = 'event'
+          name = maybe_get event, 'name'
+          page.name = name.to_s if name
+        elsif entry = maybe_get(parsed, 'entry')
+          name = maybe_get entry, 'name'
+          page.name = name.to_s if name
+
+          if maybe_get entry, 'photo'
+            page.type = 'photo'
+          elsif maybe_get entry, 'video'
+            page.type = 'video'
+          end
+
+        end
+      rescue
+      end
+
+      page.save
+    end
+
     link = Link.first_or_create(:page => page, :href => source)
 
     already_registered = link[:verified]
 
-    agent = Mechanize.new {|agent|
-      agent.user_agent_alias = "Mac Safari"
-    }
     begin
       scraper = agent.get source
     rescue

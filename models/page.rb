@@ -8,6 +8,9 @@ class Page
   belongs_to :site
   has n, :links
 
+  property :type, String
+  property :name, Text
+
   property :created_at, DateTime
   property :updated_at, DateTime
 end
