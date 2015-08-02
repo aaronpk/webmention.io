@@ -1,6 +1,19 @@
 body {
   font: 13px Helvetica,arial,freesans,clean,sans-serif;
   background: url(/img/noise.jpg);
+  padding: 0;
+  margin: 0;
+}
+
+a {
+  color: #0088cc;
+  text-decoration: none;
+}
+
+a:hover,
+a:focus {
+  color: #005580;
+  text-decoration: underline;
 }
 
 @media (max-width: 767px) {
@@ -28,6 +41,24 @@ body {
 
 .container {
   padding: 0 10px;
+  width: 940px;
+}
+
+.container {
+  margin-right: auto;
+  margin-left: auto;
+  *zoom: 1;
+}
+
+.container:before,
+.container:after {
+  display: table;
+  line-height: 0;
+  content: "";
+}
+
+.container:after {
+  clear: both;
 }
 
 .container-narrow {
@@ -42,6 +73,48 @@ body {
 
 .table tr.highlight td {
   background-color: #fff9d6 !important;
+}
+
+.hero-unit {
+  padding: 60px;
+  margin-bottom: 30px;
+  font-size: 18px;
+  font-weight: 200;
+  line-height: 30px;
+  color: inherit;
+  background-color: #eee;
+  border-radius: 6px;
+}
+
+.hero-unit h1 {
+  margin-bottom: 0;
+  font-size: 60px;
+  line-height: 1;
+  letter-spacing: -1px;
+  color: inherit;
+}
+
+.btn {
+  border-radius: 6px;
+}
+.btn-large {
+  padding: 11px 19px;
+  font-size: 17.5px;  
+}
+.btn-primary {
+  color: #ffffff;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.25);
+  background-color: #006dcc;  
+}
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active,
+.btn-primary.active,
+.btn-primary.disabled,
+.btn-primary[disabled] {
+  color: #ffffff;
+  background-color: #0044cc;
+  text-decoration: none;
 }
 
 /*.hero-unit {
@@ -69,26 +142,28 @@ body {
   padding: 19px;
 }
 
+.home-section {
+  background-color: #fff; 
+  padding: 10px 20px; 
+  margin-top: 20px;
+  border-radius: 6px;
+}
+
 .footer {
-  background: url(/img/bkg-dark.png) repeat center top #151515;
-  padding: 20px 0 10px 0;
-}
-.footer .fill {
-  display: block;
-}
-.footer li {
-  line-height: 24px;
-}
-.footer h5 {
-  color: #ddd;
-}
-.footer li, .footer h5 {
-  font-size: 13px;
+  border-top: 1px #ddd solid;
+  background: rgba(255,255,255,0.3);
+  padding: 20px 0 20px 0;
+  text-align: center;
 }
 .footer a {
   color: gray;
 }
 
+.footer .item {
+  font-size: 0.8em;
+  margin: 0 20px;
+  display: inline-block;
+}
 
 .intro p {
   font-size: 1.12em;

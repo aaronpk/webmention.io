@@ -6,10 +6,6 @@ class Controller < Sinatra::Base
       @_title = value
     end
 
-    def viewport
-      '<meta name="viewport" content="width=device-width,initial-scale=1">' if @_mobile
-    end
-    
     def partial(page, options={})
       erb page, options.merge!(:layout => false)
     end
