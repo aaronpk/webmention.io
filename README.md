@@ -2,7 +2,7 @@
 
 This project is an implementation of the [Webmention](http://indiewebcamp.com/webmention) and [Pingback](http://indiewebcamp.com/pingback) protocols. It allows the receiving service to be run separately from the blogging software or website environment, making it easier to manage and integrate with other services.
 
-Say you have a statically-generated website using Jekyll or something similar, you can simply add the appropriate `<link>` tags to this service, and now you have WebMention and Pingback enabled on your static site!
+Say you have a statically-generated website using Jekyll or something similar, you can simply add the appropriate `<link>` tags to this service, and now you have Webmention and Pingback enabled on your static site!
 
     <link rel="pingback" href="http://webmention.io/username/xmlrpc" />
     <link rel="http://webmention.org/" href="http://webmention.io/username/webmention" />
@@ -144,7 +144,7 @@ Read the full protocol here: http://www.hixie.ch/specs/pingback/pingback
 
 ## Pingback to Webmention Service
 
-[Webmention](http://webmention.org) is a modern alternative to Pingback. It's analogous to the Pingback protocol except does not use XML-RPC and is much easier to implement. This project also includes a simple API for converting XML-RPC Pingbacks to WebMentions and forwarding the request on to your own site.
+[Webmention](http://webmention.org) is a modern alternative to Pingback. It's analogous to the Pingback protocol except does not use XML-RPC and is much easier to implement. This project also includes a simple API for converting XML-RPC Pingbacks to Webmentions and forwarding the request on to your own site.
 
 Using Webmention.io in this mode does not require an registration, and this service does not store any of the information. The Pingback request is simply forwarded on to your server as a Webmention.
 

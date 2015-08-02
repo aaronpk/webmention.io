@@ -1,0 +1,39 @@
+<div class="container notification" style="padding-top: 30px;">
+
+  <div class="hero-unit">
+    <div class="notification-text"><%= @notification.html %></div>
+    <div class="date"><%= @notification.created_at.strftime('%Y-%m-%d %H:%M %z') %></div>
+  </div>
+
+  <div class="links">
+    <h3>Source Links</h3>
+    <ul>
+      <% @sources.each do |link| %>
+        <li><a href="<%= link.href %>"><%= link.href %></a></li>
+      <% end %>
+    </ul>
+
+    <h3>Target Links</h3>
+    <ul>
+      <% @targets.each do |page| %>
+        <li><a href="<%= page.href %>"><%= page.href %></a></li>
+      <% end %>
+    </ul>
+  </div>
+
+</div><!-- container -->
+<style type="text/css">
+  .notification .notification-text {
+
+  }
+  .notification .date {
+    text-align: right;
+  }
+  .notification .links {
+    padding: 0 60px;
+  }
+  .notification h3 {
+    font-size: 20px;
+    margin: 0;
+  }
+</style>
