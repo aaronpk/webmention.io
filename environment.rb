@@ -3,6 +3,7 @@ require 'rubygems'
 require 'bundler/setup'
 require 'cgi'
 require 'xmlrpc/marshal'
+require 'securerandom'
 
 Bundler.require
 Dir.glob(['lib', 'models', 'helpers'].map! {|d| File.join File.expand_path(File.dirname(__FILE__)), d, '*.rb'}).each {|f| require f}

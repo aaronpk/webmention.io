@@ -53,7 +53,10 @@ class WebmentionProcessor
         if event = maybe_get(parsed, 'event')
           page.type = 'event'
           name = maybe_get event, 'name'
+          # TODO: add the date and maybe location so that the name of the event is:
+          # Homebrew Website Club on 2015-07-29
           page.name = name.to_s if name
+
         elsif entry = maybe_get(parsed, 'entry')
           name = maybe_get entry, 'name'
           page.name = name.to_s if name
@@ -71,7 +74,7 @@ class WebmentionProcessor
       page.save
     end
 
-    link = Link.first_or_create(:page => page, :href => source)
+    link = Link.first_or_create({:page => page, :href => source},{:site => site})
 
     already_registered = link[:verified]
 
@@ -201,7 +204,7 @@ class WebmentionProcessor
       puts "Queuing notification: #{message}"
 
       if link.type == "reply"
-        NotificationQueue.send_notification link, message
+        NotificationQueue.send_notification link.page.site, message
       else
         NotificationQueue.queue_notification link, message
       end

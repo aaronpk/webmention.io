@@ -20,13 +20,16 @@ class Link
   property :sentence_html, Text
 
   belongs_to :page
+  belongs_to :site
+
+  belongs_to :notification, :required => false
 
   property :created_at, DateTime
   property :updated_at, DateTime
 
   def author_text
     if author_name
-      "#{author_name} (#{author_url})"
+      author_name
     else
       author_url
     end
