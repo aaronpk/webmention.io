@@ -166,7 +166,11 @@ class WebmentionProcessor
     if !already_registered
       puts "Queuing notification: #{message}"
 
-      NotificationQueue.queue_notification link, message
+      if link.type == "reply"
+        NotificationQueue.send_notification link, message
+      else
+        NotificationQueue.queue_notification link, message
+      end
     else
       puts "Already sent notification: #{message}"
     end # notification
