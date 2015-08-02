@@ -23,4 +23,20 @@ class Link
 
   property :created_at, DateTime
   property :updated_at, DateTime
+
+  def source
+    self.href
+  end
+
+  def source_id
+    self.id
+  end
+
+  def target
+    self.page.href
+  end
+
+  def target_id
+    self.page.id
+  end
 end
