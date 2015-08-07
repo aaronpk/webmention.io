@@ -41,7 +41,7 @@ class NotificationQueue
 
       timers.each do |link_id|
         link = Link.get link_id
-        return if link.nil?
+        next if link.nil?
 
         is_direct = link.is_direct
 
@@ -60,14 +60,68 @@ class NotificationQueue
           # Most often this is when someone writes a blog post that references a bunch
           # of wiki pages.
 
-          text = target_links.map{|id| link = Link.get(id).source}.uniq.join_with_and
-          text += " linked to "
-          targets = target_links.map{|id| link = Link.get(id).target}.uniq.join_with_and
-          text += targets
+          links = []
+          targets = target_links.map{|id|
+            Link.get(id)
+          }.uniq
+
+          links = targets.map{|link|
+            link.id
+          }
+
+          source_authors = targets.map{|link|
+            link.author_text
+          }.uniq
+          source_authors_html = targets.map{|link|
+            link.author_html
+          }.uniq
+          text = source_authors.join_with_and
+          html = source_authors_html.join_with_and
+
+          text += " posted "
+          html += " posted "
+
+          text += targets.map{|link| 
+            if link.type and link.type != "link" and link.name
+              "#{link.type.with_indefinite_article}: \"#{link.name_truncated}\" #{link.href}"
+            elsif link.name
+              "\"#{link.name_truncated}\" #{link.href}"
+            elsif link.type and link.type != "link"
+              "#{link.type.with_indefinite_article} #{link.href}"
+            else
+              link.href
+            end
+          }.uniq.join_with_and
+          html += targets.map{|link| 
+            if link.type and link.type != "link" and link.name
+              "#{link.type.with_indefinite_article}: <a href=\"#{link.href}\">#{link.name_truncated}</a>"
+            elsif link.name
+              "<a href=\"#{link.href}\">#{link.name_truncated}</a>"
+            elsif link.type and link.type != "link"
+              "#{link.type.with_indefinite_article} <a href=\"#{link.href}\">#{link.href}</a>"
+            else
+              "<a href=\"#{link.href}\">#{link.href}</a>"
+            end
+          }.uniq.join_with_and
+
+          text += " that linked to "
+          html += " that linked to "
+
+          text += targets.map{|link| 
+            link.target
+          }.uniq.join_with_and
+          html += targets.map{|link| 
+            "<a href=\"#{link.target}\">#{link.target}</a>"
+          }.uniq.join_with_and
+
+          puts "================"
+          puts "Notification: #{text}"
+          puts "================"
 
           notification = Notification.new :account => site.account, :site => site
           notification.text = text
-          notification.links = target_links.map{|id| Link.get(id)}
+          notification.html = html
+          notification.links = targets
           notification.token = SecureRandom.urlsafe_base64 16
           notification.save
           notifications << notification
@@ -152,9 +206,9 @@ class NotificationQueue
             text += target_links.map{|id| 
               link = Link.get(id)
               if link.page.type and link.page.name
-                "#{link.page.type.with_indefinite_article}: \"#{link.page.name}\" #{link.page.href}"
+                "#{link.page.type.with_indefinite_article}: \"#{link.page.name_truncated}\" #{link.page.href}"
               elsif link.page.name
-                "\"#{link.page.name}\" #{link.page.href}"
+                "\"#{link.page.name_truncated}\" #{link.page.href}"
               elsif link.page.type
                 "#{link.page.type.with_indefinite_article} #{link.page.href}"
               else
@@ -165,9 +219,9 @@ class NotificationQueue
             html += target_links.map{|id|
               link = Link.get(id)
               if link.page.type and link.page.name
-                "#{link.page.type.with_indefinite_article}: \"<a href=\"#{link.page.href}\">#{link.page.name}</a>\""
+                "#{link.page.type.with_indefinite_article}: \"<a href=\"#{link.page.href}\">#{link.page.name_truncated}</a>\""
               elsif link.page.name
-                "\"<a href=\"#{link.page.href}\">#{link.page.name}</a>\""
+                "\"<a href=\"#{link.page.href}\">#{link.page.name_truncated}</a>\""
               elsif link.page.type
                 "<a href=\"#{link.page.href}\">#{link.page.type.with_indefinite_article}</a>"
               else

@@ -37,13 +37,28 @@ class Link
   end
 
   def author_html
+    # The ruby mf2 parser doesn't resolve relative URLs, so the author URL might be relative.
+    # Use Ruby's "join" with the page href to get the absolute URL.
+    absolute = URI.join(href,author_url)
     if author_name
-      "<a href=\"#{author_url}\">#{author_name}</a>"
+      "<a href=\"#{absolute}\">#{author_name}</a>"
     elsif author_url
-      "<a href=\"#{author_url}\">#{author_url}</a>"
+      "<a href=\"#{absolute}\">#{absolute}</a>"
     else
       nil
     end
+  end
+
+  def name_truncated
+    return "" unless name
+
+    snippet = Sanitize.fragment(name).strip.gsub "\n", ' '
+    # TODO: better ellipsizing
+    if snippet.length > 100
+      snippet = snippet[0, 100] + '...'
+    end
+
+    snippet
   end
 
   def source

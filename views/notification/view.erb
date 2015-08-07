@@ -1,4 +1,4 @@
-<div class="container notification" style="padding-top: 30px;">
+<div class="container-narrow notification" style="padding-top: 30px;">
 
   <div class="hero-unit">
     <div class="notification-text"><%= @notification.html %></div>
@@ -6,19 +6,19 @@
   </div>
 
   <div class="links">
-    <h3>Source Links</h3>
-    <ul>
-      <% @sources.each do |link| %>
-        <li><a href="<%= link.href %>"><%= link.href %></a></li>
+    <h3>Webmentions</h3>
+    <table class="webmentions">
+      <tr class="head">
+        <th>source</th>
+        <th>target</th>
+      </tr>
+      <% @webmentions.each do |link| %>
+        <tr>
+          <td><a href="<%= link.href %>"><%= link.href %></a></td>
+          <td><a href="<%= link.page.href %>"><%= link.page.href %></a></td>
+        </tr>
       <% end %>
-    </ul>
-
-    <h3>Target Links</h3>
-    <ul>
-      <% @targets.each do |page| %>
-        <li><a href="<%= page.href %>"><%= page.href %></a></li>
-      <% end %>
-    </ul>
+    </table>
   </div>
 
 </div><!-- container -->
@@ -28,6 +28,7 @@
   }
   .notification .date {
     text-align: right;
+    font-size: 0.8em;
   }
   .notification .links {
     padding: 0 60px;
@@ -35,5 +36,22 @@
   .notification h3 {
     font-size: 20px;
     margin: 0;
+  }
+  .webmentions {
+    width: 100%;
+  }
+  .webmentions td {
+    width: 50%;
+    text-overflow: ellipsis;
+  }
+  .webmentions tr:nth-child(even) {
+    background-color: #fff;
+  }
+  .webmentions tr:nth-child(odd) {
+    background-color: #eee;
+  }
+  .webmentions tr.head {
+    background-color: transparent;
+    text-align: left;
   }
 </style>

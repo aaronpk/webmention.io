@@ -3,8 +3,7 @@ class Controller < Sinatra::Base
   get '/notification/:token' do
     @notification = Notification.first :token => params[:token]
 
-    @sources = @notification.links.uniq
-    @targets = @notification.links.collect{|link| link.page}.uniq
+    @webmentions = @notification.links.sort_by{|link| link.created_at}
 
     if @notification.nil?
       title "Not found"
