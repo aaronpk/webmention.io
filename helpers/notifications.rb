@@ -3,7 +3,7 @@ class NotificationQueue
   def self.queue_notification(link, message)
     #self.send_notification link, message
 
-    buffer_period = 10
+    buffer_period = 60
 
     if !@redis
       puts "Connecting to Redis"
@@ -262,6 +262,11 @@ class NotificationQueue
           NotificationQueue.send_notification site, "[mention] #{notification.text} #{notification.url}"
         end
 
+        # If there are no other timers set for this account, remove it from the queue
+        if @redis.zcard "webmention::#{site_id}::timers" == 0
+          @redis.srem "webmention::queued", site_id
+        end
+
       end
     end
   end
@@ -269,7 +274,7 @@ class NotificationQueue
   def self.send_notification(site, message)
     puts "Sending notification: #{message}"
 
-    if !site.account.zenircbot_uri.empty? and !site.irc_channel.empty? and valid
+    if !site.account.zenircbot_uri.empty? and !site.irc_channel.empty?
 
       uri = "#{site.account.zenircbot_uri}#{URI.encode_www_form_component site.irc_channel}"
 
