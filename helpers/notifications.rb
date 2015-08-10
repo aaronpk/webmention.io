@@ -209,11 +209,11 @@ class NotificationQueue
 
             text += target_links.map{|id| 
               link = Link.get(id)
-              if link.page.type and link.page.name
+              if !link.page.type.blank? and !link.page.name.blank?
                 "#{link.page.type.with_indefinite_article}: \"#{link.page.name_truncated}\" #{link.page.href}"
-              elsif link.page.name
+              elsif !link.page.name.blank?
                 "\"#{link.page.name_truncated}\" #{link.page.href}"
-              elsif link.page.type
+              elsif !link.page.type.blank?
                 "#{link.page.type.with_indefinite_article} #{link.page.href}"
               else
                 link.page.href
@@ -222,11 +222,11 @@ class NotificationQueue
 
             html += target_links.map{|id|
               link = Link.get(id)
-              if link.page.type and link.page.name
+              if !link.page.type.blank? and !link.page.name.blank?
                 "#{link.page.type.with_indefinite_article}: \"<a href=\"#{link.page.href}\">#{link.page.name_truncated}</a>\""
-              elsif link.page.name
+              elsif !link.page.name.blank?
                 "\"<a href=\"#{link.page.href}\">#{link.page.name_truncated}</a>\""
-              elsif link.page.type
+              elsif !link.page.type.blank?
                 "<a href=\"#{link.page.href}\">#{link.page.type.with_indefinite_article}</a>"
               else
                 "<a href=\"#{link.page.href}\">#{link.page.href}</a>"
