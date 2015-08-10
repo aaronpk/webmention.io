@@ -7,18 +7,24 @@
 
   <div class="links">
     <h3>Webmentions</h3>
-    <table class="webmentions">
-      <tr class="head">
-        <th>source</th>
-        <th>target</th>
-      </tr>
-      <% @webmentions.each do |link| %>
+    <% row = 'odd' %>
+    <% @webmentions.each do |link| %>
+      <table class="webmentions <%= (row == 'odd' ? (row='even') : (row='odd'))  %>">
         <tr>
+          <th>date</th>
+          <td><%= link.created_at.strftime('%Y-%m-%d %H:%M:%S') %></td>
+        </tr>
+        <tr>
+          <th>source</th>
           <td><a href="<%= link.href %>"><%= link.href %></a></td>
+        </tr>
+        <tr>
+          <th>target</th>
           <td><a href="<%= link.page.href %>"><%= link.page.href %></a></td>
         </tr>
-      <% end %>
-    </table>
+      </table>
+    <% end %>
+
   </div>
 
 </div><!-- container -->
@@ -38,20 +44,20 @@
     margin: 0;
   }
   .webmentions {
+    margin-top: 15px;
     width: 100%;
   }
-  .webmentions td {
-    width: 50%;
-    text-overflow: ellipsis;
-  }
-  .webmentions tr:nth-child(even) {
+  .webmentions.odd {
     background-color: #fff;
   }
-  .webmentions tr:nth-child(odd) {
+  .webmentions.even {
     background-color: #eee;
   }
-  .webmentions tr.head {
-    background-color: transparent;
+  .webmentions th {
     text-align: left;
+    width: 60px;
+  }
+  .webmentions td {
+    text-overflow: ellipsis;
   }
 </style>
