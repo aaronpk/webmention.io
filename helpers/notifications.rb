@@ -198,6 +198,10 @@ class NotificationQueue
             when "reply"
               action = "commented on"
               action += " a post that linked to" unless is_direct
+            when "link"
+              action = "wrote a post that linked to"
+            else
+              action = "wrote a post that linked to"
             end
 
             text += " #{action} "
