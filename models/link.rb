@@ -31,8 +31,10 @@ class Link
   def author_text
     if author_name
       author_name
-    else
+    elsif author_url
       author_url
+    else 
+      "someone"
     end
   end
 
@@ -43,14 +45,16 @@ class Link
       absolute = URI.join(href,author_url)
       if author_name
         "<a href=\"#{absolute}\">#{author_name}</a>"
-      else author_url
+      elsif author_url
         "<a href=\"#{absolute}\">#{absolute}</a>"
+      else
+        "someone"
       end
     else
       if author_name
         author_name
       else
-        nil
+        "someone"
       end
     end
   end
@@ -58,7 +62,7 @@ class Link
   def name_truncated
     return "" unless name
 
-    snippet = Sanitize.fragment(name).strip.gsub "\n", ' '
+    snippet = Sanitize.fragment(name).strip.gsub("\n", ' ').gsub(Regexp.new('\s+'),' ')
     # TODO: better ellipsizing
     if snippet.length > 100
       snippet = snippet[0, 100] + '...'
