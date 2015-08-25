@@ -99,6 +99,7 @@ class WebmentionProcessor
       parsed = Microformats2.parse source
 
       entry = maybe_get parsed, 'entry'
+      entry = maybe_get parsed, 'event' if entry.nil?
       if entry
         author = maybe_get entry, 'author'
         author = maybe_get entry, 'invitee' if author.nil?
