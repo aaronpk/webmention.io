@@ -105,7 +105,17 @@ class WebmentionProcessor
         if author
           link.author_name = author.format.name.to_s
           link.author_url = maybe_get(author.format, 'url').to_s
+          if link.author_url
+            link.author_url = Microformats2::AbsoluteUri.new(link.href, link.author_url).absolutize
+          end
           link.author_photo = author.format.photo.to_s
+          if link.author_photo
+            link.author_photo = Microformats2::AbsoluteUri.new(link.href, link.author_photo).absolutize
+            # Replace the author photo with an archive URL
+            archive_photo_url = get_avatar_archive_url link.author_photo
+            puts "Storing photo url: #{archive_photo_url}"
+            link.author_photo = archive_photo_url
+          end
         end
 
         link.url = maybe_get entry, 'url'
@@ -273,6 +283,33 @@ class WebmentionProcessor
     end
 
     return urls.flatten
+  end
+
+  def get_avatar_archive_url(original_url)
+    begin
+      response = RestClient.post SiteConfig.ca3db.api_endpoint, {
+        key_id: SiteConfig.ca3db.key_id,
+        secret_key: SiteConfig.ca3db.secret_key,
+        region: SiteConfig.ca3db.region,
+        bucket: SiteConfig.ca3db.bucket,
+        url: original_url
+      }.to_json, {
+        content_type: :json,
+        'x-api-key' => SiteConfig.ca3db.api_key
+      }
+      if response
+        data = JSON.parse response
+        if data['url']
+          puts "Archived avatar: #{original_url} #{data['url']}"
+          return data['url']
+        end
+      end
+      return original_url
+    rescue => e
+      puts "There was an error saving to S3"
+      puts e.inspect
+      return original_url
+    end
   end
 
   def maybe_get(obj, method)
