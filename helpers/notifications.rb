@@ -3,7 +3,7 @@ class NotificationQueue
   def self.queue_notification(link, message)
     #self.send_notification link, message
 
-    buffer_period = 60
+    buffer_period = 120
 
     if !@redis
       puts "Connecting to Redis"
@@ -232,6 +232,9 @@ class NotificationQueue
                 "<a href=\"#{link.page.href}\">#{link.page.href}</a>"
               end
             }.uniq.join_with_and
+
+		puts "#{action}"
+		puts target_links.inspect
 
             notification.text = text
             notification.html = html
