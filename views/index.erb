@@ -67,13 +67,13 @@
 
     <p>You can include some simple markup and a Javascript file to automatically display the mention counter for one or more URLs on a page.</p>
 
-    <p>First, choose an element that will be used to display the counter. Add the an attribute <code>data-webmention-count</code> to it, as well as <code>data-url=""</code> with the full URL of the page you would like to count. This might look something like the following:</p>
+    <p>First, choose an element that will be used to display the counter. Add the attribute <code>data-webmention-count</code> to it, as well as <code>data-url=""</code> with the full URL of the page you would like to count. This might look something like the following:</p>
 
-    <p><pre><code>&lt;span data-indieweb-comment-count data-url="http://example.com/page/100"&gt;&lt;/span&gt; mentions</code></pre></p>
+    <p><pre><code>&lt;span data-webmention-count data-url="http://example.com/page/100"&gt;&lt;/span&gt; mentions</code></pre></p>
 
     <p>Then, add the following script tag to your page after you've included jQuery:</p>
 
-    <p><pre><code>&lt;script type="text/javascript" src="http://webmention.io/js/mentions.js"&gt;&lt;/script&gt;</code></pre></p>
+    <p><pre><code>&lt;script type="text/javascript" src="//webmention.io/js/mentions.js"&gt;&lt;/script&gt;</code></pre></p>
 
     <p>
 
@@ -86,7 +86,7 @@
     <p>You can also use the API to show all mentions of a URL. This will work with jQuery or you can use the API directly from a server.</p>
 
     <p><pre><code>$(function(){
-  $.getJSON("http://webmention.io/api/mentions?jsonp=?", {
+  $.getJSON("https://webmention.io/api/mentions?jsonp=?", {
     target: "http://example.com/page/100"
   }, function(data){
     console.log(data);
