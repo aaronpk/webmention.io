@@ -82,9 +82,9 @@ class NotificationQueue
           html += " posted "
 
           text += targets.map{|link| 
-            if link.type and link.type != "link" and link.name
+            if link.type and link.type != "link" and !link.name.blank?
               "#{link.type.with_indefinite_article}: \"#{link.name_truncated}\" #{link.href}"
-            elsif link.name
+            elsif !link.name.blank?
               "\"#{link.name_truncated}\" #{link.href}"
             elsif link.type and link.type != "link"
               "#{link.type.with_indefinite_article} #{link.href}"
@@ -93,9 +93,9 @@ class NotificationQueue
             end
           }.uniq.join_with_and
           html += targets.map{|link| 
-            if link.type and link.type != "link" and link.name
+            if link.type and link.type != "link" and !link.name.blank?
               "#{link.type.with_indefinite_article}: <a href=\"#{link.href}\">#{link.name_truncated}</a>"
-            elsif link.name
+            elsif !link.name.blank?
               "<a href=\"#{link.href}\">#{link.name_truncated}</a>"
             elsif link.type and link.type != "link"
               "#{link.type.with_indefinite_article} <a href=\"#{link.href}\">#{link.href}</a>"
