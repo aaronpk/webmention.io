@@ -7,3 +7,11 @@ development:
   redis:
     host: 127.0.0.1
     port: 6379
+  ca3db:
+    api_endpoint: https://xxxxxx.execute-api.us-west-2.amazonaws.com/prod/ca3db
+    api_key: xxxx
+    key_id: xxxx
+    secret_key: xxxx
+    region: us-west-2
+    bucket: example
+    s3_url: https://s3-us-west-2.amazonaws.com/example

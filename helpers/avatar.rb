@@ -14,8 +14,9 @@ class Avatar
       if response
         data = JSON.parse response
         if data['url']
-          puts "Archived avatar: #{original_url} #{data['url']}"
-          return data['url']
+          archive_url = data['url'].sub SiteConfig.ca3db.s3_url, "#{SiteConfig.base_url}/avatar"
+          puts "Archived avatar: #{original_url} #{archive_url}"
+          return archive_url
         end
       end
       return original_url
