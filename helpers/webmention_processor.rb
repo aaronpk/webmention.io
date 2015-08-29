@@ -113,7 +113,7 @@ class WebmentionProcessor
           if link.author_photo
             link.author_photo = Microformats2::AbsoluteUri.new(link.href, link.author_photo).absolutize
             # Replace the author photo with an archive URL
-            archive_photo_url = self.get_avatar_archive_url link.author_photo
+            archive_photo_url = Avatar.get_avatar_archive_url link.author_photo
             puts "Storing photo url: #{archive_photo_url}"
             link.author_photo = archive_photo_url
           end
@@ -284,36 +284,6 @@ class WebmentionProcessor
     end
 
     return urls.flatten
-  end
-
-  def self.get_avatar_archive_url(original_url)
-    begin
-      response = RestClient.post SiteConfig.ca3db.api_endpoint, {
-        key_id: SiteConfig.ca3db.key_id,
-        secret_key: SiteConfig.ca3db.secret_key,
-        region: SiteConfig.ca3db.region,
-        bucket: SiteConfig.ca3db.bucket,
-        url: original_url
-      }.to_json, {
-        content_type: :json,
-        'x-api-key' => SiteConfig.ca3db.api_key
-      }
-      if response
-        data = JSON.parse response
-        if data['url']
-          puts "Archived avatar: #{original_url} #{data['url']}"
-          return data['url'].sub "https://s3-us-west-2.amazonaws.com/ca3db", "https://webmention.io/avatar"
-        else
-          puts "CA3DB returned an invalid response"
-          puts response
-        end
-      end
-      return original_url
-    rescue => e
-      puts "There was an error saving to S3"
-      puts e.inspect
-      return original_url
-    end
   end
 
   def maybe_get(obj, method)
