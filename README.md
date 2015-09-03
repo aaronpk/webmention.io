@@ -68,7 +68,7 @@ GET http://webmention.io/api/mentions?target[]=http://indiewebcamp.com/a-blog-po
 You can also find all links to your domain:
 
 ```
-GET http://webmention.io/api/mentions?domain=indiewebcamp.com
+GET http://webmention.io/api/mentions?domain=indiewebcamp.com&token=xxxxx
 
 {
   "links": [
@@ -82,12 +82,14 @@ GET http://webmention.io/api/mentions?domain=indiewebcamp.com
 }
 ```
 
+(You will see your account's token when you sign in.)
+
 ### Find all links to all sites in your account
 
 With no parameters, the API will return all links to any site in your account:
 
 ```
-GET http://webmention.io/api/mentions
+GET http://webmention.io/api/mentions?token=xxxxxx
 
 {
   "links": [

@@ -122,6 +122,10 @@ class Controller < Sinatra::Base
   get %r{/api/(links|mentions)(:?\.(?<format>json|atom))?} do
     format = params['format'] || 'json'
 
+    if params[:token]
+      params[:access_token] = params[:token]
+    end
+
     if params[:perPage]
       limit = params[:perPage].to_i
     else
@@ -137,7 +141,7 @@ class Controller < Sinatra::Base
     if params[:target].empty? and params[:access_token].empty?
       api_response format, 400, {
         error: "invalid_input",
-        error_description: "Either an access token or a target URI is required"
+        error_description: "Either a token or a target URL is required"
       }
     end
 

@@ -23,6 +23,12 @@ class Controller < Sinatra::Base
 
   get '/dashboard/?' do
     require_login
+
+    if @user.token.nil?
+      @user.token = SecureRandom.urlsafe_base64 16
+      @user.save
+    end
+
     title "Dashboard"
     erb :dashboard
   end
