@@ -10,7 +10,8 @@ class Link
   property :author_url, String, :length => 256
   property :author_name, String, :length => 256
   property :author_photo, String, :length => 256
-  property :name, String, :length => 256
+  property :name, Text
+  property :summary, Text
   property :content, Text
   property :published, DateTime
   property :published_ts, Integer

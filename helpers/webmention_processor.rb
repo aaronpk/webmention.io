@@ -112,21 +112,28 @@ class WebmentionProcessor
           link.author_photo = author.format.photo.to_s
           if link.author_photo
             link.author_photo = Microformats2::AbsoluteUri.new(link.href, link.author_photo).absolutize
-            # Replace the author photo with an archive URL
-            archive_photo_url = Avatar.get_avatar_archive_url link.author_photo
-            puts "Storing photo url: #{archive_photo_url}"
-            link.author_photo = archive_photo_url
+            if site.archive_avatars
+              # Replace the author photo with an archive URL
+              archive_photo_url = Avatar.get_avatar_archive_url link.author_photo
+              puts "Storing photo url: #{archive_photo_url}"
+              link.author_photo = archive_photo_url
+            end
           end
         end
 
         link.url = maybe_get entry, 'url'
         link.name = maybe_get entry, 'name'
-        link.content = Sanitize.fragment((maybe_get entry, 'content').to_s,
-                                         Sanitize::Config::BASIC)
+        link.summary = Sanitize.fragment((maybe_get entry, 'summary').to_s, Sanitize::Config::BASIC)
+        link.content = Sanitize.fragment((maybe_get entry, 'content').to_s, Sanitize::Config::BASIC)
+
+        if link.url
+          # Set link.url relative to source URL from the webmention
+          link.url = Microformats2::AbsoluteUri.new(link.href, link.url).absolutize
+        end
 
         published = maybe_get entry, 'published'
         if published
-          link.published = DateTime.parse(published.to_s)
+          link.published = DateTime.parse(published.to_s) # has timezone information now, will be discarded when saved to the db
           link.published_ts = DateTime.parse(published.to_s).to_time.to_i
         end
 
@@ -225,6 +232,30 @@ class WebmentionProcessor
     else
       puts "Already sent notification: #{message}"
     end # notification
+
+    # If a callback URL is defined for this site, send to the callback now
+    if(site.callback_url)
+      begin
+        puts "Sending to callback URL: #{site.callback_url}"
+        RestClient.post site.callback_url, {
+          secret: site.callback_secret,
+          source: source,
+          target: target,
+          type: link.type,
+          author_name: link.author_name,
+          author_photo: link.author_photo,
+          author_url: link.author_url,
+          url: url,
+          name: link.name,
+          summary: link.summary,
+          content: link.content,
+          published: link.published
+        }
+      rescue => e
+        puts "Failed to send to callback URL"
+        puts e.inspect
+      end
+    end
 
     # Publish on Redis for realtime comments
     if @redis && parsed
