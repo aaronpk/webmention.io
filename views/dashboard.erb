@@ -30,7 +30,7 @@
           <input type="url" name="callback_url" placeholder="http://example.com/webmention/hook" style="margin-bottom: 4px; width: 90%;" value="<%= site.callback_url %>"><br>
           <input type="text" name="callback_secret" placeholder="callback secret" style="margin-bottom: 4px; width: 90%;" value="<%= site.callback_secret %>"><br>
           <div style="margin-top: 6px;">
-            <input type="checkbox" name="archive_avatars" <%= site.archive_avatars ? 'checked="checked"' : '' %> value="1"> Send Original Avatar
+            <input type="checkbox" name="archive_avatars" <%= site.archive_avatars ? '' : 'checked="checked"' %> value="1"> Send Original Avatar
           </div>
           <input type="submit" class="button">
         </form>
