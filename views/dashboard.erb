@@ -1,8 +1,9 @@
 <div class="container-narrow">
-
+<div class="header">
+  <div style="float: right;"><a href="/logout">Sign Out</a></div>
+  <div><%= @user.domain %></div>
+</div>
 <div style="background-color: #fff; padding: 10px 20px;">
-
-    <h2>Signed in as <%= @user.domain %></h2>
 
     <p>Congrats, you've signed in. Now you can use the following tags to accept webmentions for this account.</p>
 
@@ -11,9 +12,54 @@
 
     <p>You can use this account on any number of websites. The webmentions can be queried per website <a href="https://github.com/aaronpk/webmention.io#api">using the API</a>.</p>
 
+    <h2>API Key</h2>
+
     <p>In order to access the list of mentions for a domain (not just a specific URL), you will need to use a token. Below is the token for your account.</p>
 
     <p><pre><code><%= @user.token %></code></pre></p>
+
+    <h2>Web Hook</h2>
+
+    <p>If you configure a web hook here, this service will send a post request every time a webmention is received and verified. You will not receive webhooks for webmentions that are invalid.
+
+    <% @user.sites.each do |site| %>
+      <div style="border: 1px #eee solid; border-radius: 3px; padding: 10px; margin: 4px; width: 40%; float: left;">
+        <%= site.domain %>
+        <form action="/webhook/configure" method="post">
+          <input type="hidden" name="site_id" value="<%= site.id %>">
+          <input type="url" name="callback_url" placeholder="http://example.com/webmention/hook" style="margin-bottom: 4px; width: 90%;" value="<%= site.callback_url %>"><br>
+          <input type="text" name="callback_secret" placeholder="callback secret" style="margin-bottom: 4px; width: 90%;" value="<%= site.callback_secret %>"><br>
+          <div style="margin-top: 6px;">
+            <input type="checkbox" name="archive_avatars" <%= site.archive_avatars ? 'checked="checked"' : '' %> value="1"> Send Original Avatar
+          </div>
+          <input type="submit" class="button">
+        </form>
+      </div>
+    <% end %>
+    <div style="clear:both;"></div>
+
+    <p>If "Send Original Avatar" is un-checked, the author avatar URL will be archived and an alternate URL will be returned. This means you won't have to worry about broken image links for past webmentions when someone changes their profile URL.</p>
+
+    <p>The payload that is sent will look like the below:</p>
+
+    <pre><code>{
+  "secret": "1234abcd",
+  "source": "http://rhiaro.co.uk/2015/11/1446953889",
+  "target": "http://aaronparecki.com/notes/2015/11/07/4/indiewebcamp",
+  "property": "repost-of",
+  "post": {
+    "type": "entry",
+    "author": {
+      "name": "Amy Guy",
+      "photo": "http://webmention.io/avatar/rhiaro.co.uk/829d3f6e7083d7ee8bd7b20363da84d88ce5b4ce094f78fd1b27d8d3dc42560e.png",
+      "url": "http://rhiaro.co.uk/about#me"
+    },
+    "url": "http://rhiaro.co.uk/2015/11/1446953889",
+    "published": "2015-11-08T03:38:09+00:00",
+    "name": ": post",
+    "repost-of": "http://aaronparecki.com/notes/2015/11/07/4/indiewebcamp"
+  }
+}</code></pre>
 
 </div>
 

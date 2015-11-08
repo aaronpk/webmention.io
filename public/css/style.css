@@ -25,7 +25,7 @@ a:focus {
     margin-left: 0px;
     margin-right: 0px;
     margin-bottom: 0px;
-  }  
+  }
 }
 @media (max-width: 979px) {
   body {
@@ -36,7 +36,7 @@ a:focus {
     margin-left: 0px;
     margin-right: 0px;
     margin-bottom: 0px;
-  }  
+  }
 }
 
 .container {
@@ -99,12 +99,12 @@ a:focus {
 }
 .btn-large {
   padding: 11px 19px;
-  font-size: 17.5px;  
+  font-size: 17.5px;
 }
 .btn-primary {
   color: #ffffff;
   text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.25);
-  background-color: #006dcc;  
+  background-color: #006dcc;
 }
 .btn-primary:hover,
 .btn-primary:focus,
@@ -135,6 +135,15 @@ a:focus {
 }
 */
 
+.header {
+  background-image: linear-gradient(to bottom, #454545 0%, #2B2B2B 100%);
+  padding: 10px;
+  color: white;
+}
+.header a {
+  color: #d2d2d2;
+}
+
 .section {
   background-color: #fff;
   border: 1px #ddd solid;
@@ -143,8 +152,8 @@ a:focus {
 }
 
 .home-section {
-  background-color: #fff; 
-  padding: 10px 20px; 
+  background-color: #fff;
+  padding: 10px 20px;
   margin-top: 20px;
   border-radius: 6px;
 }
@@ -207,7 +216,7 @@ a.in-page-link:hover {
 }
 
 /**
- * Code/Syntax Highlighting 
+ * Code/Syntax Highlighting
  */
 code, pre {
   font: 12px Inconsolata,Monaco,"Courier New","DejaVu Sans Mono","Bitstream Vera Sans Mono",monospace;
@@ -227,15 +236,7 @@ pre code {
   overflow: auto;
   white-space: pre;
   background-color: rgba(155, 155, 155, 0.1);
-  -moz-border-radius: 3px;
-  -webkit-border-radius: 3px;
-  -o-border-radius: 3px;
-  -ms-border-radius: 3px;
-  -khtml-border-radius: 3px;
   border-radius: 3px;
-  -moz-box-shadow: #ccc 1px 1px 3px 0 inset;
-  -webkit-box-shadow: #ccc 1px 1px 3px 0 inset;
-  -o-box-shadow: #ccc 1px 1px 3px 0 inset;
   box-shadow: #ccc 1px 1px 3px 0 inset;
 }
 
@@ -245,3 +246,10 @@ code {
   white-space: nowrap;
 }
 
+/* Forms */
+
+input {
+  padding: 6px;
+  border-radius: 3px;
+  border: 1px #ddd solid;
+}

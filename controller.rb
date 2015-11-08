@@ -33,6 +33,21 @@ class Controller < Sinatra::Base
     erb :dashboard
   end
 
+  post '/webhook/configure' do
+    require_login
+jj params
+    site = Site.first :id => params[:site_id]
+    if site
+      site.callback_url = params[:callback_url]
+      site.callback_secret = params[:callback_secret]
+      site.archive_avatars = params[:archive_avatars] ? 1 : 0
+      site.save
+    end
+
+    title "Dashboard"
+    erb :dashboard
+  end
+
   # Authentication
 
   get '/auth/failure' do
@@ -81,7 +96,7 @@ class Controller < Sinatra::Base
       string = data.to_json
       content_type = 'application/json'
     end
-    
+
     halt code, {
         'Content-Type' => "#{content_type};charset=UTF-8",
         'Cache-Control' => 'no-store',
