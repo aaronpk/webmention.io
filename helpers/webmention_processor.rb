@@ -41,7 +41,7 @@ class WebmentionProcessor
     # If the page already exists, use that record. Otherwise create it and find out what kind of object is on the page
     page = Page.first :site => site, :href => target
     if page.nil?
-      page = Page.new 
+      page = Page.new
       page.site = site
       page.account = target_account
       page.href = target
@@ -170,7 +170,7 @@ class WebmentionProcessor
           link.type = "invite"
 
         elsif repost_of = get_referenced_url(entry, 'repost_ofs')
-          phrase = (twitter ? 'retweeted a tweet' : 'reshared a post') 
+          phrase = (twitter ? 'retweeted a tweet' : 'reshared a post')
           if !repost_of.include? target
             phrase += " that linked to"
             link.is_direct = false
@@ -234,23 +234,69 @@ class WebmentionProcessor
     end # notification
 
     # If a callback URL is defined for this site, send to the callback now
-    if(site.callback_url)
+    if site.callback_url
       begin
         puts "Sending to callback URL: #{site.callback_url}"
-        RestClient.post site.callback_url, {
+
+        data = {
           secret: site.callback_secret,
           source: source,
           target: target,
-          type: link.type,
-          author_name: link.author_name,
-          author_photo: link.author_photo,
-          author_url: link.author_url,
-          url: url,
-          name: link.name,
-          summary: link.summary,
-          content: link.content,
-          published: link.published
+          post: {
+            type: "entry",
+            author: {
+              name: link.author_name,
+              photo: link.author_photo,
+              url: link.author_url
+            },
+            url: url,
+            published: link.published,
+            name: link.name,
+          }
         }
+
+        if !link.summary.blank?
+          data[:post][:summary] = {
+            :"content-type" => "text/html",
+            :value => link.summary
+          }
+        end
+
+        if !link.content.blank?
+          data[:post][:content] = {
+            :"content-type" => "text/html",
+            :value => link.content
+          }
+        end
+
+        relation = nil
+
+        case link.type
+        when "like"
+          relation = :"like-of"
+        when "repost"
+          relation = :"repost-of"
+        when "reply"
+          relation = :"in-reply-to"
+        when "rsvp-yes"
+          relation = :"rsvp"
+          data[:post][:rsvp] = "yes"
+        when "rsvp-no"
+          relation = :"rsvp"
+          data[:post][:rsvp] = "no"
+        when "rsvp-maybe"
+          relation = :"rsvp"
+          data[:post][:rsvp] = "maybe"
+        else
+          relation = :"mention-of"
+        end
+
+        data[:property] = relation
+        data[:post][relation] = target
+
+        puts "Sending to callback URL: #{site.callback_url}"
+
+        RestClient.post site.callback_url, data.to_json, :content_type => 'application/json'
       rescue => e
         puts "Failed to send to callback URL"
         puts e.inspect
