@@ -70,25 +70,7 @@ class WebmentionProcessor
       entry = maybe_get parsed, 'entry'
       entry = maybe_get parsed, 'event' if entry.nil?
       if entry
-        author = maybe_get entry, 'author'
-        author = maybe_get entry, 'invitee' if author.nil?
-        if author
-          link.author_name = author.format.name.to_s
-          link.author_url = maybe_get(author.format, 'url').to_s
-          if link.author_url
-            link.author_url = Microformats2::AbsoluteUri.new(link.href, link.author_url).absolutize
-          end
-          link.author_photo = author.format.photo.to_s
-          if link.author_photo
-            link.author_photo = Microformats2::AbsoluteUri.new(link.href, link.author_photo).absolutize
-            if site.archive_avatars
-              # Replace the author photo with an archive URL
-              archive_photo_url = Avatar.get_avatar_archive_url link.author_photo
-              puts "Storing photo url: #{archive_photo_url}"
-              link.author_photo = archive_photo_url
-            end
-          end
-        end
+        add_author_to_link entry, link
 
         link.url = maybe_get entry, 'url'
         link.name = maybe_get entry, 'name'
@@ -294,6 +276,28 @@ class WebmentionProcessor
       page.save
     end
     page
+  end
+
+  def add_author_to_link(entry, link)
+    author = maybe_get entry, 'author'
+    author = maybe_get entry, 'invitee' if author.nil?
+    if author
+      link.author_name = author.format.name.to_s
+      link.author_url = maybe_get(author.format, 'url').to_s
+      if link.author_url
+        link.author_url = Microformats2::AbsoluteUri.new(link.href, link.author_url).absolutize
+      end
+      link.author_photo = author.format.photo.to_s
+      if link.author_photo
+        link.author_photo = Microformats2::AbsoluteUri.new(link.href, link.author_photo).absolutize
+        if link.site.archive_avatars
+          # Replace the author photo with an archive URL
+          archive_photo_url = Avatar.get_avatar_archive_url link.author_photo
+          puts "Storing photo url: #{archive_photo_url}"
+          link.author_photo = archive_photo_url
+        end
+      end
+    end
   end
 
   def get_referenced_url(obj, method)

@@ -16,15 +16,15 @@ describe WebmentionProcessor do
   describe "get_referenced_url" do
 
     it "returns the urls from a plain string" do
-      entry = TestData.entry 'like-plain-url.html'
+      entry = TestData.entry 'example.com/target/like-plain-url.html'
       url = WebmentionProcessor.new.get_referenced_url entry, 'like_ofs'
-      url.must_equal ["http://target.example.org/post/100"]
+      url.must_equal ["http://example.com/target/like-plain-url"]
     end
 
     it "returns the urls from a nested h-cite" do
-      entry = TestData.entry 'like-h-cite.html'
+      entry = TestData.entry 'example.com/target/like-h-cite.html'
       url = WebmentionProcessor.new.get_referenced_url entry, 'like_ofs'
-      url.must_equal ["http://target.example.org/post/100"]
+      url.must_equal ["http://example.com/target/like-h-cite"]
     end
 
   end
@@ -37,7 +37,7 @@ describe WebmentionProcessor do
     end
 
     it "determines the page is an entry" do
-      target = "http://example.com/page/entry"
+      target = "http://example.com/target/entry"
       page = @w.create_page_in_site @site, target
       page.type.must_equal "entry"
       page.name.must_equal "An Entry"
@@ -46,7 +46,7 @@ describe WebmentionProcessor do
     end
 
     it "determines the page is an event" do
-      target = "http://example.com/page/event"
+      target = "http://example.com/target/event"
       page = @w.create_page_in_site @site, target
       page.type.must_equal "event"
       page.name.must_equal "An Event"
@@ -55,25 +55,34 @@ describe WebmentionProcessor do
     end
 
     it "determines the page is an photo" do
-      target = "http://example.com/page/photo"
+      target = "http://example.com/target/photo"
       page = @w.create_page_in_site @site, target
       page.type.must_equal "photo"
       page.name.must_equal "A Photo"
     end
 
     it "determines the page is a video" do
-      target = "http://example.com/page/video"
+      target = "http://example.com/target/video"
       page = @w.create_page_in_site @site, target
       page.type.must_equal "video"
       page.name.must_equal "A Video Post"
     end
 
     it "determines the page is audio" do
-      target = "http://example.com/page/audio"
+      target = "http://example.com/target/audio"
       page = @w.create_page_in_site @site, target
       page.type.must_equal "audio"
       page.name.must_equal "An Audio Post"
     end
+
+  end
+
+  describe "add_author_to_link" do
+
+    it "" do
+
+    end
+
   end
 
 end
