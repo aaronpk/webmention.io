@@ -1,5 +1,9 @@
 class Avatar
   def self.get_avatar_archive_url(original_url)
+    if SiteConfig.ca3db.api_endpoint.blank?
+      return original_url
+    end
+      
     begin
       response = RestClient.post SiteConfig.ca3db.api_endpoint, {
         key_id: SiteConfig.ca3db.key_id,
