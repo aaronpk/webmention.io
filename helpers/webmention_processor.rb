@@ -59,7 +59,7 @@ class WebmentionProcessor
 
     # Parse for microformats and look for "like", "invite", "rsvp", or other post types
     parsed = false
-    bridgy = source.start_with? 'https://www.brid.gy/', 'https://brid-gy.appspot.com/'
+    source_is_bridgy = source.start_with? 'https://www.brid.gy/', 'https://brid-gy.appspot.com/'
 
     # Default message. Overridden for some post types below.
     message = "[mention] #{source} linked to #{target} (#{protocol})"
@@ -93,16 +93,8 @@ class WebmentionProcessor
         source_is_twitter = url.start_with? 'https://twitter.com/'
         source_is_gplus = url.start_with? 'https://plus.google.com/'
 
-        if link.author_name
-          subject = link.author_name
-          subject_html = "<a href=\"#{link.author_url}\">#{link.author_name}</a>"
-        elsif link.author_url
-          subject = link.author_url
-          subject_html = "<a href=\"#{link.author_url}\">#{link.author_url}</a>"
-        else
-          subject = url
-          subject_html = "<a href=\"#{url}\">#{url}</a>"
-        end
+        subject = link.author_text url
+        subject_html = link.author_html "someone", url
 
         snippet = Sanitize.fragment(link.content).strip.gsub "\n", ' '
         if snippet.length > 140
@@ -110,8 +102,7 @@ class WebmentionProcessor
         end
 
         # TODO(snarfed): store in db
-        rsvps = maybe_get entry, 'rsvps'
-        if rsvps
+        if rsvps = maybe_get(entry, 'rsvps')
           phrase = "RSVPed #{rsvps.join(', ')} to"
           link.type = "rsvp-#{rsvps[0]}"
 
@@ -161,7 +152,7 @@ class WebmentionProcessor
           link.type = "link"
         end
 
-        message = "[#{bridgy ? 'bridgy' : 'mention'}] #{subject} #{phrase} #{target}"
+        message = "[#{source_is_bridgy ? 'bridgy' : 'mention'}] #{subject} #{phrase} #{target}"
         if subject != url
           message += " (#{url})"
         end

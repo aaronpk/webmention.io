@@ -67,6 +67,27 @@ describe Link do
       link.author_html.must_equal 'someone'
     end
 
+    it "returns fallback name if no author name is present" do
+      link = Link.new
+      link.author_name = ""
+      link.author_url = ""
+      link.author_html('example').must_equal 'example'
+    end
+
+    it "returns fallback url if no author url is present" do
+      link = Link.new
+      link.author_url = ""
+      link.author_name = "Example"
+      link.author_html('someone','http://brid.gy/example').must_equal '<a href="http://brid.gy/example">Example</a>'
+    end
+
+    it "returns fallback url with fallback name when no info present" do
+      link = Link.new
+      link.author_url = ""
+      link.author_name = ""
+      link.author_html('someone','http://brid.gy/example').must_equal '<a href="http://brid.gy/example">someone</a>'
+    end
+
   end
 
   describe "name_truncated" do

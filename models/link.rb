@@ -29,17 +29,17 @@ class Link
   property :created_at, DateTime
   property :updated_at, DateTime
 
-  def author_text
+  def author_text(fallback="someone")
     if !author_name.blank?
       author_name
     elsif !author_url.blank?
       author_url
     else
-      "someone"
+      fallback
     end
   end
 
-  def author_html
+  def author_html(fallback_text="someone", fallback_url=nil)
     # The ruby mf2 parser doesn't resolve relative URLs, so the author URL might be relative.
     # Use Ruby's "join" with the page href to get the absolute URL.
     if !author_url.blank?
@@ -51,9 +51,17 @@ class Link
       end
     else
       if !author_name.blank?
-        author_name
+        if fallback_url
+          "<a href=\"#{fallback_url}\">#{author_name}</a>"
+        else
+          author_name
+        end
       else
-        "someone"
+        if fallback_url
+          "<a href=\"#{fallback_url}\">#{fallback_text}</a>"
+        else
+          fallback_text
+        end
       end
     end
   end
