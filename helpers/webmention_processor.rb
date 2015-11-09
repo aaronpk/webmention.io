@@ -83,14 +83,15 @@ class WebmentionProcessor
         published = maybe_get entry, 'published'
         if published
           link.published = DateTime.parse(published.to_s) # has timezone information now, will be discarded when saved to the db
+          # TODO: store timezone offset in the DB also
           link.published_ts = DateTime.parse(published.to_s).to_time.to_i
         end
 
         # Detect post type (reply, like, reshare, RSVP, mention) and silo and
         # generate custom notification message.
         url = !link.url.blank? ? link.url : source
-        twitter = url.start_with? 'https://twitter.com/'
-        gplus = url.start_with? 'https://plus.google.com/'
+        source_is_twitter = url.start_with? 'https://twitter.com/'
+        source_is_gplus = url.start_with? 'https://plus.google.com/'
 
         if link.author_name
           subject = link.author_name
@@ -119,7 +120,7 @@ class WebmentionProcessor
           link.type = "invite"
 
         elsif repost_of = get_referenced_url(entry, 'repost_ofs')
-          phrase = (twitter ? 'retweeted a tweet' : 'reshared a post')
+          phrase = (source_is_twitter ? 'retweeted a tweet' : 'reshared a post')
           if !repost_of.include? target
             phrase += " that linked to"
             link.is_direct = false
@@ -127,7 +128,7 @@ class WebmentionProcessor
           link.type = "repost"
 
         elsif like_of = get_referenced_url(entry, 'like_ofs')
-          phrase = (twitter ? 'favorited a tweet' : gplus ? '+1ed a post' : 'liked a post')
+          phrase = (source_is_twitter ? 'favorited a tweet' : source_is_gplus ? '+1ed a post' : 'liked a post')
           if !like_of.include? target
             phrase += " that linked to"
             link.is_direct = false
@@ -135,7 +136,7 @@ class WebmentionProcessor
           link.type = "like"
 
         elsif bookmark_of = get_referenced_url(entry, 'bookmark_ofs')
-          phrase = (twitter ? 'bookmarked a tweet' : 'bookmarked a post')
+          phrase = (source_is_twitter ? 'bookmarked a tweet' : 'bookmarked a post')
           if !bookmark_of.include? target
             phrase += " that linked to"
             link.is_direct = false
@@ -143,7 +144,7 @@ class WebmentionProcessor
           link.type = "bookmark"
 
         elsif in_reply_to = get_referenced_url(entry, 'in_reply_tos')
-          if twitter
+          if source_is_twitter
             phrase = "replied '#{snippet}' to a tweet"
           else
             phrase = "commented '#{snippet}' on a post"
