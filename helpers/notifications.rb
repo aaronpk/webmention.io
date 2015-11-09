@@ -1,8 +1,6 @@
 class NotificationQueue
 
-  def self.queue_notification(link, message)
-    #self.send_notification link, message
-
+  def self.queue_notification(link)
     buffer_period = 120
 
     if !@redis
@@ -52,7 +50,13 @@ class NotificationQueue
         target_links = @redis.smembers "webmention::#{site_id}::source::#{link.type}::#{link.is_direct}::#{link.source}"
         source_links = @redis.smembers "webmention::#{site_id}::target::#{link.target}"
 
-        notifications = NotificationQueue.generate_notifications(target_links, source_links)
+        notifications, links = NotificationQueue.generate_notifications(target_links, source_links)
+
+        if target_links.length > source_links.length
+          links = target_links
+        else
+          links = source_links
+        end
 
         # Remove the mentions that were include in this notification
         links.each do |id|
@@ -96,14 +100,9 @@ class NotificationQueue
       # Most often this is when someone writes a blog post that references a bunch
       # of wiki pages.
 
-      links = []
       targets = target_links.map{|id|
         Link.get(id)
       }.uniq
-
-      links = targets.map{|link|
-        link.id
-      }
 
       source_authors = targets.map{|link|
         link.author_text
@@ -162,13 +161,11 @@ class NotificationQueue
       notification.save
       notifications << notification
 
-      links = target_links
     else
       # Many sources linked to one target.
       # Most often this is when many "likes" are received in a row, or when bridgy
       # sends the flood of invites for a POSSE'd event.
       source_types = {}
-      links = []
 
       # puts "source links:"
       # jj source_links
@@ -197,11 +194,9 @@ class NotificationQueue
         notification.links = source_links
 
         source_authors = source_links.map{|link|
-          links << link.id
           link.author_text
         }.uniq
         source_authors_html = source_links.map{|link|
-          links << link.id
           link.author_html
         }.uniq
         text = source_authors.join_with_and

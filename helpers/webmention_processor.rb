@@ -119,7 +119,7 @@ class WebmentionProcessor
       if link.type == "reply"
         NotificationQueue.send_notification link.page.site, message
       else
-        NotificationQueue.queue_notification link, message
+        NotificationQueue.queue_notification link
       end
     else
       puts "Already sent notification: #{message}"
