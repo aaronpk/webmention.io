@@ -41,7 +41,7 @@ class WebmentionProcessor
     site = Site.first_or_create :account => target_account, :domain => target_domain
 
     # If the page already exists, use that record. Otherwise create it and find out what kind of object is on the page
-    page = create_page_in_site(site, target)
+    page = create_page_in_site site, target
 
     link = Link.first_or_create({:page => page, :href => source},{:site => site})
 
@@ -65,10 +65,8 @@ class WebmentionProcessor
     message = "[mention] #{source} linked to #{target} (#{protocol})"
 
     begin
-      parsed = Microformats2.parse source
+      entry = get_entry_from_source source
 
-      entry = maybe_get parsed, 'entry'
-      entry = maybe_get parsed, 'event' if entry.nil?
       if entry
         add_author_to_link entry, link
 
@@ -237,6 +235,13 @@ class WebmentionProcessor
     return link, 'success'
   end
 
+  def get_entry_from_source(source)
+    parsed = Microformats2.parse source
+    entry = maybe_get parsed, 'entry'
+    entry = maybe_get parsed, 'event' if entry.nil?
+    entry
+  end
+
   def create_page_in_site(site, target)
     page = Page.first :site => site, :href => target
     if page.nil?
@@ -284,16 +289,15 @@ class WebmentionProcessor
     if author
       link.author_name = author.format.name.to_s
       link.author_url = maybe_get(author.format, 'url').to_s
-      if link.author_url
+      if !link.author_url.blank?
         link.author_url = Microformats2::AbsoluteUri.new(link.href, link.author_url).absolutize
       end
-      link.author_photo = author.format.photo.to_s
-      if link.author_photo
+      link.author_photo = maybe_get(author.format, 'photo').to_s
+      if !link.author_photo.blank?
         link.author_photo = Microformats2::AbsoluteUri.new(link.href, link.author_photo).absolutize
         if link.site.archive_avatars
           # Replace the author photo with an archive URL
           archive_photo_url = Avatar.get_avatar_archive_url link.author_photo
-          puts "Storing photo url: #{archive_photo_url}"
           link.author_photo = archive_photo_url
         end
       end
