@@ -3,31 +3,7 @@ require_relative '../load'
 describe WebmentionProcessor do
 
   before do
-    # Sets up stub request pattern to load files in the "data" folder.
-    # Use the pattern like example.com/page/{file} to load the corresponding
-    # file in test/data/page/{file}.html
-    stub_request(:get, /http:\/\/example.com\/.+/).
-      to_return { |request|
-        path = request.uri.path.match(/\/(.+)/)[1]
-        {:body => TestData.file("example.com/#{path}.html")}
-      }
-
-    stub_request(:get, "http://example.com/").
-      to_return { |request|
-        {:body => TestData.file("example.com/index.html")}
-      }
-
-    stub_request(:get, /http:\/\/source.example.org\/.+/).
-      to_return { |request|
-        path = request.uri.path.match(/\/(.+)/)[1]
-        {:body => TestData.file("source.example.org/#{path}.html")}
-      }
-
-    stub_request(:get, "http://source.example.org/").
-      to_return { |request|
-        {:body => TestData.file("source.example.org/index.html")}
-      }
-
+    TestData.stub_requests self
     @w = WebmentionProcessor.new
   end
 

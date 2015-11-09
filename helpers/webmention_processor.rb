@@ -281,6 +281,8 @@ class WebmentionProcessor
       link.type = "link"
     end
 
+    link.save
+
     phrase
   end
 
@@ -293,6 +295,7 @@ class WebmentionProcessor
       link.author_url = Microformats2::AbsoluteUri.new(link.href, link.author_url).absolutize
       link.author_name = ""
       link.author_photo = ""
+      link.save
     elsif author
       # Extracts data from the nested h-card
       link.author_name = maybe_get(author.format, 'name').to_s
@@ -309,6 +312,7 @@ class WebmentionProcessor
           link.author_photo = archive_photo_url
         end
       end
+      link.save
     end
   end
 
