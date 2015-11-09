@@ -31,6 +31,11 @@ describe Link do
       link.author_text.must_equal "someone"
     end
 
+    it "uses fallback text when no author info is present" do
+      link = Link.new
+      link.author_text('example').must_equal "example"
+    end
+
   end
 
   describe "author_html" do
