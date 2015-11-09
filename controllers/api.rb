@@ -119,7 +119,7 @@ class Controller < Sinatra::Base
     end
   end
 
-  get %r{/api/(links|mentions)(:?\.(?<format>json|atom))?} do
+  get %r{/api/(links|mentions)(:?\.(?<format>json|atom|jf2))?} do
     format = params['format'] || 'json'
 
     if params[:token]
@@ -177,54 +177,10 @@ class Controller < Sinatra::Base
 
     end
 
-    link_array = []
-
-    links.each do |link|
-      obj = {
-        source: link.href,
-        verified: link.verified == true,
-        verified_date: link.updated_at,
-        id: link.id,
-        data: {
-          url: link.href
-        }
-      }
-      if link.author_name || link.author_url || link.author_photo
-        obj[:data][:author] = {}
-        obj[:data][:author][:name] = link.author_name if link.author_name
-        if link.author_url
-          obj[:data][:author][:url] = Microformats2::AbsoluteUri.new(link.href, link.author_url).absolutize
-        else
-          obj[:data][:author][:url] = nil
-        end
-        if link.author_photo
-          obj[:data][:author][:photo] = Microformats2::AbsoluteUri.new(link.href, link.author_photo).absolutize
-        else
-          obj[:data][:author][:photo] = nil
-        end
-      end
-
-      obj[:data][:url] = link.url
-      obj[:data][:name] = link.name
-      obj[:data][:content] = link.content
-      obj[:data][:published] = link.published
-      obj[:data][:published_ts] = link.published_ts
-
-      obj[:activity] = {
-        :type => link.type,
-        :sentence => link.sentence,
-        :sentence_html => link.sentence_html
-      }
-
-      obj[:target] = link.page.href
-      
-      link_array << obj
-    end
-
     if format == 'json'
-      api_response format, 200, {
-        links: link_array
-      }
+      api_response format, 200, Formats.links_to_json(links)
+    elsif format =='jf2'
+      api_response 'json', 200, Formats.links_to_jf2(links)
     else
       base_url = "https://webmention.io"
       atom_url = "#{base_url}/api/mentions.atom"

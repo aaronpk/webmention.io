@@ -20,7 +20,13 @@
 
     <h2>Web Hook</h2>
 
-    <p>If you configure a web hook here, this service will send a post request every time a webmention is received and verified. You will not receive webhooks for webmentions that are invalid.
+    <p>If you configure a web hook for a site, webmention.io will send a post request every time a webmention is received and verified. You will not receive webhooks for webmentions that are invalid.
+
+    <h3>Archive Avatars</h3>
+    <p>By default, the author's avatar URL will be archived and an alternate URL will be returned. This means you won't have to worry about broken image links for past webmentions when someone changes their profile URL. If you want this behavior to be disabled, you can un-check "Archive Avatars" and the original avatar URL will be returned.</p>
+
+    <h3>Require API Key</h3>
+    <p>If "require token" is checked, you will need to include your api key when fetching webmentions for a specific URL. If you are loading your webmentions client-side via Javascript, you should leave this un-checked.</p>
 
     <% @user.sites.each do |site| %>
       <div style="border: 1px #eee solid; border-radius: 3px; padding: 10px; margin: 4px; width: 40%; float: left;">
@@ -29,16 +35,19 @@
           <input type="hidden" name="site_id" value="<%= site.id %>">
           <input type="url" name="callback_url" placeholder="http://example.com/webmention/hook" style="margin-bottom: 4px; width: 90%;" value="<%= site.callback_url %>"><br>
           <input type="text" name="callback_secret" placeholder="callback secret" style="margin-bottom: 4px; width: 90%;" value="<%= site.callback_secret %>"><br>
-          <div style="margin-top: 6px;">
-            <input type="checkbox" name="archive_avatars" <%= site.archive_avatars ? '' : 'checked="checked"' %> value="1"> Send Original Avatar
+          <div style="margin-top: 6px; float: right;">
+            <input type="submit" class="button" value="Save">
           </div>
-          <input type="submit" class="button">
+          <div style="margin-top: 6px;">
+            <input type="checkbox" name="archive_avatars" <%= site.archive_avatars ? 'checked="checked"' : '' %> value="1"> Archive Avatars
+          </div>
+          <div style="margin-top: 6px;">
+            <input type="checkbox" name="require_api_key" <%= site.public_access ? '' : 'checked="checked"' %> value="1"> Require API Key
+          </div>
         </form>
       </div>
     <% end %>
     <div style="clear:both;"></div>
-
-    <p>If "Send Original Avatar" is un-checked, the author avatar URL will be archived and an alternate URL will be returned. This means you won't have to worry about broken image links for past webmentions when someone changes their profile URL.</p>
 
     <p>The payload that is sent will look like the below:</p>
 
@@ -56,10 +65,19 @@
     },
     "url": "http://rhiaro.co.uk/2015/11/1446953889",
     "published": "2015-11-08T03:38:09+00:00",
-    "name": ": post",
+    "name": "repost of http://aaronparecki.com/notes/2015/11/07/4/indiewebcamp",
     "repost-of": "http://aaronparecki.com/notes/2015/11/07/4/indiewebcamp"
   }
 }</code></pre>
+
+  <p>The payload will indicate the type of post that was sent. Other values for "property" (and corresponding property in the "post" object) are:</p>
+
+  <ul>
+    <li>in-reply-to</li>
+    <li>like-of</li>
+    <li>repost-of</li>
+    <li>rsvp</li>
+  </ul>
 
 </div>
 

@@ -178,7 +178,6 @@ class WebmentionProcessor
           link.type = "repost"
 
         elsif like_of = get_referenced_url(entry, 'like_ofs')
-          puts like_of.inspect
           phrase = (twitter ? 'favorited a tweet' : gplus ? '+1ed a post' : 'liked a post')
           if !like_of.include? target
             phrase += " that linked to"
@@ -238,61 +237,14 @@ class WebmentionProcessor
       begin
         puts "Sending to callback URL: #{site.callback_url}"
 
+        jf2 = Formats.build_jf2_from_link(link)
+
         data = {
           secret: site.callback_secret,
           source: source,
           target: target,
-          post: {
-            type: "entry",
-            author: {
-              name: link.author_name,
-              photo: link.author_photo,
-              url: link.author_url
-            },
-            url: url,
-            published: link.published,
-            name: link.name,
-          }
+          post: jf2
         }
-
-        if !link.summary.blank?
-          data[:post][:summary] = {
-            :"content-type" => "text/html",
-            :value => link.summary
-          }
-        end
-
-        if !link.content.blank?
-          data[:post][:content] = {
-            :"content-type" => "text/html",
-            :value => link.content
-          }
-        end
-
-        relation = nil
-
-        case link.type
-        when "like"
-          relation = :"like-of"
-        when "repost"
-          relation = :"repost-of"
-        when "reply"
-          relation = :"in-reply-to"
-        when "rsvp-yes"
-          relation = :"rsvp"
-          data[:post][:rsvp] = "yes"
-        when "rsvp-no"
-          relation = :"rsvp"
-          data[:post][:rsvp] = "no"
-        when "rsvp-maybe"
-          relation = :"rsvp"
-          data[:post][:rsvp] = "maybe"
-        else
-          relation = :"mention-of"
-        end
-
-        data[:property] = relation
-        data[:post][relation] = target
 
         puts "Sending to callback URL: #{site.callback_url}"
 

@@ -41,6 +41,7 @@ jj params
       site.callback_url = params[:callback_url]
       site.callback_secret = params[:callback_secret]
       site.archive_avatars = params[:archive_avatars] ? 1 : 0
+      site.public_access = params[:require_api_key] ? 0 : 1
       site.save
     end
 
