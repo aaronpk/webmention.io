@@ -70,7 +70,7 @@ class Formats
         photo: link.author_photo,
         url: link.author_url
       },
-      url: link.href,
+      url: link.url ? link.url : link.href,
       published: link.published,
       name: link.name,
     }
