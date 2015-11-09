@@ -9,26 +9,25 @@ class Formats
         verified: link.verified == true,
         verified_date: link.updated_at,
         id: link.id,
-        data: {
-          url: link.href
-        }
+        data: {}
       }
-      if link.author_name || link.author_url || link.author_photo
+
+      if !link.author_name.blank? || !link.author_url.blank? || !link.author_photo.blank?
         obj[:data][:author] = {}
         obj[:data][:author][:name] = link.author_name if link.author_name
-        if link.author_url
+        if !link.author_url.blank?
           obj[:data][:author][:url] = Microformats2::AbsoluteUri.new(link.href, link.author_url).absolutize
         else
           obj[:data][:author][:url] = nil
         end
-        if link.author_photo
+        if !link.author_photo.blank?
           obj[:data][:author][:photo] = Microformats2::AbsoluteUri.new(link.href, link.author_photo).absolutize
         else
           obj[:data][:author][:photo] = nil
         end
       end
 
-      obj[:data][:url] = link.url
+      obj[:data][:url] = link.absolute_url
       obj[:data][:name] = link.name
       obj[:data][:content] = link.content
       obj[:data][:published] = link.published
@@ -70,7 +69,7 @@ class Formats
         photo: link.author_photo,
         url: link.author_url
       },
-      url: link.url ? link.url : link.href,
+      url: link.absolute_url,
       published: link.published,
       name: link.name,
     }

@@ -139,7 +139,7 @@ class WebmentionProcessor
 
         # Detect post type (reply, like, reshare, RSVP, mention) and silo and
         # generate custom notification message.
-        url = link.url ? link.url : source
+        url = !link.url.blank? ? link.url : source
         twitter = url.start_with? 'https://twitter.com/'
         gplus = url.start_with? 'https://plus.google.com/'
 

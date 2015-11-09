@@ -34,7 +34,7 @@ class Link
       author_name
     elsif author_url
       author_url
-    else 
+    else
       "someone"
     end
   end
@@ -70,6 +70,14 @@ class Link
     end
 
     snippet
+  end
+
+  def absolute_url
+    if url.blank?
+      href
+    else
+      Microformats2::AbsoluteUri.new(href, url).absolutize
+    end
   end
 
   def source
