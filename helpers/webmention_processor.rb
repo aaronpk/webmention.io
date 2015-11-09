@@ -286,8 +286,15 @@ class WebmentionProcessor
   def add_author_to_link(entry, link)
     author = maybe_get entry, 'author'
     author = maybe_get entry, 'invitee' if author.nil?
-    if author
-      link.author_name = author.format.name.to_s
+    if author && author.class == Microformats2::Property::Url
+      # Handles the case when the author is only a URL, not a nested h-card
+      link.author_url = author.to_s
+      link.author_url = Microformats2::AbsoluteUri.new(link.href, link.author_url).absolutize
+      link.author_name = ""
+      link.author_photo = ""
+    elsif author
+      # Extracts data from the nested h-card
+      link.author_name = maybe_get(author.format, 'name').to_s
       link.author_url = maybe_get(author.format, 'url').to_s
       if !link.author_url.blank?
         link.author_url = Microformats2::AbsoluteUri.new(link.href, link.author_url).absolutize

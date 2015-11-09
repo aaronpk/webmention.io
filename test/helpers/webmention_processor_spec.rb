@@ -12,10 +12,20 @@ describe WebmentionProcessor do
         {:body => TestData.file("example.com/#{path}.html")}
       }
 
+    stub_request(:get, "http://example.com/").
+      to_return { |request|
+        {:body => TestData.file("example.com/index.html")}
+      }
+
     stub_request(:get, /http:\/\/source.example.org\/.+/).
       to_return { |request|
         path = request.uri.path.match(/\/(.+)/)[1]
         {:body => TestData.file("source.example.org/#{path}.html")}
+      }
+
+    stub_request(:get, "http://source.example.org/").
+      to_return { |request|
+        {:body => TestData.file("source.example.org/index.html")}
       }
 
     @w = WebmentionProcessor.new
@@ -122,6 +132,39 @@ describe WebmentionProcessor do
       link.author_url.must_equal "http://source.example.org/"
     end
 
+    it "finds the author when only a URL and no h-card is given" do
+      target = "http://example.com/target/entry"
+      page = @w.create_page_in_site @site, target
+
+      source = "http://source.example.org/author-is-not-an-hcard"
+      entry = @w.get_entry_from_source source
+
+      link = Link.new :page => page, :href => source, :site => @site
+
+      @w.add_author_to_link entry, link
+
+      link.author_name.must_equal ""
+      link.author_photo.must_equal ""
+      link.author_url.must_equal "http://source.example.org/"
+    end
+
+    it "uses the invitee as the author for bridgy invites with no author" do
+      # Bridgy doesn't know who sent the invite, so it insteads sets the invitee
+      # as the author so that receiving systems display the person who was invited
+      target = "http://example.com/"
+      page = @w.create_page_in_site @site, target
+
+      source = "http://source.example.org/bridgy-invitee-no-author"
+      entry = @w.get_entry_from_source source
+
+      link = Link.new :page => page, :href => source, :site => @site
+
+      @w.add_author_to_link entry, link
+
+      link.author_name.must_equal ""
+      link.author_photo.must_equal ""
+      link.author_url.must_equal "http://example.com/"
+    end
 
   end
 
