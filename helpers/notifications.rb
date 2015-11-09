@@ -52,198 +52,7 @@ class NotificationQueue
         target_links = @redis.smembers "webmention::#{site_id}::source::#{link.type}::#{link.is_direct}::#{link.source}"
         source_links = @redis.smembers "webmention::#{site_id}::target::#{link.target}"
 
-        notifications = []
-
-        # Process the one with more mentions
-        if target_links.length > source_links.length
-          # One source linked to many targets.
-          # Most often this is when someone writes a blog post that references a bunch
-          # of wiki pages.
-
-          links = []
-          targets = target_links.map{|id|
-            Link.get(id)
-          }.uniq
-
-          links = targets.map{|link|
-            link.id
-          }
-
-          source_authors = targets.map{|link|
-            link.author_text
-          }.uniq
-          source_authors_html = targets.map{|link|
-            link.author_html
-          }.uniq
-          text = source_authors.join_with_and
-          html = source_authors_html.join_with_and
-
-          text += " posted "
-          html += " posted "
-
-          text += targets.map{|link| 
-            if link.type and link.type != "link" and !link.name.blank?
-              "#{link.type.with_indefinite_article}: \"#{link.name_truncated}\" #{link.href}"
-            elsif !link.name.blank?
-              "\"#{link.name_truncated}\" #{link.href}"
-            elsif link.type and link.type != "link"
-              "#{link.type.with_indefinite_article} #{link.href}"
-            else
-              link.href
-            end
-          }.uniq.join_with_and
-          html += targets.map{|link| 
-            if link.type and link.type != "link" and !link.name.blank?
-              "#{link.type.with_indefinite_article}: <a href=\"#{link.href}\">#{link.name_truncated}</a>"
-            elsif !link.name.blank?
-              "<a href=\"#{link.href}\">#{link.name_truncated}</a>"
-            elsif link.type and link.type != "link"
-              "#{link.type.with_indefinite_article} <a href=\"#{link.href}\">#{link.href}</a>"
-            else
-              "<a href=\"#{link.href}\">#{link.href}</a>"
-            end
-          }.uniq.join_with_and
-
-          text += " that linked to "
-          html += " that linked to "
-
-          text += targets.map{|link| 
-            link.target
-          }.uniq.join_with_and
-          html += targets.map{|link| 
-            "<a href=\"#{link.target}\">#{link.target}</a>"
-          }.uniq.join_with_and
-
-          puts "================"
-          puts "Notification: #{text}"
-          puts "================"
-
-          notification = Notification.new :account => site.account, :site => site
-          notification.text = text
-          notification.html = html
-          notification.links = targets
-          notification.token = SecureRandom.urlsafe_base64 16
-          notification.save
-          notifications << notification
-
-          links = target_links
-        else
-          # Many sources linked to one target.
-          # Most often this is when many "likes" are received in a row, or when bridgy
-          # sends the flood of invites for a POSSE'd event.
-          source_types = {}
-          links = [] 
-
-          # puts "source links:"
-          # jj source_links
-          # puts "target links:"
-          # jj target_links
-
-          # The source links may be different "types" of objects, such as a "like" vs "reply",
-          # or an "RSVP yes" vs "RSVP no". We want to generate notifications for each
-          # type of interaction, not collapsing webmentions of different types.
-          # For example, "X was invited to Y" and "W RSVPd to Y" should be separate notifications.
-          source_links.each{|id|
-            link = Link.get(id)
-            if source_types[link.type].nil?
-              source_types[link.type] = []
-            end
-            source_types[link.type] << link
-          }
-
-          # puts "source types:"
-          # jj source_types
-
-          # Process each type of source separately
-          source_types.each do |type, source_links|
-            notification = Notification.new :account => site.account, :site => site
-
-            notification.links = source_links
-
-            source_authors = source_links.map{|link|
-              links << link.id
-              link.author_text
-            }.uniq
-            source_authors_html = source_links.map{|link|
-              links << link.id
-              link.author_html
-            }.uniq
-            text = source_authors.join_with_and
-            html = source_authors_html.join_with_and
-
-            case type
-            when "rsvp-yes"
-              action = "RSVPd yes to"
-              action += " an event that linked to" unless is_direct
-            when "rsvp-no"
-              action = "RSVPd no to"
-              action += " an event that linked to" unless is_direct
-            when "rsvp-maybe"
-              action = "RSVPd maybe to"
-              action += " an event that linked to" unless is_direct
-            when "invite"
-              if source_authors.length == 1
-                verb = "was"
-              else
-                verb = "were"
-              end
-              action = "#{verb} invited to"
-              action += " an event that linked to" unless is_direct
-            when "like"
-              action = "liked"
-              action += " a post that linked to" unless is_direct
-            when "repost"
-              action = "reposted"
-              action += " a post that linked to" unless is_direct
-            when "reply"
-              action = "commented on"
-              action += " a post that linked to" unless is_direct
-            when "link"
-              action = "wrote a post that linked to"
-            else
-              action = "wrote a post that linked to"
-            end
-
-            text += " #{action} "
-            html += " #{action} "
-
-            text += target_links.map{|id| 
-              link = Link.get(id)
-              if !link.page.type.blank? and !link.page.name.blank?
-                "#{link.page.type.with_indefinite_article}: \"#{link.page.name_truncated}\" #{link.page.href}"
-              elsif !link.page.name.blank?
-                "\"#{link.page.name_truncated}\" #{link.page.href}"
-              elsif !link.page.type.blank?
-                "#{link.page.type.with_indefinite_article} #{link.page.href}"
-              else
-                link.page.href
-              end
-            }.uniq.join_with_and
-
-            html += target_links.map{|id|
-              link = Link.get(id)
-              if !link.page.type.blank? and !link.page.name.blank?
-                "#{link.page.type.with_indefinite_article}: \"<a href=\"#{link.page.href}\">#{link.page.name_truncated}</a>\""
-              elsif !link.page.name.blank?
-                "\"<a href=\"#{link.page.href}\">#{link.page.name_truncated}</a>\""
-              elsif !link.page.type.blank?
-                "<a href=\"#{link.page.href}\">#{link.page.type.with_indefinite_article}</a>"
-              else
-                "<a href=\"#{link.page.href}\">#{link.page.href}</a>"
-              end
-            }.uniq.join_with_and
-
-		puts "#{action}"
-		puts target_links.inspect
-
-            notification.text = text
-            notification.html = html
-            notification.token = SecureRandom.urlsafe_base64 16
-            notification.save
-
-            notifications << notification
-          end
-        end
+        notifications = NotificationQueue.generate_notifications(target_links, source_links)
 
         # Remove the mentions that were include in this notification
         links.each do |id|
@@ -276,6 +85,203 @@ class NotificationQueue
 
       end
     end
+  end
+
+  def self.generate_notifications(target_links, source_links)
+    notifications = []
+
+    # Process the one with more mentions
+    if target_links.length > source_links.length
+      # One source linked to many targets.
+      # Most often this is when someone writes a blog post that references a bunch
+      # of wiki pages.
+
+      links = []
+      targets = target_links.map{|id|
+        Link.get(id)
+      }.uniq
+
+      links = targets.map{|link|
+        link.id
+      }
+
+      source_authors = targets.map{|link|
+        link.author_text
+      }.uniq
+      source_authors_html = targets.map{|link|
+        link.author_html
+      }.uniq
+      text = source_authors.join_with_and
+      html = source_authors_html.join_with_and
+
+      text += " posted "
+      html += " posted "
+
+      text += targets.map{|link|
+        if link.type and link.type != "link" and !link.name.blank?
+          "#{link.type.with_indefinite_article}: \"#{link.name_truncated}\" #{link.href}"
+        elsif !link.name.blank?
+          "\"#{link.name_truncated}\" #{link.href}"
+        elsif link.type and link.type != "link"
+          "#{link.type.with_indefinite_article} #{link.href}"
+        else
+          link.href
+        end
+      }.uniq.join_with_and
+      html += targets.map{|link|
+        if link.type and link.type != "link" and !link.name.blank?
+          "#{link.type.with_indefinite_article}: <a href=\"#{link.href}\">#{link.name_truncated}</a>"
+        elsif !link.name.blank?
+          "<a href=\"#{link.href}\">#{link.name_truncated}</a>"
+        elsif link.type and link.type != "link"
+          "#{link.type.with_indefinite_article} <a href=\"#{link.href}\">#{link.href}</a>"
+        else
+          "<a href=\"#{link.href}\">#{link.href}</a>"
+        end
+      }.uniq.join_with_and
+
+      text += " that linked to "
+      html += " that linked to "
+
+      text += targets.map{|link|
+        link.target
+      }.uniq.join_with_and
+      html += targets.map{|link|
+        "<a href=\"#{link.target}\">#{link.target}</a>"
+      }.uniq.join_with_and
+
+      puts "================"
+      puts "Notification: #{text}"
+      puts "================"
+
+      notification = Notification.new :account => site.account, :site => site
+      notification.text = text
+      notification.html = html
+      notification.links = targets
+      notification.token = SecureRandom.urlsafe_base64 16
+      notification.save
+      notifications << notification
+
+      links = target_links
+    else
+      # Many sources linked to one target.
+      # Most often this is when many "likes" are received in a row, or when bridgy
+      # sends the flood of invites for a POSSE'd event.
+      source_types = {}
+      links = []
+
+      # puts "source links:"
+      # jj source_links
+      # puts "target links:"
+      # jj target_links
+
+      # The source links may be different "types" of objects, such as a "like" vs "reply",
+      # or an "RSVP yes" vs "RSVP no". We want to generate notifications for each
+      # type of interaction, not collapsing webmentions of different types.
+      # For example, "X was invited to Y" and "W RSVPd to Y" should be separate notifications.
+      source_links.each{|id|
+        link = Link.get(id)
+        if source_types[link.type].nil?
+          source_types[link.type] = []
+        end
+        source_types[link.type] << link
+      }
+
+      # puts "source types:"
+      # jj source_types
+
+      # Process each type of source separately
+      source_types.each do |type, source_links|
+        notification = Notification.new :account => site.account, :site => site
+
+        notification.links = source_links
+
+        source_authors = source_links.map{|link|
+          links << link.id
+          link.author_text
+        }.uniq
+        source_authors_html = source_links.map{|link|
+          links << link.id
+          link.author_html
+        }.uniq
+        text = source_authors.join_with_and
+        html = source_authors_html.join_with_and
+
+        case type
+        when "rsvp-yes"
+          action = "RSVPd yes to"
+          action += " an event that linked to" unless is_direct
+        when "rsvp-no"
+          action = "RSVPd no to"
+          action += " an event that linked to" unless is_direct
+        when "rsvp-maybe"
+          action = "RSVPd maybe to"
+          action += " an event that linked to" unless is_direct
+        when "invite"
+          if source_authors.length == 1
+            verb = "was"
+          else
+            verb = "were"
+          end
+          action = "#{verb} invited to"
+          action += " an event that linked to" unless is_direct
+        when "like"
+          action = "liked"
+          action += " a post that linked to" unless is_direct
+        when "repost"
+          action = "reposted"
+          action += " a post that linked to" unless is_direct
+        when "reply"
+          action = "commented on"
+          action += " a post that linked to" unless is_direct
+        when "link"
+          action = "wrote a post that linked to"
+        else
+          action = "wrote a post that linked to"
+        end
+
+        text += " #{action} "
+        html += " #{action} "
+
+        text += target_links.map{|id|
+          link = Link.get(id)
+          if !link.page.type.blank? and !link.page.name.blank?
+            "#{link.page.type.with_indefinite_article}: \"#{link.page.name_truncated}\" #{link.page.href}"
+          elsif !link.page.name.blank?
+            "\"#{link.page.name_truncated}\" #{link.page.href}"
+          elsif !link.page.type.blank?
+            "#{link.page.type.with_indefinite_article} #{link.page.href}"
+          else
+            link.page.href
+          end
+        }.uniq.join_with_and
+
+        html += target_links.map{|id|
+          link = Link.get(id)
+          if !link.page.type.blank? and !link.page.name.blank?
+            "#{link.page.type.with_indefinite_article}: \"<a href=\"#{link.page.href}\">#{link.page.name_truncated}</a>\""
+          elsif !link.page.name.blank?
+            "\"<a href=\"#{link.page.href}\">#{link.page.name_truncated}</a>\""
+          elsif !link.page.type.blank?
+            "<a href=\"#{link.page.href}\">#{link.page.type.with_indefinite_article}</a>"
+          else
+            "<a href=\"#{link.page.href}\">#{link.page.href}</a>"
+          end
+        }.uniq.join_with_and
+
+        puts "#{action}"
+        puts target_links.inspect
+
+        notification.text = text
+        notification.html = html
+        notification.token = SecureRandom.urlsafe_base64 16
+        notification.save
+
+        notifications << notification
+      end
+    end
+
+    notifications
   end
 
   def self.send_notification(site, message)

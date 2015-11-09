@@ -20,12 +20,12 @@ class WebmentionProcessor
   # Handles actually verifying source links to target, returning the list of errors based on the webmention errors
   def process_mention(username, source, target, protocol)
 
-    puts "Verifying link exists from #{source} to #{target}"
-
     target_account = Account.first :username => username
     return nil, 'target_not_found' if target_account.nil?
 
     return nil, 'invalid_target' if source == target
+
+    puts "Verifying link exists from #{source} to #{target}"
 
     begin
       target_domain = URI.parse(target).host
@@ -220,8 +220,9 @@ class WebmentionProcessor
   end
 
   def get_phrase_and_set_type(entry, link, source, target)
-    source_is_twitter = source.start_with? 'https://twitter.com/'
-    source_is_gplus = source.start_with? 'https://plus.google.com/'
+    url = !link.url.blank? ? link.url : source
+    source_is_twitter = url.start_with? 'https://twitter.com/'
+    source_is_gplus = url.start_with? 'https://plus.google.com/'
 
     if rsvps = maybe_get(entry, 'rsvps')
       phrase = "RSVPed #{rsvps.join(', ')} to"
