@@ -41,40 +41,7 @@ class WebmentionProcessor
     site = Site.first_or_create :account => target_account, :domain => target_domain
 
     # If the page already exists, use that record. Otherwise create it and find out what kind of object is on the page
-    page = Page.first :site => site, :href => target
-    if page.nil?
-      page = Page.new
-      page.site = site
-      page.account = target_account
-      page.href = target
-
-      begin
-        parsed = Microformats2.parse target
-
-        # Determine the type of page the target is. It might be an event or a photo for example
-        if event = maybe_get(parsed, 'event')
-          page.type = 'event'
-          name = maybe_get event, 'name'
-          # TODO: add the date and maybe location so that the name of the event is:
-          # Homebrew Website Club on 2015-07-29
-          page.name = name.to_s if name
-
-        elsif entry = maybe_get(parsed, 'entry')
-          name = maybe_get entry, 'name'
-          page.name = name.to_s if name
-
-          if maybe_get entry, 'photo'
-            page.type = 'photo'
-          elsif maybe_get entry, 'video'
-            page.type = 'video'
-          end
-
-        end
-      rescue
-      end
-
-      page.save
-    end
+    page = create_page_in_site(site, target)
 
     link = Link.first_or_create({:page => page, :href => source},{:site => site})
 
@@ -286,6 +253,47 @@ class WebmentionProcessor
     link.verified = true
     link.save
     return link, 'success'
+  end
+
+  def create_page_in_site(site, target)
+    page = Page.first :site => site, :href => target
+    if page.nil?
+      page = Page.new
+      page.site = site
+      page.account = site.account
+      page.href = target
+
+      begin
+        parsed = Microformats2.parse target
+
+        # Determine the type of page the target is. It might be an event or a photo for example
+        if event = maybe_get(parsed, 'event')
+          page.type = 'event'
+          name = maybe_get event, 'name'
+          # TODO: add the date and maybe location so that the name of the event is:
+          # Homebrew Website Club on 2015-07-29
+          page.name = name.to_s if name
+
+        elsif entry = maybe_get(parsed, 'entry')
+          name = maybe_get entry, 'name'
+          page.name = name.to_s if name
+          page.type = 'entry'
+
+          if maybe_get entry, 'photo'
+            page.type = 'photo'
+          elsif maybe_get entry, 'video'
+            page.type = 'video'
+          elsif maybe_get entry, 'audio'
+            page.type = 'audio'
+          end
+
+        end
+      rescue
+      end
+
+      page.save
+    end
+    page
   end
 
   def get_referenced_url(obj, method)
