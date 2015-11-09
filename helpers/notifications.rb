@@ -50,7 +50,7 @@ class NotificationQueue
         target_links = @redis.smembers "webmention::#{site_id}::source::#{link.type}::#{link.is_direct}::#{link.source}"
         source_links = @redis.smembers "webmention::#{site_id}::target::#{link.target}"
 
-        notifications, links = NotificationQueue.generate_notifications(site, target_links, source_links)
+        notifications, links = NotificationQueue.generate_notifications(site, link, target_links, source_links)
 
         if target_links.length > source_links.length
           links = target_links
@@ -91,9 +91,11 @@ class NotificationQueue
     end
   end
 
-  def self.generate_notifications(site, target_links, source_links)
+  def self.generate_notifications(site, main_link, target_links, source_links)
     notifications = []
 
+    is_direct = main_link.is_direct
+    
     # Process the one with more mentions
     if target_links.length > source_links.length
       # One source linked to many targets.
