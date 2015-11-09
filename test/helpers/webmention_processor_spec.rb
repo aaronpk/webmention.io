@@ -11,18 +11,24 @@ describe WebmentionProcessor do
         path = request.uri.path.match(/\/(.+)/)[1]
         {:body => TestData.file("example.com/#{path}.html")}
       }
+
+    stub_request(:get, /http:\/\/source.example.com\/.+/).
+      to_return { |request|
+        path = request.uri.path.match(/\/(.+)/)[1]
+        {:body => TestData.file("source.example.org/#{path}.html")}
+      }
   end
 
   describe "get_referenced_url" do
 
     it "returns the urls from a plain string" do
-      entry = TestData.entry 'example.com/target/like-plain-url.html'
+      entry = TestData.entry 'source.example.org/like-plain-url.html'
       url = WebmentionProcessor.new.get_referenced_url entry, 'like_ofs'
       url.must_equal ["http://example.com/target/like-plain-url"]
     end
 
     it "returns the urls from a nested h-cite" do
-      entry = TestData.entry 'example.com/target/like-h-cite.html'
+      entry = TestData.entry 'source.example.org/like-h-cite.html'
       url = WebmentionProcessor.new.get_referenced_url entry, 'like_ofs'
       url.must_equal ["http://example.com/target/like-h-cite"]
     end
