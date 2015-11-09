@@ -97,6 +97,8 @@ class Formats
       relation = :"repost-of"
     when "reply"
       relation = :"in-reply-to"
+    when "bookmark"
+      relation = :"bookmark-of"
     when "rsvp-yes"
       relation = :"rsvp"
       jf2[:rsvp] = "yes"

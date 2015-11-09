@@ -185,6 +185,14 @@ class WebmentionProcessor
           end
           link.type = "like"
 
+        elsif bookmark_of = get_referenced_url(entry, 'bookmark_ofs')
+          phrase = (twitter ? 'bookmarked a tweet' : 'bookmarked a post')
+          if !bookmark_of.include? target
+            phrase += " that linked to"
+            link.is_direct = false
+          end
+          link.type = "bookmark"
+
         elsif in_reply_to = get_referenced_url(entry, 'in_reply_tos')
           if twitter
             phrase = "replied '#{snippet}' to a tweet"
