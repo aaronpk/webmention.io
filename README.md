@@ -1,6 +1,6 @@
 # Webmention.io
 
-[travis](https://travis-ci.org/aaronpk/webmention.io.svg)
+![travis](https://travis-ci.org/aaronpk/webmention.io.svg)
 
 This project is an implementation of the [Webmention](http://indiewebcamp.com/webmention) and [Pingback](http://indiewebcamp.com/pingback) protocols. It allows the receiving service to be run separately from the blogging software or website environment, making it easier to manage and integrate with other services.
 

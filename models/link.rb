@@ -30,9 +30,9 @@ class Link
   property :updated_at, DateTime
 
   def author_text
-    if author_name
+    if !author_name.blank?
       author_name
-    elsif author_url
+    elsif !author_url.blank?
       author_url
     else
       "someone"
@@ -42,17 +42,15 @@ class Link
   def author_html
     # The ruby mf2 parser doesn't resolve relative URLs, so the author URL might be relative.
     # Use Ruby's "join" with the page href to get the absolute URL.
-    if author_url
+    if !author_url.blank?
       absolute = URI.join(href,author_url)
-      if author_name
+      if !author_name.blank?
         "<a href=\"#{absolute}\">#{author_name}</a>"
-      elsif author_url
-        "<a href=\"#{absolute}\">#{absolute}</a>"
       else
-        "someone"
+        "<a href=\"#{absolute}\">#{absolute}</a>"
       end
     else
-      if author_name
+      if !author_name.blank?
         author_name
       else
         "someone"
@@ -65,8 +63,8 @@ class Link
 
     snippet = Sanitize.fragment(name).strip.gsub("\n", ' ').gsub(Regexp.new('\s+'),' ')
     # TODO: better ellipsizing
-    if snippet.length > 100
-      snippet = snippet[0, 100] + '...'
+    if snippet.length > 80
+      snippet = snippet[0, 80] + '...'
     end
 
     snippet

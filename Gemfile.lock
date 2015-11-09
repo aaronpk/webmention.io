@@ -11,6 +11,8 @@ GEM
     backports (3.6.4)
     celluloid (0.15.2)
       timers (~> 1.1.0)
+    crack (0.4.2)
+      safe_yaml (~> 1.0.0)
     crass (0.2.1)
     daemons (1.1.9)
     dalli (2.7.2)
@@ -41,6 +43,7 @@ GEM
     eventmachine (1.0.3)
     faraday (0.9.0)
       multipart-post (>= 1.2, < 3)
+    hashdiff (0.2.3)
     hashie (3.3.2)
     http-cookie (1.0.2)
       domain_name (~> 0.5)
@@ -101,6 +104,7 @@ GEM
     rest-client (1.7.2)
       mime-types (>= 1.16, < 3.0)
       netrc (~> 0.7)
+    safe_yaml (1.0.4)
     sanitize (3.0.3)
       crass (~> 0.2.0)
       nokogiri (>= 1.4.4)
@@ -140,6 +144,10 @@ GEM
       kgio (~> 2.6)
       rack
       raindrops (~> 0.7)
+    webmock (1.22.3)
+      addressable (>= 2.3.6)
+      crack (>= 0.3.2)
+      hashdiff
     webrobots (0.1.1)
 
 PLATFORMS
@@ -175,6 +183,7 @@ DEPENDENCIES
   sinatra-support
   sucker_punch (~> 1.0)
   thin
+  webmock
 
 BUNDLED WITH
    1.10.6

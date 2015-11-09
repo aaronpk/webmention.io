@@ -4,8 +4,6 @@ gem 'sinatra',             :require => 'sinatra/base'
 gem 'sinatra-namespace',   :require => 'sinatra/namespace'
 gem 'sinatra-support',     :require => 'sinatra/support'
 
-gem 'sucker_punch', '~> 1.0'
-
 gem 'erubis'
 gem 'rainbows', :require => nil
 gem 'rake',                     :require => nil
@@ -36,11 +34,17 @@ gem 'dm-aggregates'
 gem 'dm-mysql-adapter'
 gem 'dm-pager'
 
+group :production do
+  gem 'sucker_punch', '~> 1.0'
+end
+
 group :development do
+  gem 'sucker_punch', '~> 1.0'
   gem 'shotgun',                :require => nil
   gem 'thin',                   :require => nil
 end
 
 group :test do
   gem 'minitest'
+  gem 'webmock'
 end
