@@ -1,5 +1,7 @@
 # Webmention.io
 
+[travis](https://travis-ci.org/aaronpk/webmention.io.svg)
+
 This project is an implementation of the [Webmention](http://indiewebcamp.com/webmention) and [Pingback](http://indiewebcamp.com/pingback) protocols. It allows the receiving service to be run separately from the blogging software or website environment, making it easier to manage and integrate with other services.
 
 Say you have a statically-generated website using Jekyll or something similar, you can simply add the appropriate `<link>` tags to this service, and now you have Webmention and Pingback enabled on your static site!
@@ -335,4 +337,3 @@ If `bundle exec rake ...` complains _Could not find rake-10.4.0 in any of the so
 Copyright 2013 by Aaron Parecki.
 
 Available under the BSD License. See LICENSE.txt
-
