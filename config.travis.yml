@@ -1,0 +1,17 @@
+travis:
+  database_url: "mysql://travis@127.0.0.1/webmention_test"
+  session_secret: SEKR3T
+  ga_id:
+  base_url: "https://webmention.io"
+  indieauth_server: "https://indieauth.com"
+  redis:
+    host: 127.0.0.1
+    port: 6379
+  ca3db:
+    api_endpoint:
+    api_key:
+    key_id:
+    secret_key:
+    region:
+    bucket:
+    s3_url:

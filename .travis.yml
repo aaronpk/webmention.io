@@ -1,0 +1,8 @@
+language: ruby
+rvm:
+  - 2.1.3
+services:
+  - mysql
+before_script:
+  - mysql -e 'create database webmention_test;'
+  - 'cp config.travis.yml config.yml'
