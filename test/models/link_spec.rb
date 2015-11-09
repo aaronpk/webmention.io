@@ -2,6 +2,16 @@ require_relative '../load'
 
 describe Link do
 
+  describe "snippet" do
+
+    it "truncates content to generate the snippet" do
+      link = Link.new
+      link.content = "This is a link with a lot of content, too long to be displayed normally, it should be truncated when displaying it in notificaitons."
+      link.snippet.must_equal "This is a link with a lot of content, too long to be displayed normally, it shou..."
+    end
+
+  end
+
   describe "author_name" do
 
     def link_with_absolute_author_url

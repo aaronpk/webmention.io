@@ -29,6 +29,14 @@ class Link
   property :created_at, DateTime
   property :updated_at, DateTime
 
+  def snippet
+    snippet = Sanitize.fragment(content).strip.gsub "\n", ' '
+    if snippet.length > 80
+      snippet = snippet[0, 80] + '...'
+    end
+    snippet
+  end
+
   def author_text(fallback="someone")
     if !author_name.blank?
       author_name

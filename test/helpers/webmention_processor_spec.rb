@@ -168,4 +168,95 @@ describe WebmentionProcessor do
 
   end
 
+  describe "get_phrase_and_set_type" do
+
+    before do
+      @site = Site.new
+      @link = Link.new
+    end
+
+    it "liked a post" do
+      @target = "http://example.com/target/entry"
+      @source = "http://source.example.org/like-of"
+      @entry = @w.get_entry_from_source @source
+
+      phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
+
+      @link.type.must_equal "like"
+      phrase.must_equal "liked a post"
+    end
+
+    # TODO: fill in with Bridgy example
+    # it "liked a post that linked to" do
+    #   @target = ""
+    #   @source = ""
+    #   @entry = @w.get_entry_from_source @source
+    #
+    #   phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
+    #
+    #   @link.type.must_equal "like"
+    #   phrase.must_equal "liked a post that linked to"
+    # end
+
+    it "reshared a post" do
+      @target = "http://example.com/target/entry"
+      @source = "http://source.example.org/repost-of"
+      @entry = @w.get_entry_from_source @source
+
+      phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
+
+      @link.type.must_equal "repost"
+      phrase.must_equal "reshared a post"
+    end
+
+    it "bookmarked a post" do
+      @target = "http://example.com/target/entry"
+      @source = "http://source.example.org/bookmark-of"
+      @entry = @w.get_entry_from_source @source
+
+      phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
+
+      @link.type.must_equal "bookmark"
+      phrase.must_equal "bookmarked a post"
+    end
+
+    it "commented on a post" do
+      @target = "http://example.com/target/entry"
+      @source = "http://source.example.org/in-reply-to"
+      @entry = @w.get_entry_from_source @source
+      @link.content = Sanitize.fragment(@entry.content.to_s, Sanitize::Config::BASIC)
+
+      phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
+
+      @link.type.must_equal "reply"
+      phrase.must_equal "commented 'Thanks for the information, it was super helpful. I am looking forward to puttin...' on a post"
+    end
+
+    it "commented on a post that linked to" do
+      @target = "http://another.example.com/entry"
+      @source = "http://source.example.org/in-reply-to"
+      @entry = @w.get_entry_from_source @source
+      @link.content = Sanitize.fragment(@entry.content.to_s, Sanitize::Config::BASIC)
+
+      phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
+
+      @link.type.must_equal "reply"
+      @link.is_direct.must_equal false
+      phrase.must_equal "commented 'Thanks for the information, it was super helpful. I am looking forward to puttin...' on a post that linked to"
+    end
+
+    it "generic mention" do
+      @target = "http://example.com/target/entry"
+      @source = "http://source.example.org/mention"
+      @entry = @w.get_entry_from_source @source
+      @link.content = Sanitize.fragment(@entry.content.to_s, Sanitize::Config::BASIC)
+
+      phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
+
+      @link.type.must_equal "link"
+      phrase.must_equal "posted 'Did you see this post over here? It was pretty great.' linking to"
+    end
+
+  end
+
 end

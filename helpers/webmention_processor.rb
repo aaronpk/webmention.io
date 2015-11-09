@@ -90,67 +90,11 @@ class WebmentionProcessor
         # Detect post type (reply, like, reshare, RSVP, mention) and silo and
         # generate custom notification message.
         url = !link.url.blank? ? link.url : source
-        source_is_twitter = url.start_with? 'https://twitter.com/'
-        source_is_gplus = url.start_with? 'https://plus.google.com/'
 
         subject = link.author_text url
         subject_html = link.author_html "someone", url
 
-        snippet = Sanitize.fragment(link.content).strip.gsub "\n", ' '
-        if snippet.length > 140
-          snippet = snippet[0, 140] + '...'
-        end
-
-        # TODO(snarfed): store in db
-        if rsvps = maybe_get(entry, 'rsvps')
-          phrase = "RSVPed #{rsvps.join(', ')} to"
-          link.type = "rsvp-#{rsvps[0]}"
-
-        elsif maybe_get entry, 'invitees'
-          phrase = 'was invited to'
-          link.type = "invite"
-
-        elsif repost_of = get_referenced_url(entry, 'repost_ofs')
-          phrase = (source_is_twitter ? 'retweeted a tweet' : 'reshared a post')
-          if !repost_of.include? target
-            phrase += " that linked to"
-            link.is_direct = false
-          end
-          link.type = "repost"
-
-        elsif like_of = get_referenced_url(entry, 'like_ofs')
-          phrase = (source_is_twitter ? 'favorited a tweet' : source_is_gplus ? '+1ed a post' : 'liked a post')
-          if !like_of.include? target
-            phrase += " that linked to"
-            link.is_direct = false
-          end
-          link.type = "like"
-
-        elsif bookmark_of = get_referenced_url(entry, 'bookmark_ofs')
-          phrase = (source_is_twitter ? 'bookmarked a tweet' : 'bookmarked a post')
-          if !bookmark_of.include? target
-            phrase += " that linked to"
-            link.is_direct = false
-          end
-          link.type = "bookmark"
-
-        elsif in_reply_to = get_referenced_url(entry, 'in_reply_tos')
-          if source_is_twitter
-            phrase = "replied '#{snippet}' to a tweet"
-          else
-            phrase = "commented '#{snippet}' on a post"
-          end
-          if !in_reply_to.include? target
-            puts "in reply to URL is different from the target: #{in_reply_to}"
-            phrase += " that linked to"
-            link.is_direct = false
-          end
-          link.type = "reply"
-
-        else
-          phrase = "posted '#{snippet}' linking to"
-          link.type = "link"
-        end
+        phrase = get_phrase_and_set_type entry, link, source, target
 
         message = "[#{source_is_bridgy ? 'bridgy' : 'mention'}] #{subject} #{phrase} #{target}"
         if subject != url
@@ -273,6 +217,70 @@ class WebmentionProcessor
       page.save
     end
     page
+  end
+
+  def get_phrase_and_set_type(entry, link, source, target)
+    source_is_twitter = source.start_with? 'https://twitter.com/'
+    source_is_gplus = source.start_with? 'https://plus.google.com/'
+
+    if rsvps = maybe_get(entry, 'rsvps')
+      phrase = "RSVPed #{rsvps.join(', ')} to"
+      link.type = "rsvp-#{rsvps[0]}"
+
+    elsif maybe_get entry, 'invitees'
+      phrase = 'was invited to'
+      link.type = "invite"
+
+    elsif repost_of = get_referenced_url(entry, 'repost_ofs')
+      phrase = (source_is_twitter ? 'retweeted a tweet' : 'reshared a post')
+      if !repost_of.include? target
+        # for bridgy
+        # TODO: when the repost-of link is not the one receiving the webmention, "that linked to" is not necessarily correct
+        phrase += " that linked to"
+        link.is_direct = false
+      end
+      link.type = "repost"
+
+    elsif like_of = get_referenced_url(entry, 'like_ofs')
+      phrase = (source_is_twitter ? 'favorited a tweet' : source_is_gplus ? '+1\'d a post' : 'liked a post')
+      if !like_of.include? target
+        # for bridgy
+        # TODO: when the like-of link is not the one receiving the webmention, "that linked to" is not necessarily correct
+        phrase += " that linked to"
+        link.is_direct = false
+      end
+      link.type = "like"
+
+    elsif bookmark_of = get_referenced_url(entry, 'bookmark_ofs')
+      phrase = (source_is_twitter ? 'bookmarked a tweet' : 'bookmarked a post')
+      if !bookmark_of.include? target
+        # for bridgy
+        # TODO: when the bookmark-of link is not the one receiving the webmention, "that linked to" is not necessarily correct
+        phrase += " that linked to"
+        link.is_direct = false
+      end
+      link.type = "bookmark"
+
+    elsif in_reply_to = get_referenced_url(entry, 'in_reply_tos')
+      if source_is_twitter
+        phrase = "replied '#{link.snippet}' to a tweet"
+      else
+        phrase = "commented '#{link.snippet}' on a post"
+      end
+      if !in_reply_to.include? target
+        # for bridgy
+        phrase += " that linked to"
+        # TODO: when the in-reply-to link is not the one receiving the webmention, "that linked to" is not necessarily correct
+        link.is_direct = false
+      end
+      link.type = "reply"
+
+    else
+      phrase = "posted '#{link.snippet}' linking to"
+      link.type = "link"
+    end
+
+    phrase
   end
 
   def add_author_to_link(entry, link)
