@@ -74,22 +74,7 @@ class WebmentionProcessor
       if entry
         add_author_to_link entry, link
 
-        link.url = maybe_get entry, 'url'
-        link.name = maybe_get entry, 'name'
-        link.summary = Sanitize.fragment((maybe_get entry, 'summary').to_s, Sanitize::Config::BASIC)
-        link.content = Sanitize.fragment((maybe_get entry, 'content').to_s, Sanitize::Config::BASIC)
-
-        if link.url
-          # Set link.url relative to source URL from the webmention
-          link.url = Microformats2::AbsoluteUri.new(link.href, link.url).absolutize
-        end
-
-        published = maybe_get entry, 'published'
-        if published
-          link.published = DateTime.parse(published.to_s) # has timezone information now, will be discarded when saved to the db
-          # TODO: store timezone offset in the DB also
-          link.published_ts = DateTime.parse(published.to_s).to_time.to_i
-        end
+        add_mf2_data_to_link entry, link
 
         # Detect post type (reply, like, reshare, RSVP, mention) and silo and
         # generate custom notification message.
@@ -320,6 +305,27 @@ class WebmentionProcessor
       end
       link.save
     end
+  end
+
+  def add_mf2_data_to_link(entry, link)
+    link.url = maybe_get entry, 'url'
+    link.name = maybe_get entry, 'name'
+    link.summary = Sanitize.fragment((maybe_get entry, 'summary').to_s, Sanitize::Config::BASIC)
+    link.content = Sanitize.fragment((maybe_get entry, 'content').to_s, Sanitize::Config::BASIC)
+
+    if !link.url.blank?
+      # Set link.url relative to source URL from the webmention
+      link.url = Microformats2::AbsoluteUri.new(link.href, link.url).absolutize
+    end
+
+    published = maybe_get entry, 'published'
+    if published
+      link.published = DateTime.parse(published.to_s) # has timezone information now, will be discarded when saved to the db
+      # TODO: store timezone offset in the DB also
+      link.published_ts = DateTime.parse(published.to_s).to_time.to_i
+    end
+
+    link.save
   end
 
   def get_referenced_url(obj, method)

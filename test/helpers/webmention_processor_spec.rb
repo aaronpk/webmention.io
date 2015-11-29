@@ -7,7 +7,7 @@ describe WebmentionProcessor do
     @w = WebmentionProcessor.new
   end
 
-  describe "get_referenced_url" do
+  describe "gets_referenced_url" do
 
     it "returns the urls from a plain string" do
       entry = TestData.entry 'source.example.org/like-plain-url.html'
@@ -23,7 +23,7 @@ describe WebmentionProcessor do
 
   end
 
-  describe "create_page_in_site" do
+  describe "creates_page_in_site" do
 
     before do
       @site = Site.new
@@ -70,7 +70,36 @@ describe WebmentionProcessor do
 
   end
 
-  describe "add_author_to_link" do
+  describe "adds_mf2_data_to_link" do
+
+    before do
+      @site = Site.new
+      target = "http://example.com/target/entry"
+      @page = @w.create_page_in_site @site, target
+    end
+
+    it "resolves relative url from the value in the source" do
+      source = "http://source.example.org/alternate-url"
+      entry = @w.get_entry_from_source source
+      link = Link.new :page => @page, :href => source, :site => @site
+      @w.add_mf2_data_to_link entry, link
+      link.href.must_equal "http://source.example.org/alternate-url"
+      link.url.must_equal "http://source.example.org/alternate/url"
+    end
+
+    it "uses source url when no url is in the page" do
+      source = "http://source.example.org/no-explicit-url"
+      entry = @w.get_entry_from_source source
+      link = Link.new :page => @page, :href => source, :site => @site
+      @w.add_mf2_data_to_link entry, link
+      link.href.must_equal source
+      link.url.must_be_nil # no custom URL is stored in the DB
+      link.absolute_url.must_equal source # the absolute_url function returns the href value
+    end
+
+  end
+
+  describe "adds_author_to_link" do
 
     before do
       @site = Site.new
@@ -144,7 +173,7 @@ describe WebmentionProcessor do
 
   end
 
-  describe "get_phrase_and_set_type" do
+  describe "gets_phrase_and_sets_type" do
 
     before do
       @site = Site.new
