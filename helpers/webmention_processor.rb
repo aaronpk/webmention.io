@@ -1,5 +1,9 @@
 class WebmentionProcessor
-  include SuckerPunch::Job
+  begin
+    include SuckerPunch::Job
+  rescue NameError
+  end
+
   # Run as a full thread instead of a fiber
   # See https://github.com/celluloid/celluloid/wiki/Fiber-stack-errors
   if method_defined? :task_class
@@ -237,6 +241,7 @@ class WebmentionProcessor
       if !repost_of.include? target
         # for bridgy
         # TODO: when the repost-of link is not the one receiving the webmention, "that linked to" is not necessarily correct
+        # It's only correct when the target URL is in the contents of the repost, e.g. if the repost included all the contents of the original
         phrase += " that linked to"
         link.is_direct = false
       end
@@ -247,6 +252,7 @@ class WebmentionProcessor
       if !like_of.include? target
         # for bridgy
         # TODO: when the like-of link is not the one receiving the webmention, "that linked to" is not necessarily correct
+        # It's only correct when the target URL is in the contents of the like, e.g. if the like included all the contents of the original
         phrase += " that linked to"
         link.is_direct = false
       end
