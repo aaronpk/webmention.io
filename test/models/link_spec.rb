@@ -146,4 +146,29 @@ describe Link do
 
   end
 
+  describe "syndications" do
+
+    it "returns nil for no syndications" do
+      link = Link.new
+      link.syndications.must_be_nil
+    end
+
+    it "returns one syndication as an array" do
+      links = ["https://twitter.com/example/status/1"]
+      link = Link.new
+      link.syndication = links.to_json
+      link.syndications.length.must_equal 1
+      link.syndications.must_equal links
+    end
+
+    it "returns two syndications as an array" do
+      links = ["https://twitter.com/example/status/1","https://facebook.com/1"]
+      link = Link.new
+      link.syndication = links.to_json
+      link.syndications.length.must_equal 2
+      link.syndications.must_equal links
+    end
+
+  end
+
 end

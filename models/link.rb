@@ -16,6 +16,7 @@ class Link
   property :published, DateTime
   property :published_offset, Integer
   property :published_ts, Integer
+  property :syndication, Text
 
   property :type, String
   property :is_direct, Boolean, :default => true
@@ -85,6 +86,11 @@ class Link
     end
 
     snippet
+  end
+
+  def syndications
+    return nil if syndication.blank?
+    return JSON.parse syndication
   end
 
   def published_date

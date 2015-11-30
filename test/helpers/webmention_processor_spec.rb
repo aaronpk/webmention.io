@@ -105,6 +105,22 @@ describe WebmentionProcessor do
       link.published_ts.must_equal 1446915600
     end
 
+    it "finds one syndication link" do
+      source = "http://source.example.org/one-syndication"
+      entry = @w.get_entry_from_source source
+      link = Link.new :page => @page, :href => source, :site => @site
+      @w.add_mf2_data_to_link entry, link
+      link.syndication.must_equal "[\"https://twitter.com/example/status/1\"]"
+    end
+
+    it "finds two syndication links" do
+      source = "http://source.example.org/two-syndications"
+      entry = @w.get_entry_from_source source
+      link = Link.new :page => @page, :href => source, :site => @site
+      @w.add_mf2_data_to_link entry, link
+      link.syndication.must_equal "[\"https://twitter.com/example/status/1\",\"https://facebook.com/1\"]"
+    end
+
   end
 
   describe "adds_author_to_link" do

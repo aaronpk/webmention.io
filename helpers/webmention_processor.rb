@@ -319,11 +319,16 @@ class WebmentionProcessor
     end
 
     published = maybe_get entry, 'published'
-    if published
+    if !published.blank?
       date = DateTime.parse(published.to_s)
       link.published = date.to_time # Convert to UTC (uses ENV timezone)
       link.published_offset = date.utc_offset
       link.published_ts = date.to_time.to_i # store UTC unix timestamp
+    end
+
+    syndications = maybe_get entry, 'syndications'
+    if !syndications.blank?
+      link.syndication = syndications.map{|s| s.to_s}.to_json
     end
 
     link.save

@@ -74,6 +74,10 @@ class Formats
       name: link.name,
     }
 
+    if !link.syndications.nil?
+      jf2[:syndication] = link.syndications
+    end
+
     if !link.summary.blank?
       jf2[:summary] = {
         :"content-type" => "text/html",
