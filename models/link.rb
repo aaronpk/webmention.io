@@ -14,6 +14,7 @@ class Link
   property :summary, Text
   property :content, Text
   property :published, DateTime
+  property :published_offset, Integer
   property :published_ts, Integer
 
   property :type, String
@@ -84,6 +85,15 @@ class Link
     end
 
     snippet
+  end
+
+  def published_date
+    return nil if published.blank?
+    date = published
+    if !published_offset.nil?
+      date = date.new_offset(Rational(published_offset, 86400))
+    end
+    date
   end
 
   def absolute_url

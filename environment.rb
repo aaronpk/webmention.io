@@ -1,4 +1,5 @@
 Encoding.default_internal = 'UTF-8'
+ENV['TZ'] = 'UTC'
 require 'rubygems'
 require 'bundler/setup'
 require 'cgi'
@@ -58,6 +59,6 @@ class Controller < Sinatra::Base
 end
 
 require_relative './controller.rb'
-Dir.glob(['controllers'].map! {|d| File.join d, '*.rb'}).each do |f| 
+Dir.glob(['controllers'].map! {|d| File.join d, '*.rb'}).each do |f|
   require_relative f
 end

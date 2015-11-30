@@ -320,9 +320,10 @@ class WebmentionProcessor
 
     published = maybe_get entry, 'published'
     if published
-      link.published = DateTime.parse(published.to_s) # has timezone information now, will be discarded when saved to the db
-      # TODO: store timezone offset in the DB also
-      link.published_ts = DateTime.parse(published.to_s).to_time.to_i
+      date = DateTime.parse(published.to_s)
+      link.published = date.to_time # Convert to UTC (uses ENV timezone)
+      link.published_offset = date.utc_offset
+      link.published_ts = date.to_time.to_i # store UTC unix timestamp
     end
 
     link.save

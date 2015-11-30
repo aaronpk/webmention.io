@@ -129,4 +129,21 @@ describe Link do
 
   end
 
+  describe "published_date" do
+
+    it "converts published date to local time" do
+      link = Link.new
+      link.published = DateTime.parse("2015-12-01T09:30:00+00:00")
+      link.published_offset = -28800
+      link.published_date.to_s.must_equal "2015-12-01T01:30:00-08:00"
+    end
+
+    it "keeps date in UTC when no offset is specified" do
+      link = Link.new
+      link.published = DateTime.parse("2015-12-01T09:30:00+00:00")
+      link.published_date.to_s.must_equal "2015-12-01T09:30:00+00:00"
+    end
+
+  end
+
 end

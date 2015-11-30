@@ -5,14 +5,14 @@ describe NotificationQueue do
   before do
     TestData.stub_requests self
     @w = WebmentionProcessor.new
-    @account = Account.create :username => 'test'
-    @site = Site.create :domain => "example.com", :account => @account
+    @account = Account.first_or_create :username => 'test'
+    @site = Site.first_or_create :domain => "example.com", :account => @account
   end
 
   describe "one source linked to many targets" do
 
     it "works with one source linking to one target" do
-      @page1 = Page.create :href => "http://example.com/target/entry", :site => @site, :account => @account
+      @page1 = @w.create_page_in_site @site, "http://example.com/target/entry"
 
       source = "http://source.example.org/notification/one-to-two"
       entry = @w.get_entry_from_source source
@@ -24,12 +24,12 @@ describe NotificationQueue do
       notifications = NotificationQueue.generate_notifications @site, link1, [link1.id], [link1.id]
 
       notifications.length.must_equal 1
-      notifications[0].text.must_equal "Source Author wrote a post that linked to http://example.com/target/entry"
+      notifications[0].text.must_equal "Source Author wrote a post that linked to an entry: \"An Entry\" http://example.com/target/entry"
     end
 
     it "works with one source linking to two targets" do
-      @page1 = Page.create :href => "http://example.com/target/entry", :site => @site, :account => @account
-      @page2 = Page.create :href => "http://example.com/target/photo", :site => @site, :account => @account
+      @page1 = @w.create_page_in_site @site, "http://example.com/target/entry"
+      @page2 = @w.create_page_in_site @site, "http://example.com/target/photo"
 
       source = "http://source.example.org/notification/one-to-two"
       entry = @w.get_entry_from_source source
@@ -44,7 +44,7 @@ describe NotificationQueue do
       notifications = NotificationQueue.generate_notifications @site, link1, [link1.id, link2.id], [link1.id, link2.id]
 
       notifications.length.must_equal 1
-      notifications[0].text.must_equal "Source Author wrote a post that linked to http://example.com/target/entry and http://example.com/target/photo"
+      notifications[0].text.must_equal "Source Author wrote a post that linked to an entry: \"An Entry\" http://example.com/target/entry and a photo: \"A Photo\" http://example.com/target/photo"
     end
 
   end
@@ -52,7 +52,7 @@ describe NotificationQueue do
   describe "many sources linked to one target" do
 
     it "works with multiple likes of a post" do
-      @page = Page.create :href => "http://example.com/target/entry", :site => @site, :account => @account
+      @page = @w.create_page_in_site @site, "http://example.com/target/entry"
 
       source1 = "http://source.example.org/notification/like1-of-entry"
       source2 = "http://source.example.org/notification/like2-of-entry"
@@ -67,7 +67,7 @@ describe NotificationQueue do
 
       notifications = NotificationQueue.generate_notifications @site, link1, [link1.id, link2.id], [link1.id, link2.id]
       notifications.length.must_equal 1
-      notifications[0].text.must_equal "Alice and Bob liked a post that linked to http://example.com/target/entry"
+      notifications[0].text.must_equal "Alice and Bob liked a post that linked to an entry: \"An Entry\" http://example.com/target/entry"
     end
 
   end

@@ -5,6 +5,8 @@ describe WebmentionProcessor do
   before do
     TestData.stub_requests self
     @w = WebmentionProcessor.new
+    @account = Account.first_or_create :username => 'test'
+    @site = Site.first_or_create :domain => "example.com", :account => @account
   end
 
   describe "gets_referenced_url" do
@@ -25,13 +27,10 @@ describe WebmentionProcessor do
 
   describe "creates_page_in_site" do
 
-    before do
-      @site = Site.new
-    end
-
     it "determines the page is an entry" do
       target = "http://example.com/target/entry"
       page = @w.create_page_in_site @site, target
+      page.wont_be_nil
       page.type.must_equal "entry"
       page.name.must_equal "An Entry"
       page.site.must_equal @site
@@ -47,9 +46,9 @@ describe WebmentionProcessor do
       page.href.must_equal target
     end
 
-    it "determines the page is an photo" do
-      target = "http://example.com/target/photo"
-      page = @w.create_page_in_site @site, target
+    it "determines the page is a photo" do
+      page = @w.create_page_in_site @site, "http://example.com/target/photo"
+      page.wont_be_nil
       page.type.must_equal "photo"
       page.name.must_equal "A Photo"
     end
@@ -73,7 +72,6 @@ describe WebmentionProcessor do
   describe "adds_mf2_data_to_link" do
 
     before do
-      @site = Site.new
       target = "http://example.com/target/entry"
       @page = @w.create_page_in_site @site, target
     end
@@ -97,13 +95,19 @@ describe WebmentionProcessor do
       link.absolute_url.must_equal source # the absolute_url function returns the href value
     end
 
+    it "gets publish date and converts to UTC" do
+      source = "http://source.example.org/no-explicit-url"
+      entry = @w.get_entry_from_source source
+      link = Link.new :page => @page, :href => source, :site => @site
+      @w.add_mf2_data_to_link entry, link
+      link = Link.get link.id # reload from the DB because the Ruby DB wrapper keeps the .published as a datetime object
+      link.published.to_s.must_equal "2015-11-07T17:00:00+00:00"
+      link.published_ts.must_equal 1446915600
+    end
+
   end
 
   describe "adds_author_to_link" do
-
-    before do
-      @site = Site.new
-    end
 
     it "finds the author of a like" do
       target = "http://example.com/target/entry"
@@ -176,7 +180,6 @@ describe WebmentionProcessor do
   describe "gets_phrase_and_sets_type" do
 
     before do
-      @site = Site.new
       @link = Link.new
     end
 
