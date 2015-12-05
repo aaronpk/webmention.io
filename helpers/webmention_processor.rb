@@ -38,9 +38,10 @@ class WebmentionProcessor
     end
     return nil, 'target_not_found' if target_domain.nil?
 
-    agent = Mechanize.new {|agent|
+    @agent = Mechanize.new {|agent|
       agent.user_agent_alias = "Mac Safari"
     }
+    @agent.agent.http.ca_file = './helpers/ca-bundle.crt'
 
     site = Site.first_or_create :account => target_account, :domain => target_domain
 
@@ -52,7 +53,7 @@ class WebmentionProcessor
     already_registered = link[:verified]
 
     begin
-      scraper = agent.get source
+      scraper = @agent.get source
     rescue
       return link, 'source_not_found' if scraper.nil?
     end
@@ -69,7 +70,7 @@ class WebmentionProcessor
     message = "[mention] #{source} linked to #{target} (#{protocol})"
 
     begin
-      entry = get_entry_from_source source
+      entry = get_entry_from_source scraper.body
 
       if entry
         add_author_to_link entry, link
@@ -128,9 +129,12 @@ class WebmentionProcessor
           post: jf2
         }
 
-        puts "Sending to callback URL: #{site.callback_url}"
-
-        RestClient.post site.callback_url, data.to_json, :content_type => 'application/json'
+        RestClient::Request.execute(:method => :post,
+          :url => site.callback_url,
+          :payload => data.to_json,
+          :headers => {:content_type => 'application/json'},
+          :ssl_ca_file => './helpers/ca-bundle.crt')
+        puts "... success!"
       rescue => e
         puts "Failed to send to callback URL"
         puts e.inspect
