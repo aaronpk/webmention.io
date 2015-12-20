@@ -171,4 +171,28 @@ describe Link do
 
   end
 
+  describe "emoji" do
+    it "stores an emoji in the link name" do
+      # Set up the required parent records
+      account = Account.new
+      account.save
+      site = Site.new :account => account
+      site.save
+      page = Page.new :account => account, :site => site
+      page.save
+
+      link = Link.new :page => page, :site => site
+      # Write an emoji to the name column
+      link.name = '💩'
+      link.save
+
+      # Check that the database actually saved it and generated an ID
+      link.id.wont_be_nil
+
+      # Read back the record and check that the emoji was returned
+      link2 = Link.get link.id
+      link2.name.must_equal '💩'
+    end
+  end
+
 end
