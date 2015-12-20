@@ -48,6 +48,7 @@ class Controller < Sinatra::Base
 
     DataMapper.finalize
     DataMapper.setup :default, SiteConfig.database_url
+    DataMapper.repository.adapter.execute('SET NAMES utf8mb4')
 
     set :views, 'views'
     set :erubis,          :escape_html => true
