@@ -40,3 +40,7 @@ group :development do
   gem 'shotgun',                :require => nil
   gem 'thin',                   :require => nil
 end
+
+group :test do
+  gem 'minitest'
+end

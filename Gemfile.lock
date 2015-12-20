@@ -159,6 +159,7 @@ DEPENDENCIES
   json
   mechanize
   microformats2
+  minitest
   mysql2 (= 0.3.7)
   omniauth
   omniauth-indieauth
@@ -174,3 +175,6 @@ DEPENDENCIES
   sinatra-support
   sucker_punch (~> 1.0)
   thin
+
+BUNDLED WITH
+   1.10.6

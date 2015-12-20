@@ -1,7 +1,7 @@
 development:
   database_url: "mysql://webmention:webmention@127.0.0.1/webmention"
   session_secret: SUPERSECRET
-  ga_id: 
+  ga_id:
   base_url: "https://webmention.io"
   indieauth_server: "https://indieauth.com"
   redis:
