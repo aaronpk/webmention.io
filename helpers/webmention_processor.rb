@@ -11,14 +11,7 @@ class WebmentionProcessor
   end
 
   def perform(event)
-    link, result = process_mention event[:username], event[:source], event[:target], event[:protocol]
-
-    # Delete invalid mentions from the database
-    # TODO: Delay this, or cache this when we implement a webmention status endpoint
-    if link and result != 'success'
-      puts "mention was invalid, deleting"
-      link.destroy
-    end
+    process_mention event[:username], event[:source], event[:target], event[:protocol]
   end
 
   # Handles actually verifying source links to target, returning the list of errors based on the webmention errors
@@ -34,9 +27,14 @@ class WebmentionProcessor
     begin
       target_domain = URI.parse(target).host
     rescue
-      return nil, 'invalid_target' if target_domain.nil?
+      puts "\ttarget could not be parsed as a URL"
+      return nil, 'invalid_target'
     end
-    return nil, 'target_not_found' if target_domain.nil?
+
+    if target_domain.nil?
+      puts "\ttarget domain was empty"
+      return nil, 'invalid_target' 
+    end
 
     @agent = Mechanize.new {|agent|
       agent.user_agent_alias = "Mac Safari"
@@ -45,22 +43,24 @@ class WebmentionProcessor
 
     site = Site.first_or_create :account => target_account, :domain => target_domain
 
+    begin
+      scraper = @agent.get source
+    rescue
+      puts "\tsource not found"
+      return nil, 'source_not_found' if scraper.nil?
+    end
+
+    valid = scraper.link_with(:href => target) != nil
+
+    puts "\tno link found"
+    return nil, 'no_link_found' if !valid
+
     # If the page already exists, use that record. Otherwise create it and find out what kind of object is on the page
     page = create_page_in_site site, target
 
     link = Link.first_or_create({:page => page, :href => source},{:site => site})
 
     already_registered = link[:verified]
-
-    begin
-      scraper = @agent.get source
-    rescue
-      return link, 'source_not_found' if scraper.nil?
-    end
-
-    valid = scraper.link_with(:href => target) != nil
-
-    return link, 'no_link_found' if !valid
 
     # Parse for microformats and look for "like", "invite", "rsvp", or other post types
     parsed = false
