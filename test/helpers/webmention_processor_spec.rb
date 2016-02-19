@@ -121,6 +121,22 @@ describe WebmentionProcessor do
       link.syndication.must_equal "[\"https://twitter.com/example/status/1\",\"https://facebook.com/1\"]"
     end
 
+    it "sets timezone offset if published date has timezone" do
+      source = "http://source.example.org/with-timezone"
+      entry = @w.get_entry_from_source source
+      link = Link.new :page => @page, :href => source, :site => @site
+      @w.add_mf2_data_to_link entry, link
+      link.published_offset.must_equal -28800
+    end
+
+    it "null timezone offset if published date has no timezone" do
+      source = "http://source.example.org/no-timezone"
+      entry = @w.get_entry_from_source source
+      link = Link.new :page => @page, :href => source, :site => @site
+      @w.add_mf2_data_to_link entry, link
+      link.published_offset.must_be_nil
+    end
+
   end
 
   describe "adds_author_to_link" do

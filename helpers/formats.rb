@@ -62,6 +62,17 @@ class Formats
   end
 
   def self.build_jf2_from_link(link)
+    # Convert the date to a date with timezone offset
+    time = link.published_date.to_time + (link.published_offset ? link.published_offset : 0)
+    published = time.strftime('%Y-%m-%dT%H:%M:%S')
+
+    if !(link.published_offset === nil)
+      # only add the timezone offset if there is a non-null offset in the database
+      offset_hours = sprintf('%+03d', ((link.published_offset) / 60 / 60).floor)
+      offset_minutes = sprintf('%02d', ((link.published_offset) / 60 % 60))
+      published = "#{published}#{offset_hours}:#{offset_minutes}"
+    end
+
     jf2 = {
       type: "entry",
       author: {
@@ -70,7 +81,7 @@ class Formats
         url: link.author_url
       },
       url: link.absolute_url,
-      published: link.published_date,
+      published: published,
       name: link.name,
     }
 

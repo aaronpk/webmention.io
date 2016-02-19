@@ -326,7 +326,10 @@ class WebmentionProcessor
     if !published.blank?
       date = DateTime.parse(published.to_s)
       link.published = date.to_time # Convert to UTC (uses ENV timezone)
-      link.published_offset = date.utc_offset
+      # only set the timezone offset if it was provided in the original publish date string
+      if published.to_s.match(/[+-]\d{2}:?\d{2}/)
+        link.published_offset = date.utc_offset
+      end
       link.published_ts = date.to_time.to_i # store UTC unix timestamp
     end
 
