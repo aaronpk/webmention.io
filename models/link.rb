@@ -53,7 +53,11 @@ class Link
     # The ruby mf2 parser doesn't resolve relative URLs, so the author URL might be relative.
     # Use Ruby's "join" with the page href to get the absolute URL.
     if !author_url.blank?
-      absolute = URI.join(href,author_url)
+      begin
+        absolute = URI.join(href,author_url)
+      rescue => e
+        absolute = author_url
+      end
       if !author_name.blank?
         "<a href=\"#{absolute}\">#{author_name}</a>"
       else
