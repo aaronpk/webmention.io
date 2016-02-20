@@ -50,7 +50,9 @@ class NotificationQueue
         target_links = @redis.smembers "webmention::#{site_id}::source::#{link.type}::#{link.is_direct}::#{link.source}"
         source_links = @redis.smembers "webmention::#{site_id}::target::#{link.target}"
 
-        notifications, links = NotificationQueue.generate_notifications(site, link, target_links, source_links)
+        notifications = NotificationQueue.generate_notifications(site, link, target_links, source_links)
+
+	next if notifications.nil?
 
         if target_links.length > source_links.length
           links = target_links
@@ -61,6 +63,7 @@ class NotificationQueue
         # Remove the mentions that were include in this notification
         links.each do |id|
           link = Link.get(id)
+          return nil if link.nil?
           @redis.srem "webmention::#{site_id}::source::#{link.type}::#{link.is_direct}::#{link.source}", id
           @redis.srem "webmention::#{site_id}::target::#{link.target}", id
 
@@ -180,10 +183,12 @@ class NotificationQueue
       # For example, "X was invited to Y" and "W RSVPd to Y" should be separate notifications.
       source_links.each{|id|
         link = Link.get(id)
-        if source_types[link.type].nil?
-          source_types[link.type] = []
+        if !link.nil?
+          if source_types[link.type].nil?
+            source_types[link.type] = []
+          end
+          source_types[link.type] << link
         end
-        source_types[link.type] << link
       }
 
       # puts "source types:"
@@ -242,6 +247,7 @@ class NotificationQueue
 
         text += target_links.map{|id|
           link = Link.get(id)
+          return nil if link.nil?
           if !link.page.type.blank? and !link.page.name.blank?
             "#{link.page.type.with_indefinite_article}: \"#{link.page.name_truncated}\" #{link.page.href}"
           elsif !link.page.name.blank?
