@@ -71,7 +71,7 @@ GEM
     minitest (5.4.3)
     multi_json (1.10.1)
     multipart-post (2.0.0)
-    mysql2 (0.3.7)
+    mysql2 (0.4.2)
     net-http-digest_auth (1.4)
     net-http-persistent (2.9.4)
     netrc (0.8.0)
@@ -168,7 +168,7 @@ DEPENDENCIES
   mechanize
   microformats2
   minitest
-  mysql2 (= 0.3.7)
+  mysql2 (= 0.4.2)
   omniauth
   omniauth-indieauth
   rainbows
@@ -184,6 +184,3 @@ DEPENDENCIES
   sucker_punch (~> 1.0)
   thin
   webmock
-
-BUNDLED WITH
-   1.10.6

@@ -26,7 +26,7 @@ gem 'microformats2'
 gem 'sanitize', '~>3.0.3'
 gem 'indefinite_article'
 
-gem 'mysql2',          '0.3.7'
+gem 'mysql2',          '0.4.2'
 gem 'dm-core'
 gem 'dm-timestamps'
 gem 'dm-migrations'
