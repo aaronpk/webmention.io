@@ -159,13 +159,19 @@ a:focus {
 }
 
 .footer {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
   border-top: 1px #ddd solid;
-  background: rgba(255,255,255,0.3);
-  padding: 20px 0 20px 0;
+  background: rgba(255,255,255,1);
+  padding: 6px 0 6px 0;
   text-align: center;
 }
 .footer a {
   color: gray;
+}
+body {
+  padding-bottom: 40px;
 }
 
 .footer .item {

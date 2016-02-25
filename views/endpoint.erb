@@ -1,0 +1,22 @@
+<div class="container">
+
+<div class="row" style="margin: 40px auto 0 auto; max-width: 600px;">
+
+  <form action="/<%= @username %>/webmention" method="post">
+    <input type="text" name="source" placeholder="source url" style="margin-bottom: 4px; width: 90%; display: block;">
+    <input type="text" name="target" placeholder="target url" style="margin-bottom: 4px; width: 90%; display: block;">
+    <div style="margin-top: 6px;">
+      <input type="submit" class="button" value="Send Webmention">
+    </div>
+  </form>
+
+
+  <p>Webmention is a simple way to notify any URL when you link to it on your site.</p>
+
+  <p>This is the webmention endpoint for <strong><%= @username %></strong>.</p>
+
+  <p><a href="http://webmention.net/">Learn more about Webmention</a></p>
+
+</div><!-- row -->
+
+</div><!-- container -->

@@ -22,17 +22,17 @@ class WebmentionProcessor
 
     return nil, 'invalid_target' if source == target
 
-    puts "Verifying link exists from #{source} to #{target}"
+    #puts "Verifying link exists from #{source} to #{target}"
 
     begin
       target_domain = URI.parse(target).host
     rescue
-      puts "\ttarget could not be parsed as a URL"
+      #puts "\ttarget could not be parsed as a URL"
       return nil, 'invalid_target'
     end
 
     if target_domain.nil?
-      puts "\ttarget domain was empty"
+      #puts "\ttarget domain was empty"
       return nil, 'invalid_target' 
     end
 
@@ -46,14 +46,18 @@ class WebmentionProcessor
     begin
       scraper = @agent.get source
     rescue
-      puts "\tsource not found"
+      #puts "\tsource not found"
       return nil, 'source_not_found' if scraper.nil?
     end
 
     valid = scraper.link_with(:href => target) != nil
 
-    puts "\tno link found"
-    return nil, 'no_link_found' if !valid
+    if !valid
+      #puts "\tno link found"
+      return nil, 'no_link_found'
+    end
+
+    puts "Source: #{source} Target: #{target}"
 
     # If the page already exists, use that record. Otherwise create it and find out what kind of object is on the page
     page = create_page_in_site site, target

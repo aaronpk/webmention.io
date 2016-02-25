@@ -3,16 +3,36 @@ class Controller < Sinatra::Base
   # Chances are some people will click the links in the href tags, so show a nice message here
   get '/:username/xmlrpc' do |username|
     title "Hosted Pingback Service"
-    error 404, erb(:about)
+    @username = username
+    error 200, erb(:endpoint)
   end
 
   get '/:username/webmention' do |username|
     title "Hosted Webmention Service"
-    error 404, erb(:about)
+    @username = username
+    error 200, erb(:endpoint)
   end
 
   # Receive Webmentions
   post '/:username/webmention' do |username|
+
+    if params[:source].empty? or params[:target].empty?
+      json_response 400, {
+        :error => 'invalid_request',
+        :error_description => 'source or target were missing'
+      }
+    end
+
+    begin
+      source = URI.parse(params[:source])
+      target = URI.parse(params[:target])
+    rescue
+      json_response 400, {
+        :error => 'invalid_request',
+        :error_description => 'source or target were invalid'
+      }
+    end
+
 
     puts "RECEIVED WEBMENTION REQUEST"
 
