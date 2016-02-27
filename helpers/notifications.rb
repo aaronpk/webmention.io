@@ -52,7 +52,7 @@ class NotificationQueue
 
         notifications = NotificationQueue.generate_notifications(site, link, target_links, source_links)
 
-	next if notifications.nil?
+	      next if notifications.nil?
 
         if target_links.length > source_links.length
           links = target_links

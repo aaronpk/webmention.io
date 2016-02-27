@@ -19,13 +19,13 @@ class WebmentionProcessor
 
     target_account = Account.first :username => username
     return nil, 'target_not_found' if target_account.nil?
-
     return nil, 'invalid_target' if source == target
 
     #puts "Verifying link exists from #{source} to #{target}"
 
     begin
-      target_domain = URI.parse(target).host
+      target_uri = URI.parse(target)
+      target_domain = target_uri.host
     rescue
       #puts "\ttarget could not be parsed as a URL"
       return nil, 'invalid_target'
@@ -34,6 +34,13 @@ class WebmentionProcessor
     if target_domain.nil?
       #puts "\ttarget domain was empty"
       return nil, 'invalid_target' 
+    end
+
+    begin
+      source_uri = URI.parse(source)
+    rescue
+      #puts "\tsource could not be parsed as a URL"
+      return nil, 'invalid_source'
     end
 
     @agent = Mechanize.new {|agent|
@@ -46,18 +53,18 @@ class WebmentionProcessor
     begin
       scraper = @agent.get source
     rescue
-      #puts "\tsource not found"
+      puts "\tsource not found"
       return nil, 'source_not_found' if scraper.nil?
     end
 
     valid = scraper.link_with(:href => target) != nil
 
     if !valid
-      #puts "\tno link found"
+      puts "\tno link found"
       return nil, 'no_link_found'
     end
 
-    puts "Source: #{source} Target: #{target}"
+    puts "Processing... s=#{source} t=#{target}"
 
     # If the page already exists, use that record. Otherwise create it and find out what kind of object is on the page
     page = create_page_in_site site, target
@@ -107,17 +114,19 @@ class WebmentionProcessor
     end
 
     # Only send notifications about new webmentions
-    if !already_registered
-      puts "Queuing notification: #{message}"
+    if site.supports_notifications?
+      if !already_registered
+        puts "Queuing notification: #{message}"
 
-      if link.type == "reply"
-        NotificationQueue.send_notification link.page.site, message
+        if link.type == "reply"
+          NotificationQueue.send_notification link.page.site, message
+        else
+          NotificationQueue.queue_notification link
+        end
       else
-        NotificationQueue.queue_notification link
-      end
-    else
-      puts "Already sent notification: #{message}"
-    end # notification
+        puts "Already sent notification: #{message}"
+      end # notification
+    end
 
     # If a callback URL is defined for this site, send to the callback now
     if site.callback_url
@@ -162,6 +171,8 @@ class WebmentionProcessor
         published_ts: link.published_ts
       }.to_json
     end
+
+    puts "\tsuccess"
 
     link.verified = true
     link.save
