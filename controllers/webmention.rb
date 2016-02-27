@@ -33,8 +33,7 @@ class Controller < Sinatra::Base
       }
     end
 
-
-    puts "RECEIVED WEBMENTION REQUEST"
+    puts "WM: s=#{params[:source]} t=#{params[:target]}"
 
     begin
       result = process_mention(username, params[:source], params[:target], 'webmention', params[:debug])
