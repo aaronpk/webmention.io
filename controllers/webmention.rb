@@ -106,12 +106,12 @@ class Controller < Sinatra::Base
     end
 
     method.gsub! /\./, '_'
-    puts "PB s=#{source} t=#{target}"
 
     if method == 'pingback_ping'
       content_type("text/xml", :charset => "utf-8")
       source, target = arguments
 
+      puts "PB s=#{source} t=#{target}"
       validate_parameters source, target
 
       begin
