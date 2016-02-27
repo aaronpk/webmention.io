@@ -16,28 +16,7 @@ class Controller < Sinatra::Base
   # Receive Webmentions
   post '/:username/webmention' do |username|
 
-    if params[:source].empty? or params[:target].empty?
-      json_response 400, {
-        :error => 'invalid_request',
-        :error_description => 'source or target were missing'
-      }
-    end
-
-    begin
-      source = URI.parse(params[:source])
-      target = URI.parse(params[:target])
-      if source.host.nil? or target.host.nil?
-        raise "missing host"
-      end
-      if !['http','https'].include?(source.scheme) or !['http','https'].include?(target.scheme)
-        raise "invalid protocol"
-      end
-    rescue => e
-      json_response 400, {
-        :error => 'invalid_request',
-        :error_description => "source or target were invalid"
-      }
-    end
+    validate_parameters params[:source], params[:target]
 
     puts "WM: s=#{params[:source]} t=#{params[:target]}"
 
@@ -127,11 +106,13 @@ class Controller < Sinatra::Base
     end
 
     method.gsub! /\./, '_'
-    puts "Method: #{method} Args: #{arguments}"
+    puts "PB s=#{source} t=#{target}"
 
     if method == 'pingback_ping'
       content_type("text/xml", :charset => "utf-8")
       source, target = arguments
+
+      validate_parameters source, target
 
       begin
         result = process_mention(username, source, target, 'pingback')
@@ -164,6 +145,31 @@ class Controller < Sinatra::Base
       rpc_error 404, 0, "Not Found"
     end
   end
+
+  def validate_parameters(source, target)
+    if source.empty? or target.empty?
+      json_response 400, {
+        :error => 'invalid_request',
+        :error_description => 'source or target were missing'
+      }
+    end
+
+    begin
+      source = URI.parse(source)
+      target = URI.parse(target)
+      if source.host.nil? or target.host.nil?
+        raise "missing host"
+      end
+      if !['http','https'].include?(source.scheme) or !['http','https'].include?(target.scheme)
+        raise "invalid protocol"
+      end
+    rescue => e
+      json_response 400, {
+        :error => 'invalid_request',
+        :error_description => "source or target were invalid"
+      }
+    end
+  end    
 
   def process_mention(username, source, target, protocol, debug=false)
     if debug
