@@ -26,14 +26,31 @@ class Controller < Sinatra::Base
     begin
       source = URI.parse(params[:source])
       target = URI.parse(params[:target])
-    rescue
+      if source.host.nil? or target.host.nil?
+        raise "missing host"
+      end
+      if !['http','https'].include?(source.scheme) or !['http','https'].include?(target.scheme)
+        raise "invalid protocol"
+      end
+    rescue => e
       json_response 400, {
         :error => 'invalid_request',
-        :error_description => 'source or target were invalid'
+        :error_description => "source or target were invalid"
       }
     end
 
     puts "WM: s=#{params[:source]} t=#{params[:target]}"
+
+    hash = OpenSSL::Digest::MD5.hexdigest("s=#{params[:source]};t=#{params[:target]}")
+
+    if @redis.get "webmention:ratelimit:#{hash}"
+      json_response 429, {
+        :error => 'rate_limit_exceeded',
+        :error_description => 'Only one request per source and target combination is allowed every 30 seconds'
+      }
+    end
+
+    @redis.setex "webmention:ratelimit:#{hash}", 30, 1
 
     begin
       result = process_mention(username, params[:source], params[:target], 'webmention', params[:debug])
