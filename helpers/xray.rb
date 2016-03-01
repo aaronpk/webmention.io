@@ -29,9 +29,18 @@ class XRay
       end
       return nil
     rescue => e
-      puts "There was an error parsing the source URL"
-      puts e.inspect
-      return nil
+      begin
+        data = JSON.parse e.response
+        if !data['error'].blank?
+          return data['error']
+        else
+          return nil
+        end
+      rescue => e
+        puts "There was an error parsing the source URL"
+        puts e.inspect
+        return nil
+      end
     end
   end
 end
