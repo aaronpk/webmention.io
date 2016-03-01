@@ -184,3 +184,6 @@ DEPENDENCIES
   sucker_punch (~> 1.0)
   thin
   webmock
+
+BUNDLED WITH
+   1.10.6

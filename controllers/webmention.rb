@@ -111,7 +111,7 @@ class Controller < Sinatra::Base
       content_type("text/xml", :charset => "utf-8")
       source, target = arguments
 
-      puts "PB s=#{source} t=#{target}"
+      puts "#{DateTime.now} PB s=#{source} t=#{target} ip=#{request.ip}"
       validate_parameters source, target
 
       begin

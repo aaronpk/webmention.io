@@ -13,6 +13,7 @@ class Link
   property :name, Text
   property :summary, Text
   property :content, Text
+  property :content_text, Text
   property :published, DateTime
   property :published_offset, Integer
   property :published_ts, Integer

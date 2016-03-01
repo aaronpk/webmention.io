@@ -9,20 +9,8 @@ describe WebmentionProcessor do
     @site = Site.first_or_create :domain => "example.com", :account => @account
   end
 
-  describe "gets_referenced_url" do
-
-    it "returns the urls from a plain string" do
-      entry = TestData.entry 'source.example.org/like-plain-url.html'
-      url = WebmentionProcessor.new.get_referenced_url entry, 'like_ofs'
-      url.must_equal ["http://example.com/target/like-plain-url"]
-    end
-
-    it "returns the urls from a nested h-cite" do
-      entry = TestData.entry 'source.example.org/like-h-cite.html'
-      url = WebmentionProcessor.new.get_referenced_url entry, 'like_ofs'
-      url.must_equal ["http://example.com/target/like-h-cite"]
-    end
-
+  def load_url(url)
+    RestClient.get(url).to_str
   end
 
   describe "creates_page_in_site" do
@@ -78,7 +66,7 @@ describe WebmentionProcessor do
 
     it "resolves relative url from the value in the source" do
       source = "http://source.example.org/alternate-url"
-      entry = @w.get_entry_from_source source
+      entry = XRay.parse source, @page.href, load_url(source)
       link = Link.new :page => @page, :href => source, :site => @site
       @w.add_mf2_data_to_link entry, link
       link.href.must_equal "http://source.example.org/alternate-url"
@@ -87,7 +75,7 @@ describe WebmentionProcessor do
 
     it "uses source url when no url is in the page" do
       source = "http://source.example.org/no-explicit-url"
-      entry = @w.get_entry_from_source source
+      entry = XRay.parse source, @page.href, load_url(source)
       link = Link.new :page => @page, :href => source, :site => @site
       @w.add_mf2_data_to_link entry, link
       link.href.must_equal source
@@ -97,7 +85,7 @@ describe WebmentionProcessor do
 
     it "gets publish date and converts to UTC" do
       source = "http://source.example.org/no-explicit-url"
-      entry = @w.get_entry_from_source source
+      entry = XRay.parse source, @page.href, load_url(source)
       link = Link.new :page => @page, :href => source, :site => @site
       @w.add_mf2_data_to_link entry, link
       link = Link.get link.id # reload from the DB because the Ruby DB wrapper keeps the .published as a datetime object
@@ -107,7 +95,7 @@ describe WebmentionProcessor do
 
     it "finds one syndication link" do
       source = "http://source.example.org/one-syndication"
-      entry = @w.get_entry_from_source source
+      entry = XRay.parse source, @page.href, load_url(source)
       link = Link.new :page => @page, :href => source, :site => @site
       @w.add_mf2_data_to_link entry, link
       link.syndication.must_equal "[\"https://twitter.com/example/status/1\"]"
@@ -115,7 +103,7 @@ describe WebmentionProcessor do
 
     it "finds two syndication links" do
       source = "http://source.example.org/two-syndications"
-      entry = @w.get_entry_from_source source
+      entry = XRay.parse source, @page.href, load_url(source)
       link = Link.new :page => @page, :href => source, :site => @site
       @w.add_mf2_data_to_link entry, link
       link.syndication.must_equal "[\"https://twitter.com/example/status/1\",\"https://facebook.com/1\"]"
@@ -123,7 +111,7 @@ describe WebmentionProcessor do
 
     it "sets timezone offset if published date has timezone" do
       source = "http://source.example.org/with-timezone"
-      entry = @w.get_entry_from_source source
+      entry = XRay.parse source, @page.href, load_url(source)
       link = Link.new :page => @page, :href => source, :site => @site
       @w.add_mf2_data_to_link entry, link
       link.published_offset.must_equal -28800
@@ -131,7 +119,7 @@ describe WebmentionProcessor do
 
     it "null timezone offset if published date has no timezone" do
       source = "http://source.example.org/no-timezone"
-      entry = @w.get_entry_from_source source
+      entry = XRay.parse source, @page.href, load_url(source)
       link = Link.new :page => @page, :href => source, :site => @site
       @w.add_mf2_data_to_link entry, link
       link.published_offset.must_be_nil
@@ -146,7 +134,7 @@ describe WebmentionProcessor do
       page = @w.create_page_in_site @site, target
 
       source = "http://source.example.org/like-of"
-      entry = @w.get_entry_from_source source
+      entry = XRay.parse source, page.href, load_url(source)
 
       link = Link.new :page => page, :href => source, :site => @site
 
@@ -162,8 +150,7 @@ describe WebmentionProcessor do
       page = @w.create_page_in_site @site, target
 
       source = "http://source.example.org/like-of-no-photo"
-      entry = @w.get_entry_from_source source
-
+      entry = XRay.parse source, page.href, load_url(source)
       link = Link.new :page => page, :href => source, :site => @site
 
       @w.add_author_to_link entry, link
@@ -173,18 +160,18 @@ describe WebmentionProcessor do
       link.author_url.must_equal "http://source.example.org/"
     end
 
-    it "finds the author when only a URL and no h-card is given" do
+    it "finds the author when a URL to an h-card is given" do
       target = "http://example.com/target/entry"
       page = @w.create_page_in_site @site, target
 
       source = "http://source.example.org/author-is-not-an-hcard"
-      entry = @w.get_entry_from_source source
+      entry = XRay.parse source, page.href, load_url(source)
 
       link = Link.new :page => page, :href => source, :site => @site
 
       @w.add_author_to_link entry, link
 
-      link.author_name.must_equal ""
+      link.author_name.must_equal "Source Author"
       link.author_photo.must_equal ""
       link.author_url.must_equal "http://source.example.org/"
     end
@@ -196,7 +183,7 @@ describe WebmentionProcessor do
       page = @w.create_page_in_site @site, target
 
       source = "http://source.example.org/bridgy-invitee-no-author"
-      entry = @w.get_entry_from_source source
+      entry = XRay.parse source, page.href, load_url(source)
 
       link = Link.new :page => page, :href => source, :site => @site
 
@@ -218,7 +205,7 @@ describe WebmentionProcessor do
     it "liked a post" do
       @target = "http://example.com/target/entry"
       @source = "http://source.example.org/like-of"
-      @entry = @w.get_entry_from_source @source
+      @entry = XRay.parse @source, @target, load_url(@source)
 
       phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
 
@@ -241,7 +228,7 @@ describe WebmentionProcessor do
     it "reshared a post" do
       @target = "http://example.com/target/entry"
       @source = "http://source.example.org/repost-of"
-      @entry = @w.get_entry_from_source @source
+      @entry = XRay.parse @source, @target, load_url(@source)
 
       phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
 
@@ -252,7 +239,7 @@ describe WebmentionProcessor do
     it "bookmarked a post" do
       @target = "http://example.com/target/entry"
       @source = "http://source.example.org/bookmark-of"
-      @entry = @w.get_entry_from_source @source
+      @entry = XRay.parse @source, @target, load_url(@source)
 
       phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
 
@@ -263,8 +250,8 @@ describe WebmentionProcessor do
     it "commented on a post" do
       @target = "http://example.com/target/entry"
       @source = "http://source.example.org/in-reply-to"
-      @entry = @w.get_entry_from_source @source
-      @link.content = Sanitize.fragment(@entry.content.to_s, Sanitize::Config::BASIC)
+      @entry = XRay.parse @source, @target, load_url(@source)
+      @link.content = @entry['content']['text']
 
       phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
 
@@ -275,8 +262,8 @@ describe WebmentionProcessor do
     it "commented on a post that linked to" do
       @target = "http://another.example.com/entry"
       @source = "http://source.example.org/in-reply-to"
-      @entry = @w.get_entry_from_source @source
-      @link.content = Sanitize.fragment(@entry.content.to_s, Sanitize::Config::BASIC)
+      @entry = XRay.parse @source, @target, load_url(@source)
+      @link.content = @entry['content']['text']
 
       phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
 
@@ -288,8 +275,8 @@ describe WebmentionProcessor do
     it "generic mention" do
       @target = "http://example.com/target/entry"
       @source = "http://source.example.org/mention"
-      @entry = @w.get_entry_from_source @source
-      @link.content = Sanitize.fragment(@entry.content.to_s, Sanitize::Config::BASIC)
+      @entry = XRay.parse @source, @target, load_url(@source)
+      @link.content = @entry['content']['text']
 
       phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
 

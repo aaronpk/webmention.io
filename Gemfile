@@ -21,7 +21,7 @@ gem 'mechanize'
 gem 'rest-client'
 #gem 'xmpp4r', :require => 'xmpp4r/client'
 gem 'redis'
-
+ 
 gem 'microformats2'
 gem 'sanitize', '~>3.0.3'
 gem 'indefinite_article'

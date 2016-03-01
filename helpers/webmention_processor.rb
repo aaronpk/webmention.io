@@ -43,70 +43,57 @@ class WebmentionProcessor
       return nil, 'invalid_source'
     end
 
-    @agent = Mechanize.new {|agent|
-      agent.user_agent_alias = "Mac Safari"
-    }
-    @agent.agent.http.ca_file = './helpers/ca-bundle.crt'
+    source_data = XRay.parse source, target
+
+    if source_data.nil?
+      puts "\tError retrieving source"
+      return nil, 'invalid_source'
+    end
+
+    if source_data.class == String
+      puts "\tError retrieving source: #{source_data}"
+      return nil, source_data
+    end
 
     site = Site.first_or_create :account => target_account, :domain => target_domain
 
-    begin
-      scraper = @agent.get source
-    rescue
-      puts "\tsource not found"
-      return nil, 'source_not_found' if scraper.nil?
-    end
-
-    valid = scraper.link_with(:href => target) != nil
-
-    if !valid
-      puts "\tno link found"
-      return nil, 'no_link_found'
-    end
-
     puts "Processing... s=#{source} t=#{target}"
 
-    # If the page already exists, use that record. Otherwise create it and find out what kind of object is on the page
+    # If the page already exists, use that record. Otherwise create it and find out what kind of object is on the page.
+    # This currently uses the Ruby mf2 parser to parse the target URL
     page = create_page_in_site site, target
 
-    link = Link.first_or_create({:page => page, :href => source},{:site => site})
+    link = Link.first_or_create({:page => page, :href => source}, {:site => site})
 
     already_registered = link[:verified]
 
     # Parse for microformats and look for "like", "invite", "rsvp", or other post types
     parsed = false
-    source_is_bridgy = source.start_with? 'https://www.brid.gy/', 'https://brid-gy.appspot.com/'
+    source_is_bridgy = source.start_with? 'https://www.brid.gy/', 'https://brid.gy', 'https://brid-gy.appspot.com/'
 
     # Default message. Overridden for some post types below.
     message = "[mention] #{source} linked to #{target} (#{protocol})"
 
     begin
-      entry = get_entry_from_source scraper.body
+      add_author_to_link source_data, link
+      add_mf2_data_to_link source_data, link
 
-      if entry
-        add_author_to_link entry, link
+      # Detect post type (reply, like, reshare, RSVP, mention) and silo and
+      # generate custom notification message.
+      url = !link.url.blank? ? link.url : source
 
-        add_mf2_data_to_link entry, link
+      subject = link.author_text url
+      subject_html = link.author_html "someone", url
 
-        # Detect post type (reply, like, reshare, RSVP, mention) and silo and
-        # generate custom notification message.
-        url = !link.url.blank? ? link.url : source
+      phrase = get_phrase_and_set_type source_data, link, source, target
 
-        subject = link.author_text url
-        subject_html = link.author_html "someone", url
-
-        phrase = get_phrase_and_set_type entry, link, source, target
-
-        message = "[#{source_is_bridgy ? 'bridgy' : 'mention'}] #{subject} #{phrase} #{target}"
-        if subject != url
-          message += " (#{url})"
-        end
-
-        link.sentence = "#{subject} #{phrase} #{target}"
-        link.sentence_html = "#{subject_html} #{phrase} <a href=\"#{target}\">#{target}</a>"
+      message = "[#{source_is_bridgy ? 'bridgy' : 'mention'}] #{subject} #{phrase} #{target}"
+      if subject != url
+        message += " (#{url})"
       end
 
-      #link.html = scraper.body
+      link.sentence = "#{subject} #{phrase} #{target}"
+      link.sentence_html = "#{subject_html} #{phrase} <a href=\"#{target}\">#{target}</a>"
     rescue => e
       # Ignore errors trying to parse for upgraded microformats
       puts "Error while parsing microformats #{e.message}"
@@ -179,13 +166,6 @@ class WebmentionProcessor
     return link, 'success'
   end
 
-  def get_entry_from_source(source)
-    parsed = Microformats2.parse source
-    entry = maybe_get parsed, 'entry'
-    entry = maybe_get parsed, 'event' if entry.nil?
-    entry
-  end
-
   def create_page_in_site(site, target)
     page = Page.first :site => site, :href => target
     if page.nil?
@@ -232,15 +212,15 @@ class WebmentionProcessor
     source_is_twitter = url.start_with? 'https://twitter.com/'
     source_is_gplus = url.start_with? 'https://plus.google.com/'
 
-    if rsvps = maybe_get(entry, 'rsvps')
-      phrase = "RSVPed #{rsvps.join(', ')} to"
-      link.type = "rsvp-#{rsvps[0]}"
+    if rsvp = entry['rsvp']
+      phrase = "RSVPed #{rsvp} to"
+      link.type = "rsvp-#{rsvp}"
 
-    elsif maybe_get entry, 'invitees'
+    elsif entry['invitees']
       phrase = 'was invited to'
       link.type = "invite"
 
-    elsif repost_of = get_referenced_url(entry, 'repost_ofs')
+    elsif repost_of = entry['repost-of']
       phrase = (source_is_twitter ? 'retweeted a tweet' : 'reshared a post')
       if !repost_of.include? target
         # for bridgy
@@ -251,7 +231,7 @@ class WebmentionProcessor
       end
       link.type = "repost"
 
-    elsif like_of = get_referenced_url(entry, 'like_ofs')
+    elsif like_of = entry['like-of']
       phrase = (source_is_twitter ? 'favorited a tweet' : source_is_gplus ? '+1\'d a post' : 'liked a post')
       if !like_of.include? target
         # for bridgy
@@ -262,7 +242,7 @@ class WebmentionProcessor
       end
       link.type = "like"
 
-    elsif bookmark_of = get_referenced_url(entry, 'bookmark_ofs')
+    elsif bookmark_of = entry['bookmark-of']
       phrase = (source_is_twitter ? 'bookmarked a tweet' : 'bookmarked a post')
       if !bookmark_of.include? target
         # for bridgy
@@ -272,7 +252,7 @@ class WebmentionProcessor
       end
       link.type = "bookmark"
 
-    elsif in_reply_to = get_referenced_url(entry, 'in_reply_tos')
+    elsif in_reply_to = entry['in-reply-to']
       if source_is_twitter
         phrase = "replied '#{link.snippet}' to a tweet"
       else
@@ -297,47 +277,49 @@ class WebmentionProcessor
   end
 
   def add_author_to_link(entry, link)
-    author = maybe_get entry, 'author'
-    author = maybe_get entry, 'invitee' if author.nil?
-    if author && author.class == Microformats2::Property::Url
-      # Handles the case when the author is only a URL, not a nested h-card
-      link.author_url = author.to_s
-      link.author_url = Microformats2::AbsoluteUri.new(link.href, link.author_url).absolutize
-      link.author_name = ""
-      link.author_photo = ""
-      link.save
-    elsif author
-      # Extracts data from the nested h-card
-      link.author_name = maybe_get(author.format, 'name').to_s
-      link.author_url = maybe_get(author.format, 'url').to_s
-      if !link.author_url.blank?
-        link.author_url = Microformats2::AbsoluteUri.new(link.href, link.author_url).absolutize
-      end
-      link.author_photo = maybe_get(author.format, 'photo').to_s
-      if !link.author_photo.blank?
-        link.author_photo = Microformats2::AbsoluteUri.new(link.href, link.author_photo).absolutize
-        if link.site.archive_avatars
-          # Replace the author photo with an archive URL
-          archive_photo_url = Avatar.get_avatar_archive_url link.author_photo
-          link.author_photo = archive_photo_url
-        end
+    link.author_url = ""
+    link.author_name = ""
+    link.author_photo = ""
+
+    # kinda a hack for bridgy invites
+    if entry && entry['invitee']
+      link.author_url = entry['invitee'][0]
+    end
+
+    if entry && entry['author'] && entry['author']['type'] == 'card'
+      link.author_url = entry['author']['url'] if entry['author']['url']
+      link.author_name = entry['author']['name'] if entry['author']['name']
+      link.author_photo = entry['author']['photo'] if entry['author']['photo']
+      if link.site.archive_avatars
+        # Replace the author photo with an archive URL
+        archive_photo_url = Avatar.get_avatar_archive_url link.author_photo
+        link.author_photo = archive_photo_url
       end
       link.save
     end
   end
 
   def add_mf2_data_to_link(entry, link)
-    link.url = maybe_get entry, 'url'
-    link.name = maybe_get entry, 'name'
-    link.summary = Sanitize.fragment((maybe_get entry, 'summary').to_s, Sanitize::Config::BASIC)
-    link.content = Sanitize.fragment((maybe_get entry, 'content').to_s, Sanitize::Config::BASIC)
+    link.url = entry['url']
+    link.name = entry['name']
+
+    if entry['summary']
+      link.summary = entry['summary']
+    end
+
+    if entry['content']
+      if entry['content']['html']
+        link.content = entry['content']['html']
+      end
+      link.content_text = entry['content']['text']
+    end
 
     if !link.url.blank?
       # Set link.url relative to source URL from the webmention
       link.url = Microformats2::AbsoluteUri.new(link.href, link.url).absolutize
     end
 
-    published = maybe_get entry, 'published'
+    published = entry['published']
     if !published.blank?
       date = DateTime.parse(published.to_s)
       link.published = date.to_time # Convert to UTC (uses ENV timezone)
@@ -348,49 +330,12 @@ class WebmentionProcessor
       link.published_ts = date.to_time.to_i # store UTC unix timestamp
     end
 
-    syndications = maybe_get entry, 'syndications'
+    syndications = entry['syndication']
     if !syndications.blank?
-      link.syndication = syndications.map{|s| s.to_s}.to_json
+      link.syndication = syndications.to_json
     end
 
     link.save
-  end
-
-  def get_referenced_url(obj, method)
-    # if obj[method] is an h-cite object, fetch the "url" property from the properties object
-    # otherwise, if obj[method] is just a string, return it
-
-    values = maybe_get obj, method
-    # obj will be an h-entry
-    # method will be "in-reply-tos"
-    # value will be the in-reply-tos array which may be h-cites or just strings
-
-    return nil if values.nil?
-
-    urls = []
-
-    values.each do |value|
-      # Currently the Ruby parser incorrectly parses the "in-reply-to" as text if it's actually a nested h-cite
-      # Drop down to the to_hash version instead
-
-      if value.class == Microformats2::Property::Url
-        urls << value.to_s
-      else
-        hash = value.to_hash
-
-        if type = hash[:type]
-          if type.include? 'h-cite'
-            if properties = hash[:properties]
-              if url = properties[:url]
-                urls << url
-              end
-            end
-          end
-        end
-      end
-    end
-
-    return urls.flatten
   end
 
   def maybe_get(obj, method)

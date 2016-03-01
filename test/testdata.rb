@@ -14,10 +14,12 @@ class TestData
   end
 
   def self.stub_requests(c)
+    WebMock.disable_net_connect!(:allow => ['xray.dev','xray.p3k.io'])
+
     # Sets up stub request pattern to load files in the "data" folder.
     # Use the pattern like example.com/page/{file} to load the corresponding
     # file in test/data/page/{file}.html
-    c.stub_request(:get, /http:\/\/example.com\/.+/).
+    c.stub_request(:get, /^http:\/\/example.com\/.+/).
       to_return { |request|
         path = request.uri.path.match(/\/(.+)/)[1]
         {:body => TestData.file("example.com/#{path}.html")}
@@ -28,7 +30,7 @@ class TestData
         {:body => TestData.file("example.com/index.html")}
       }
 
-    c.stub_request(:get, /http:\/\/source.example.org\/.+/).
+    c.stub_request(:get, /^http:\/\/source.example.org\/.+/).
       to_return { |request|
         path = request.uri.path.match(/\/(.+)/)[1]
         {:body => TestData.file("source.example.org/#{path}.html")}
