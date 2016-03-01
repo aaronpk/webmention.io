@@ -18,7 +18,7 @@ class Controller < Sinatra::Base
 
     validate_parameters params[:source], params[:target]
 
-    puts "WM: s=#{params[:source]} t=#{params[:target]}"
+    puts "#{DateTime.now} WM: s=#{params[:source]} t=#{params[:target]} ip=#{request.ip}"
 
     hash = OpenSSL::Digest::MD5.hexdigest("s=#{params[:source]};t=#{params[:target]}")
 
