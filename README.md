@@ -334,6 +334,6 @@ If `bundle exec rake ...` complains _Could not find rake-10.4.0 in any of the so
 
 ## License
 
-Copyright 2013 by Aaron Parecki.
+Copyright 2016 by Aaron Parecki.
 
 Available under the BSD License. See LICENSE.txt
