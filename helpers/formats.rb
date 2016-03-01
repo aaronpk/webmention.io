@@ -80,6 +80,7 @@ class Formats
     jf2 = {
       type: "entry",
       author: {
+        type: "card",
         name: link.author_name,
         photo: link.author_photo,
         url: link.author_url
@@ -95,7 +96,7 @@ class Formats
 
     if !link.summary.blank?
       jf2[:summary] = {
-        :"content-type" => "text/html",
+        :"content-type" => "text/plain",
         :value => link.summary
       }
     end
@@ -104,6 +105,11 @@ class Formats
       jf2[:content] = {
         :"content-type" => "text/html",
         :value => link.content
+      }
+    elsif !link.content_text.blank?
+      jf2[:content] = {
+        :"content-type" => "text/plain",
+        :value => link.content_text
       }
     end
 
