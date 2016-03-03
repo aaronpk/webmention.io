@@ -4,7 +4,7 @@ test:
   ga_id:
   base_url: "https://webmention.io"
   indieauth_server: "https://indieauth.com"
-  xray_server: "https://xray.test/parse"
+  xray_server: "http://xray.test/parse"
   redis:
     host: 127.0.0.1
     port: 6379
