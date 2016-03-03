@@ -5,7 +5,7 @@ describe Formats do
   describe "build_jf2_from_link" do
 
     before do
-      page = Page.new :href => "http://example.com/"
+      page = Page.new :href => "http://target.example.com/"
       @link = Link.new :page => page
       @link.published = DateTime.now
       @link.published_offset = 0
@@ -43,7 +43,7 @@ describe Formats do
     it "sets like-of property" do
       @link.type = "like"
       jf2 = to_jf2(@link)
-      jf2["like-of"].must_equal "http://example.com/"
+      jf2["like-of"].must_equal "http://target.example.com/"
       jf2["wm-property"].must_equal "like-of"
     end
 

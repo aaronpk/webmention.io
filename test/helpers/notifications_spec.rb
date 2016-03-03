@@ -6,20 +6,16 @@ describe NotificationQueue do
     TestData.stub_requests self
     @w = WebmentionProcessor.new
     @account = Account.first_or_create :username => 'test'
-    @site = Site.first_or_create :domain => "example.com", :account => @account
-  end
-
-  def load_url(url)
-    RestClient.get(url).to_str
+    @site = Site.first_or_create :domain => "target.example.com", :account => @account
   end
 
   describe "one source linked to many targets" do
 
     it "works with one source linking to one target" do
-      @page1 = @w.create_page_in_site @site, "http://example.com/target/entry"
+      @page1 = @w.create_page_in_site @site, "http://target.example.com/entry"
 
-      source = "http://source.example.org/notification/one-to-two"
-      entry = XRay.parse source, @page1.href, load_url(source)
+      source = "http://notification.example.org/one-to-two"
+      entry = XRay.parse source, @page1.href
 
       link1 = Link.create :page => @page1, :href => source, :site => @site
       @w.add_author_to_link entry, link1
@@ -28,15 +24,15 @@ describe NotificationQueue do
       notifications = NotificationQueue.generate_notifications @site, link1, [link1.id], [link1.id]
 
       notifications.length.must_equal 1
-      notifications[0].text.must_equal "Source Author wrote a post that linked to an entry: \"An Entry\" http://example.com/target/entry"
+      notifications[0].text.must_equal "Source Author wrote a post that linked to an entry: \"An Entry\" http://target.example.com/entry"
     end
 
     it "works with one source linking to two targets" do
-      @page1 = @w.create_page_in_site @site, "http://example.com/target/entry"
-      @page2 = @w.create_page_in_site @site, "http://example.com/target/photo"
+      @page1 = @w.create_page_in_site @site, "http://target.example.com/entry"
+      @page2 = @w.create_page_in_site @site, "http://target.example.com/photo"
 
-      source = "http://source.example.org/notification/one-to-two"
-      entry = XRay.parse source, @page1.href, load_url(source)
+      source = "http://notification.example.org/one-to-two"
+      entry = XRay.parse source, @page1.href
 
       link1 = Link.create :page => @page1, :href => source, :site => @site
       link2 = Link.create :page => @page2, :href => source, :site => @site
@@ -48,7 +44,7 @@ describe NotificationQueue do
       notifications = NotificationQueue.generate_notifications @site, link1, [link1.id, link2.id], [link1.id, link2.id]
 
       notifications.length.must_equal 1
-      notifications[0].text.must_equal "Source Author wrote a post that linked to an entry: \"An Entry\" http://example.com/target/entry and a photo: \"A Photo\" http://example.com/target/photo"
+      notifications[0].text.must_equal "Source Author wrote a post that linked to an entry: \"An Entry\" http://target.example.com/entry and a photo: \"A Photo\" http://target.example.com/photo"
     end
 
   end
@@ -56,12 +52,12 @@ describe NotificationQueue do
   describe "many sources linked to one target" do
 
     it "works with multiple likes of a post" do
-      @page = @w.create_page_in_site @site, "http://example.com/target/entry"
+      @page = @w.create_page_in_site @site, "http://target.example.com/entry"
 
-      source1 = "http://source.example.org/notification/like1-of-entry"
-      source2 = "http://source.example.org/notification/like2-of-entry"
-      entry1 = XRay.parse source1, @page.href, load_url(source1)
-      entry2 = XRay.parse source2, @page.href, load_url(source2)
+      source1 = "http://notification.example.org/like1-of-entry"
+      source2 = "http://notification.example.org/like2-of-entry"
+      entry1 = XRay.parse source1, @page.href
+      entry2 = XRay.parse source2, @page.href
       link1 = Link.create :page => @page, :href => source1, :site => @site
       link2 = Link.create :page => @page, :href => source2, :site => @site
       @w.add_author_to_link entry1, link1
@@ -71,7 +67,7 @@ describe NotificationQueue do
 
       notifications = NotificationQueue.generate_notifications @site, link1, [link1.id, link2.id], [link1.id, link2.id]
       notifications.length.must_equal 1
-      notifications[0].text.must_equal "Alice and Bob liked a post that linked to an entry: \"An Entry\" http://example.com/target/entry"
+      notifications[0].text.must_equal "Alice and Bob liked a post that linked to an entry: \"An Entry\" http://target.example.com/entry"
     end
 
   end

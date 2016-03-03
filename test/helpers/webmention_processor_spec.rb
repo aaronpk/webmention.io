@@ -6,17 +6,13 @@ describe WebmentionProcessor do
     TestData.stub_requests self
     @w = WebmentionProcessor.new
     @account = Account.first_or_create :username => 'test'
-    @site = Site.first_or_create :domain => "example.com", :account => @account
-  end
-
-  def load_url(url)
-    RestClient.get(url).to_str
+    @site = Site.first_or_create :domain => "target.example.com", :account => @account
   end
 
   describe "creates_page_in_site" do
 
     it "determines the page is an entry" do
-      target = "http://example.com/target/entry"
+      target = "http://target.example.com/entry"
       page = @w.create_page_in_site @site, target
       page.wont_be_nil
       page.type.must_equal "entry"
@@ -26,7 +22,7 @@ describe WebmentionProcessor do
     end
 
     it "determines the page is an event" do
-      target = "http://example.com/target/event"
+      target = "http://target.example.com/event"
       page = @w.create_page_in_site @site, target
       page.type.must_equal "event"
       page.name.must_equal "An Event"
@@ -35,21 +31,21 @@ describe WebmentionProcessor do
     end
 
     it "determines the page is a photo" do
-      page = @w.create_page_in_site @site, "http://example.com/target/photo"
+      page = @w.create_page_in_site @site, "http://target.example.com/photo"
       page.wont_be_nil
       page.type.must_equal "photo"
       page.name.must_equal "A Photo"
     end
 
     it "determines the page is a video" do
-      target = "http://example.com/target/video"
+      target = "http://target.example.com/video"
       page = @w.create_page_in_site @site, target
       page.type.must_equal "video"
       page.name.must_equal "A Video Post"
     end
 
     it "determines the page is audio" do
-      target = "http://example.com/target/audio"
+      target = "http://target.example.com/audio"
       page = @w.create_page_in_site @site, target
       page.type.must_equal "audio"
       page.name.must_equal "An Audio Post"
@@ -60,13 +56,13 @@ describe WebmentionProcessor do
   describe "adds_mf2_data_to_link" do
 
     before do
-      target = "http://example.com/target/entry"
+      target = "http://target.example.com/entry"
       @page = @w.create_page_in_site @site, target
     end
 
     it "resolves relative url from the value in the source" do
       source = "http://source.example.org/alternate-url"
-      entry = XRay.parse source, @page.href, load_url(source)
+      entry = XRay.parse source, @page.href
       link = Link.new :page => @page, :href => source, :site => @site
       @w.add_mf2_data_to_link entry, link
       link.href.must_equal "http://source.example.org/alternate-url"
@@ -75,7 +71,7 @@ describe WebmentionProcessor do
 
     it "uses source url when no url is in the page" do
       source = "http://source.example.org/no-explicit-url"
-      entry = XRay.parse source, @page.href, load_url(source)
+      entry = XRay.parse source, @page.href
       link = Link.new :page => @page, :href => source, :site => @site
       @w.add_mf2_data_to_link entry, link
       link.href.must_equal source
@@ -85,7 +81,7 @@ describe WebmentionProcessor do
 
     it "gets publish date and converts to UTC" do
       source = "http://source.example.org/no-explicit-url"
-      entry = XRay.parse source, @page.href, load_url(source)
+      entry = XRay.parse source, @page.href
       link = Link.new :page => @page, :href => source, :site => @site
       @w.add_mf2_data_to_link entry, link
       link = Link.get link.id # reload from the DB because the Ruby DB wrapper keeps the .published as a datetime object
@@ -95,7 +91,7 @@ describe WebmentionProcessor do
 
     it "finds one syndication link" do
       source = "http://source.example.org/one-syndication"
-      entry = XRay.parse source, @page.href, load_url(source)
+      entry = XRay.parse source, @page.href
       link = Link.new :page => @page, :href => source, :site => @site
       @w.add_mf2_data_to_link entry, link
       link.syndication.must_equal "[\"https://twitter.com/example/status/1\"]"
@@ -103,7 +99,7 @@ describe WebmentionProcessor do
 
     it "finds two syndication links" do
       source = "http://source.example.org/two-syndications"
-      entry = XRay.parse source, @page.href, load_url(source)
+      entry = XRay.parse source, @page.href
       link = Link.new :page => @page, :href => source, :site => @site
       @w.add_mf2_data_to_link entry, link
       link.syndication.must_equal "[\"https://twitter.com/example/status/1\",\"https://facebook.com/1\"]"
@@ -111,7 +107,7 @@ describe WebmentionProcessor do
 
     it "sets timezone offset if published date has timezone" do
       source = "http://source.example.org/with-timezone"
-      entry = XRay.parse source, @page.href, load_url(source)
+      entry = XRay.parse source, @page.href
       link = Link.new :page => @page, :href => source, :site => @site
       @w.add_mf2_data_to_link entry, link
       link.published_offset.must_equal -28800
@@ -119,7 +115,7 @@ describe WebmentionProcessor do
 
     it "null timezone offset if published date has no timezone" do
       source = "http://source.example.org/no-timezone"
-      entry = XRay.parse source, @page.href, load_url(source)
+      entry = XRay.parse source, @page.href
       link = Link.new :page => @page, :href => source, :site => @site
       @w.add_mf2_data_to_link entry, link
       link.published_offset.must_be_nil
@@ -130,11 +126,11 @@ describe WebmentionProcessor do
   describe "adds_author_to_link" do
 
     it "finds the author of a like" do
-      target = "http://example.com/target/entry"
+      target = "http://target.example.com/entry"
       page = @w.create_page_in_site @site, target
 
       source = "http://source.example.org/like-of"
-      entry = XRay.parse source, page.href, load_url(source)
+      entry = XRay.parse source, page.href
 
       link = Link.new :page => page, :href => source, :site => @site
 
@@ -146,11 +142,11 @@ describe WebmentionProcessor do
     end
 
     it "finds the author of a like with no photo" do
-      target = "http://example.com/target/entry"
+      target = "http://target.example.com/entry"
       page = @w.create_page_in_site @site, target
 
       source = "http://source.example.org/like-of-no-photo"
-      entry = XRay.parse source, page.href, load_url(source)
+      entry = XRay.parse source, page.href
       link = Link.new :page => page, :href => source, :site => @site
 
       @w.add_author_to_link entry, link
@@ -161,11 +157,11 @@ describe WebmentionProcessor do
     end
 
     it "finds the author when a URL to an h-card is given" do
-      target = "http://example.com/target/entry"
+      target = "http://target.example.com/entry"
       page = @w.create_page_in_site @site, target
 
       source = "http://source.example.org/author-is-not-an-hcard"
-      entry = XRay.parse source, page.href, load_url(source)
+      entry = XRay.parse source, page.href
 
       link = Link.new :page => page, :href => source, :site => @site
 
@@ -179,11 +175,11 @@ describe WebmentionProcessor do
     it "uses the invitee as the author for bridgy invites with no author" do
       # Bridgy doesn't know who sent the invite, so it insteads sets the invitee
       # as the author so that receiving systems display the person who was invited
-      target = "http://example.com/"
+      target = "http://target.example.com/"
       page = @w.create_page_in_site @site, target
 
       source = "http://source.example.org/bridgy-invitee-no-author"
-      entry = XRay.parse source, page.href, load_url(source)
+      entry = XRay.parse source, page.href
 
       link = Link.new :page => page, :href => source, :site => @site
 
@@ -191,7 +187,7 @@ describe WebmentionProcessor do
 
       link.author_name.must_equal ""
       link.author_photo.must_equal ""
-      link.author_url.must_equal "http://example.com/"
+      link.author_url.must_equal "http://target.example.com/"
     end
 
   end
@@ -203,9 +199,9 @@ describe WebmentionProcessor do
     end
 
     it "liked a post" do
-      @target = "http://example.com/target/entry"
+      @target = "http://target.example.com/entry"
       @source = "http://source.example.org/like-of"
-      @entry = XRay.parse @source, @target, load_url(@source)
+      @entry = XRay.parse @source, @target
 
       phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
 
@@ -226,9 +222,9 @@ describe WebmentionProcessor do
     # end
 
     it "reshared a post" do
-      @target = "http://example.com/target/entry"
+      @target = "http://target.example.com/entry"
       @source = "http://source.example.org/repost-of"
-      @entry = XRay.parse @source, @target, load_url(@source)
+      @entry = XRay.parse @source, @target
 
       phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
 
@@ -237,9 +233,9 @@ describe WebmentionProcessor do
     end
 
     it "bookmarked a post" do
-      @target = "http://example.com/target/entry"
+      @target = "http://target.example.com/entry"
       @source = "http://source.example.org/bookmark-of"
-      @entry = XRay.parse @source, @target, load_url(@source)
+      @entry = XRay.parse @source, @target
 
       phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
 
@@ -248,9 +244,9 @@ describe WebmentionProcessor do
     end
 
     it "commented on a post" do
-      @target = "http://example.com/target/entry"
+      @target = "http://target.example.com/entry"
       @source = "http://source.example.org/in-reply-to"
-      @entry = XRay.parse @source, @target, load_url(@source)
+      @entry = XRay.parse @source, @target
       @link.content = @entry['content']['text']
 
       phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
@@ -262,7 +258,7 @@ describe WebmentionProcessor do
     it "commented on a post that linked to" do
       @target = "http://another.example.com/entry"
       @source = "http://source.example.org/in-reply-to"
-      @entry = XRay.parse @source, @target, load_url(@source)
+      @entry = XRay.parse @source, @target
       @link.content = @entry['content']['text']
 
       phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
@@ -273,9 +269,9 @@ describe WebmentionProcessor do
     end
 
     it "generic mention" do
-      @target = "http://example.com/target/entry"
+      @target = "http://target.example.com/entry"
       @source = "http://source.example.org/mention"
-      @entry = XRay.parse @source, @target, load_url(@source)
+      @entry = XRay.parse @source, @target
       @link.content = @entry['content']['text']
 
       phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target

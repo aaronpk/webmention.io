@@ -32,4 +32,22 @@ namespace :test do
     c = pingback_client
     c.call('pingback.ping', source_uri, target_uri)
   end
+
+  # Generate the JSON response that XRay sends for the test data
+  task :generate_stubs do
+    Dir.glob(File.join File.expand_path(File.dirname(__FILE__)), 'test/data/*/*').each {|f|
+      if File.file? f
+        host = /data\/([^\/]+)/.match(f)[1]
+        path = /data\/[^\/]+(\/.+)/.match(f)[1]
+        url = "http://#{host}#{path}"
+        if host != "xray.test"
+          puts url
+          Dir.mkdir "test/data/xray.test/#{host}" unless File.exists? "test/data/xray.test/#{host}"
+          result = {:data => XRay.parse(url, nil, IO.read(f))}
+          IO.write "test/data/xray.test/#{host}#{path}", result.to_json
+        end
+      end
+    }
+
+  end
 end

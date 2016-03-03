@@ -5,18 +5,22 @@ class XRay
     end
       
     begin
+      user_agent = SiteConfig.base_url.gsub /^https?:\/\//, ''
       if html
         response = RestClient.post SiteConfig.xray_server, {
           url: url,
           target: target,
           html: html
+        }, {
+          :user_agent => user_agent
         }
       else
         response = RestClient.get SiteConfig.xray_server, {
           params: {
             url: url,
             target: target
-          }
+          },
+          :user_agent => user_agent
         }
       end
       if response
@@ -30,15 +34,19 @@ class XRay
       return nil
     rescue => e
       begin
-        data = JSON.parse e.response
-        if !data['error'].blank?
-          return data['error']
+        if e.class == String
+          data = JSON.parse e.response
+          if !data['error'].blank?
+            return data['error']
+          else
+            return nil
+          end
         else
+          puts "There was an error parsing the source URL: #{e.inspect}"
           return nil
         end
       rescue => e
-        puts "There was an error parsing the source URL"
-        puts e.inspect
+        puts "There was an error parsing the source URL: #{e.inspect}"
         return nil
       end
     end
