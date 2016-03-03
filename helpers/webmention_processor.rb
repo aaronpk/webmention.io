@@ -11,15 +11,40 @@ class WebmentionProcessor
   end
 
   def perform(event)
-    process_mention event[:username], event[:source], event[:target], event[:protocol]
+    process_mention event[:username], event[:source], event[:target], event[:protocol], event[:token]
+  end
+
+  def error_status(token, source, target, error, error_description=nil) 
+    status = {
+      :status => error,
+      :source => source,
+      :target => target
+    }
+    if error_description
+      status[:summary] = error_description
+    end
+    WebmentionProcessor.update_status @redis, token, status
+  end
+
+  def self.update_status(redis, token, data)
+    redis.setex "webmention:status:#{token}", 86400*3, data.to_json
   end
 
   # Handles actually verifying source links to target, returning the list of errors based on the webmention errors
-  def process_mention(username, source, target, protocol)
+  def process_mention(username, source, target, protocol, token)
+    @redis = Redis.new :host => SiteConfig.redis.host, :port => SiteConfig.redis.port
 
     target_account = Account.first :username => username
-    return nil, 'target_not_found' if target_account.nil?
-    return nil, 'invalid_target' if source == target
+    if target_account.nil?
+      error = 'target_not_found'
+      error_status token, source, target, error
+      return nil, error
+    end
+    if source == target
+      error = 'invalid_target'
+      error_status token, source, target, error
+      return nil, error
+    end
 
     #puts "Verifying link exists from #{source} to #{target}"
 
@@ -27,31 +52,36 @@ class WebmentionProcessor
       target_uri = URI.parse(target)
       target_domain = target_uri.host
     rescue
-      #puts "\ttarget could not be parsed as a URL"
-      return nil, 'invalid_target'
+      error = 'invalid_target'
+      error_status token, source, target, error, 'target could not be parsed as a URL'
+      return nil, error
     end
 
     if target_domain.nil?
-      #puts "\ttarget domain was empty"
-      return nil, 'invalid_target' 
+      error = 'invalid_target'
+      error_status token, source, target, error, 'target domain was empty'
+      return nil, error
     end
 
     begin
       source_uri = URI.parse(source)
     rescue
-      #puts "\tsource could not be parsed as a URL"
-      return nil, 'invalid_source'
+      error = 'invalid_source'
+      error_status token, source, target, error, 'source could not be parsed as a URL'
+      return nil, error
     end
 
     source_data = XRay.parse source, target
 
     if source_data.nil?
-      puts "\tError retrieving source"
-      return nil, 'invalid_source'
+      error = 'invalid_source'
+      error_status token, source, target, error, 'Error retrieving source. No result returned from XRay.'
+      return nil, error
     end
 
     if source_data.class == String
       puts "\tError retrieving source: #{source_data}"
+      error_status token, source, target, source_data
       return nil, source_data
     end
 
@@ -161,8 +191,17 @@ class WebmentionProcessor
 
     puts "\tsuccess"
 
+    link.token = token
     link.verified = true
     link.save
+
+    WebmentionProcessor.update_status @redis, token, {
+      :status => 'success',
+      :source => source,
+      :target => target,
+      :data => Formats.build_jf2_from_link(link)
+    }
+
     return link, 'success'
   end
 
@@ -199,7 +238,9 @@ class WebmentionProcessor
           end
 
         end
-      rescue
+      rescue => e
+        puts "Error parsing: #{e.inspect}"
+        puts e.backtrace
       end
 
       page.save

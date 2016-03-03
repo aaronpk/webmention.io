@@ -34,7 +34,7 @@ class XRay
       return nil
     rescue => e
       begin
-        if e.class == String
+        if e.response.class == String
           data = JSON.parse e.response
           if !data['error'].blank?
             return data['error']

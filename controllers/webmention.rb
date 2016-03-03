@@ -13,6 +13,20 @@ class Controller < Sinatra::Base
     error 200, erb(:endpoint)
   end
 
+  # Webmention status page
+  get '/:username/webmention/:token' do |username, token|
+
+    status = @redis.get "webmention:status:#{token}"
+
+    if status
+      json_response 200, JSON.parse(status)
+    else
+      json_response 404, {
+        :error => 'not_found',
+      }
+    end
+  end
+
   # Receive Webmentions
   post '/:username/webmention' do |username|
 
@@ -31,8 +45,10 @@ class Controller < Sinatra::Base
 
     @redis.setex "webmention:ratelimit:#{hash}", 30, 1
 
+    token = SecureRandom.urlsafe_base64 15
+
     begin
-      result = process_mention(username, params[:source], params[:target], 'webmention', params[:debug])
+      result = process_mention(username, params[:source], params[:target], 'webmention', token, params[:debug])
     rescue => e
       puts "!!!!!!!!!!!!!!!!!!!!!"
       puts "INTERNAL SERVER ERROR"
@@ -46,12 +62,18 @@ class Controller < Sinatra::Base
 
     case result
     when 'queued'
-      json_response 202, {
-        :result => 'Webmention was queued for processing'
-      }      
+      status_url = "#{SiteConfig.base_url}/#{username}/webmention/#{token}"
+      json_response 201, {
+        :status => 'queued',
+        :summary => 'Webmention was queued for processing',
+        :location => status_url
+      }, {
+        'Location' => status_url
+      }
     when 'success'
-      json_response 202, {
-        :result => 'Webmention was successful'
+      json_response 200, {
+        :status => 'success',
+        :summary => 'Webmention was successful'
       }
     when 'source_not_found'
       json_response 400, {
@@ -77,11 +99,6 @@ class Controller < Sinatra::Base
       json_response 400, {
         :error => result,
         :error_description => 'The source URI does not contain a link to the target URI'
-      }
-    when 'already_registered'
-      json_response 400, {
-        :error => result,
-        :error_description => 'The specified Webmention has already been registered'
       }
     end
   end
@@ -114,8 +131,10 @@ class Controller < Sinatra::Base
       puts "#{DateTime.now} PB s=#{source} t=#{target} ip=#{request.ip}"
       validate_parameters source, target
 
+      token = SecureRandom.urlsafe_base64 15
+
       begin
-        result = process_mention(username, source, target, 'pingback')
+        result = process_mention(username, source, target, 'pingback', token)
       rescue => e
         puts "!!!!!!!!!!!!!!!!!!!!!"
         puts "INTERNAL SERVER ERROR"
@@ -125,7 +144,8 @@ class Controller < Sinatra::Base
 
       case result
       when 'queued'
-        rpc_respond 200, "Pingback was queued for processing"
+        status_url = "#{SiteConfig.base_url}/#{username}/webmention/#{token}"
+        rpc_respond 200, "Pingback was queued for processing: #{status_url}"
       when 'success'
         rpc_respond 200, "Pingback from #{source} to #{target} was successful! Keep the web talking!"
       when 'source_not_found'
@@ -171,15 +191,24 @@ class Controller < Sinatra::Base
     end
   end    
 
-  def process_mention(username, source, target, protocol, debug=false)
+  def process_mention(username, source, target, protocol, token, debug=false)
+    WebmentionProcessor.update_status @redis, token, {
+      :status => 'pending',
+      :source => source,
+      :target => target,
+      :summary => "The webmention is currently being processed",
+      :data => {}
+    }
+
     if debug
-      WebmentionProcessor.new.process_mention username, source, target, protocol
+      WebmentionProcessor.new.process_mention username, source, target, protocol, token
     else
       WebmentionProcessor.new.async.perform(
         :username => username,
         :source => source,
         :target => target,
-        :protocol => protocol
+        :protocol => protocol,
+        :token => token
       )
 
       'queued'

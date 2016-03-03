@@ -35,7 +35,7 @@ class Controller < Sinatra::Base
 
   post '/webhook/configure' do
     require_login
-jj params
+
     site = Site.first :id => params[:site_id]
     if site
       site.callback_url = params[:callback_url]
@@ -89,7 +89,7 @@ jj params
     json_response(code, data)
   end
 
-  def json_response(code, data)
+  def json_response(code, data, headers={})
     if params[:jsonp]
       string = "#{params[:jsonp]}(#{data.to_json})"
       content_type = 'text/javascript'
@@ -102,7 +102,7 @@ jj params
         'Content-Type' => "#{content_type};charset=UTF-8",
         'Cache-Control' => 'no-store',
         'Access-Control-Allow-Origin' => '*'
-      }, string
+      }.merge(headers), string
   end
 
   def xml_response(code, string)
