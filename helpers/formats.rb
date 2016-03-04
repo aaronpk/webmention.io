@@ -29,7 +29,7 @@ class Formats
 
       obj[:data][:url] = link.absolute_url
       obj[:data][:name] = link.name
-      obj[:data][:content] = link.content_text.blank? ? link.content : link.content_text
+      obj[:data][:content] = link.content.blank? ? link.content_text : link.content
       obj[:data][:published] = link.published_date
       obj[:data][:published_ts] = link.published_ts
 
