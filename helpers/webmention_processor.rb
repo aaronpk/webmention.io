@@ -79,10 +79,10 @@ class WebmentionProcessor
       return nil, error
     end
 
-    if source_data.class == String
-      puts "\tError retrieving source: #{source_data}"
-      error_status token, source, target, source_data
-      return nil, source_data
+    if source_data.class == XRayError
+      puts "\tError retrieving source: #{source_data.error} : #{source_data.error_description}"
+      error_status token, source, target, source_data.error, source_data.error_description
+      return nil, source_data.error
     end
 
     site = Site.first_or_create :account => target_account, :domain => target_domain

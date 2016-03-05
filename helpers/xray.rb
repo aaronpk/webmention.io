@@ -29,7 +29,7 @@ class XRay
         if data['data']
           return data['data']
         elsif !data['error'].blank?
-          return data['error']
+          return XRayError.new (data['error'] == 'unknown' ? 'error' : data['error']), data['error_description']
         end
       end
       return nil
@@ -38,18 +38,28 @@ class XRay
         if e.response.class == String
           data = JSON.parse e.response
           if !data['error'].blank?
-            return data['error']
+            return XRayError.new (data['error'] == 'unknown' ? 'error' : data['error']), data['error_description']
           else
             return nil
           end
         else
           puts "There was an error parsing the source URL: #{e.inspect}"
-          return nil
+          return XRayError.new 'parse_error', "There was an error parsing the source URL"
         end
       rescue => e
         puts "There was an error parsing the source URL: #{e.inspect}"
-        return nil
+        return XRayError.new 'parse_error', "There was an error parsing the source URL"
       end
     end
+  end
+end
+
+class XRayError
+  attr_accessor :error
+  attr_accessor :error_description
+
+  def initialize(error, error_description)
+    @error = error
+    @error_description = error_description
   end
 end
