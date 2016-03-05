@@ -18,7 +18,8 @@ class XRay
         response = RestClient.get SiteConfig.xray_server, {
           params: {
             url: url,
-            target: target
+            target: target,
+            timeout: 12
           },
           :user_agent => user_agent
         }
