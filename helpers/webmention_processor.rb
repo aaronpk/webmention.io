@@ -166,8 +166,7 @@ class WebmentionProcessor
           :ssl_ca_file => './helpers/ca-bundle.crt')
         puts "... success!"
       rescue => e
-        puts "Failed to send to callback URL"
-        puts e.inspect
+        puts "Failed to send to callback URL #{site.callback_url} #{e.inspect}"
       end
     end
 
@@ -189,7 +188,7 @@ class WebmentionProcessor
       }.to_json
     end
 
-    puts "\tsuccess"
+    puts "\tfinished #{token}"
 
     link.token = token
     link.verified = true
