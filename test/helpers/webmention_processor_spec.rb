@@ -221,6 +221,17 @@ describe WebmentionProcessor do
     #   phrase.must_equal "liked a post that linked to"
     # end
 
+    it "was invited to" do
+      @source = "http://source.example.org/bridgy-invitee-no-author"
+      @target = "http://target.example.com/"
+      @entry = XRay.parse @source, @target
+
+      phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
+
+      @link.type.must_equal "invite"
+      phrase.must_equal "was invited to"
+    end
+
     it "reshared a post" do
       @target = "http://target.example.com/entry"
       @source = "http://source.example.org/repost-of"

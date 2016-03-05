@@ -257,7 +257,7 @@ class WebmentionProcessor
       phrase = "RSVPed #{rsvp} to"
       link.type = "rsvp-#{rsvp}"
 
-    elsif entry['invitees']
+    elsif entry['invitee']
       phrase = 'was invited to'
       link.type = "invite"
 
