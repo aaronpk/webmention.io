@@ -32,8 +32,6 @@ class Controller < Sinatra::Base
 
     validate_parameters params[:source], params[:target]
 
-    puts "#{DateTime.now} WM: s=#{params[:source]} t=#{params[:target]} ip=#{request.ip}"
-
     hash = OpenSSL::Digest::MD5.hexdigest("s=#{params[:source]};t=#{params[:target]}")
 
     if @redis.get "webmention:ratelimit:#{hash}"
@@ -46,6 +44,9 @@ class Controller < Sinatra::Base
     @redis.setex "webmention:ratelimit:#{hash}", 30, 1
 
     token = SecureRandom.urlsafe_base64 15
+    status_url = "#{SiteConfig.base_url}/#{username}/webmention/#{token}"
+
+    puts "#{DateTime.now} WM: source=#{params[:source]} target=#{params[:target]} ip=#{request.ip} status=#{status_url}"
 
     begin
       result = process_mention(username, params[:source], params[:target], 'webmention', token, params[:debug])
@@ -62,7 +63,6 @@ class Controller < Sinatra::Base
 
     case result
     when 'queued'
-      status_url = "#{SiteConfig.base_url}/#{username}/webmention/#{token}"
       json_response 201, {
         :status => 'queued',
         :summary => 'Webmention was queued for processing',
