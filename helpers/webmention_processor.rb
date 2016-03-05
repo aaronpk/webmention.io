@@ -14,7 +14,7 @@ class WebmentionProcessor
     process_mention event[:username], event[:source], event[:target], event[:protocol], event[:token]
   end
 
-  def error_status(token, source, target, error, error_description=nil) 
+  def error_status(token, source, target, protocol, error, error_description=nil) 
     status = {
       :status => error,
       :source => source,
@@ -23,11 +23,16 @@ class WebmentionProcessor
     if error_description
       status[:summary] = error_description
     end
+    WebmentionProcessor.stats_count @redis, token, protocol, error
     WebmentionProcessor.update_status @redis, token, status
   end
 
   def self.update_status(redis, token, data)
     redis.setex "webmention:status:#{token}", 86400*3, data.to_json
+  end
+
+  def self.stats_count(redis, token, protocol, key)
+    redis.zadd "webmention.io:stats:#{protocol}:#{key}", Time.now.to_i, token
   end
 
   # Handles actually verifying source links to target, returning the list of errors based on the webmention errors
@@ -37,12 +42,12 @@ class WebmentionProcessor
     target_account = Account.first :username => username
     if target_account.nil?
       error = 'target_not_found'
-      error_status token, source, target, error
+      error_status token, source, target, protocol, error
       return nil, error
     end
     if source == target
       error = 'invalid_target'
-      error_status token, source, target, error
+      error_status token, source, target, protocol, error
       return nil, error
     end
 
@@ -53,13 +58,13 @@ class WebmentionProcessor
       target_domain = target_uri.host
     rescue
       error = 'invalid_target'
-      error_status token, source, target, error, 'target could not be parsed as a URL'
+      error_status token, source, target, protocol, error, 'target could not be parsed as a URL'
       return nil, error
     end
 
     if target_domain.nil?
       error = 'invalid_target'
-      error_status token, source, target, error, 'target domain was empty'
+      error_status token, source, target, protocol, error, 'target domain was empty'
       return nil, error
     end
 
@@ -67,7 +72,7 @@ class WebmentionProcessor
       source_uri = URI.parse(source)
     rescue
       error = 'invalid_source'
-      error_status token, source, target, error, 'source could not be parsed as a URL'
+      error_status token, source, target, protocol, error, 'source could not be parsed as a URL'
       return nil, error
     end
 
@@ -75,13 +80,13 @@ class WebmentionProcessor
 
     if source_data.nil?
       error = 'invalid_source'
-      error_status token, source, target, error, 'Error retrieving source. No result returned from XRay.'
+      error_status token, source, target, protocol, error, 'Error retrieving source. No result returned from XRay.'
       return nil, error
     end
 
     if source_data.class == XRayError
       puts "\tError retrieving source: #{source_data.error} : #{source_data.error_description}"
-      error_status token, source, target, source_data.error, source_data.error_description
+      error_status token, source, target, protocol, source_data.error, source_data.error_description
       return nil, source_data.error
     end
 
@@ -200,6 +205,8 @@ class WebmentionProcessor
       :target => target,
       :data => Formats.build_jf2_from_link(link)
     }
+
+    WebmentionProcessor.stats_count @redis, token, protocol, 'success'
 
     return link, 'success'
   end

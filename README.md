@@ -332,6 +332,27 @@ If `rake db:bootstrap` hangs while attempting to create the `links` table , Ruby
 If `bundle exec rake ...` complains _Could not find rake-10.4.0 in any of the sources_, and you run `bundle install` and `bundle check` and they're both happy, and `vendor/bundle/ruby/2.0.0/gems/rake-10.4.0/` exists...Ruby 2.0.0 strikes again. (Maybe?) Use a different version.
 
 
+## Monitoring
+
+This server collects stats on its own, caches in Redis, and provides a Munin plugin to retrieve the stats.
+
+Counts that are tracked, one graph for webmention, another for pingback
+
+* success
+* dns_error
+* connect_error
+* timeout
+* ssl_error
+* ssl_cert_error
+* ssl_unsupported_cipher
+* too_many_redirects
+* no_content
+* invalid_content
+* no_link_found
+* unknown_error
+
+
+
 ## License
 
 Copyright 2016 by Aaron Parecki.
