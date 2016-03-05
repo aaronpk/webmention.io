@@ -1,5 +1,5 @@
 class XRay
-  def self.parse(url, target, html=false)
+  def self.parse(url, target=nil, html=false)
     if SiteConfig.xray_server.blank?
       return nil
     end
@@ -35,7 +35,7 @@ class XRay
       return nil
     rescue => e
       begin
-        if e.response.class == String
+        if e.class == Exception and e.response.class == String
           data = JSON.parse e.response
           if !data['error'].blank?
             return XRayError.new (data['error'] == 'unknown' ? 'error' : data['error']), data['error_description']

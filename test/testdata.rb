@@ -33,7 +33,9 @@ class TestData
     c.stub_request(:get, /^http:\/\/xray\.test\/parse?.+/).
       to_return { |request| 
         url = CGI::unescape(request.uri.query.match(/url=([^&]+)/)[1])
-        path = url.gsub(/^http:\/\//, '')+".html"
+        path = url.gsub(/^http:\/\//, '')
+        path = path+"index" if path.ends_with? "/"
+        path = path+".html"
         {
           :body => TestData.file("xray.test/#{path}"),
           :headers => [

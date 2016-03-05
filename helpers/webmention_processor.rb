@@ -214,29 +214,34 @@ class WebmentionProcessor
       page.href = target
 
       begin
-        parsed = Microformats2.parse target
+        page_data = XRay.parse target
 
-        # Determine the type of page the target is. It might be an event or a photo for example
-        if event = maybe_get(parsed, 'event')
-          page.type = 'event'
-          name = maybe_get event, 'name'
-          # TODO: add the date and maybe location so that the name of the event is:
-          # Homebrew Website Club on 2015-07-29
-          page.name = name.to_s if name
+        if page_data.nil?
+          puts "No data returned from XRay for #{target}"
+        else
+          if page_data.class == XRayError
+            puts "\tError retrieving page: #{page_data.error} : #{page_data.error_description}"
+          else
+            # Determine the type of page the target is. It might be an event or a photo for example
+            if page_data['type'] == 'entry'
+              page.type = 'entry'
 
-        elsif entry = maybe_get(parsed, 'entry')
-          name = maybe_get entry, 'name'
-          page.name = name.to_s if name
-          page.type = 'entry'
+              if page_data['photo']
+                page.type = 'photo'
+              elsif page_data['video']
+                page.type = 'video'
+              elsif page_data['audio']
+                page.type = 'audio'
+              end
 
-          if maybe_get entry, 'photo'
-            page.type = 'photo'
-          elsif maybe_get entry, 'video'
-            page.type = 'video'
-          elsif maybe_get entry, 'audio'
-            page.type = 'audio'
+            elsif page_data['type'] == 'event'
+              page.type = 'event'
+            end
+
+            if page_data['name']
+              page.name = page_data['name']
+            end
           end
-
         end
       rescue => e
         puts "Error parsing: #{e.inspect}"
