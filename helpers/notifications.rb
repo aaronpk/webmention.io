@@ -28,14 +28,13 @@ class NotificationQueue
     sites = @redis.smembers "webmention::queued"
     sites.each do |site_id|
       site = Site.first :id => site_id
-      puts "Processing account: #{site_id} #{site.account.domain}"
 
       # Find any timers that have expired
       timers = @redis.zrangebyscore "webmention::#{site_id}::timers", 0, Time.now.to_i
 
-      if timers.count == 0
-        puts "\tno timers"
-      end
+      next if timers.count == 0
+
+      puts "Processing account: #{site_id} #{site.account.domain}"
 
       timers.each do |link_id|
         link = Link.get link_id
