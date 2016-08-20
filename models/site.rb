@@ -19,6 +19,6 @@ class Site
   property :updated_at, DateTime
 
   def supports_notifications?
-    return (!account.zenircbot_uri.empty? && !irc_channel.empty?) || (!account.xmpp_user.empty? && !account.xmpp_to.empty? && xmpp_notify)
+    return (!account.tiktokbot_uri.empty? && !irc_channel.empty?) || (!account.xmpp_user.empty? && !account.xmpp_to.empty? && xmpp_notify)
   end
 end

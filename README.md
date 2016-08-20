@@ -125,7 +125,7 @@ The API also supports JSONP so you can use it to show pingbacks on your own site
 
 ### IRC
 
-If you are running an instance of [ZenIRCBot](https://github.com/wraithan/zenircbot), you can use it to receive IRC notifications when a new webmention or pingback is received. You'll need to be running the [web-proxy](https://github.com/aaronpk/zenircbot/blob/master/services/web-proxy.js) service, and then you can configure the URL and channel the message should be delivered to.
+If you are running an instance of [TikTokBot](https://github.com/aaronpk/tiktokbot), you can use it to receive IRC notifications when a new webmention or pingback is received.
 
 ### Jabber
 
