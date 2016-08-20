@@ -290,13 +290,14 @@ class NotificationQueue
   def self.send_notification(site, message)
     puts "Sending notification: #{message}"
 
-    if !site.account.zenircbot_uri.empty? and !site.irc_channel.empty?
-
-      uri = "#{site.account.zenircbot_uri}#{URI.encode_www_form_component site.irc_channel}"
+    if !site.account.tiktokbot_uri.empty? and !site.irc_channel.empty?
 
       begin
-        puts RestClient.post uri, {
-          message: message
+        puts RestClient.post site.account.tiktokbot_uri, {
+          channel: site.irc_channel,
+          content: message
+        }, {
+          :Authorization => "Bearer #{site.account.tiktokbot_token}"
         }
       rescue
         # ignore errors sending to IRC
