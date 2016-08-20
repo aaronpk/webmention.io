@@ -85,7 +85,10 @@ class WebmentionProcessor
     end
 
     if source_data.class == XRayError
-      puts "\tError retrieving source: #{source_data.error} : #{source_data.error_description}"
+      if source_data.error != "no_link_found"
+        # Don't log these errors
+        puts "\tError retrieving source: #{source_data.error} : #{source_data.error_description}"
+      end
       error_status token, source, target, protocol, source_data.error, source_data.error_description
       return nil, source_data.error
     end
