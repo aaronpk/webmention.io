@@ -30,7 +30,7 @@ class TestData
         {:body => TestData.file("#{host}/index.html")}
       }
 
-    c.stub_request(:get, /^http:\/\/xray\.test\/parse?.+/).
+    c.stub_request(:post, /^http:\/\/xray\.test\/parse?.+/).
       to_return { |request| 
         url = CGI::unescape(request.uri.query.match(/url=([^&]+)/)[1])
         path = url.gsub(/^http:\/\//, '')
