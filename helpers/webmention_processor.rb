@@ -80,12 +80,14 @@ class WebmentionProcessor
 
     # Private Webmentions
     if code
+      puts "Trying to obtain an access token for the private webmention..."
       access_token = XRay.get_access_token source, code
       if access_token
         if access_token.class == XRayError
           error_status token, source, target, protocol, access_token.error, access_token.error_description
           return nil, access_token.error
         elsif access_token['access_token']
+          puts "\taccess token: #{access_token['access_token']}"
           source_data = XRay.parse source, target, false, access_token['access_token']
         end
       else
