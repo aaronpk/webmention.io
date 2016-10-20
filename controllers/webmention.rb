@@ -46,10 +46,10 @@ class Controller < Sinatra::Base
     token = SecureRandom.urlsafe_base64 15
     status_url = "#{SiteConfig.base_url}/#{username}/webmention/#{token}"
 
-    puts "#{DateTime.now} WM: source=#{params[:source]} target=#{params[:target]} ip=#{request.ip} status=#{status_url}"
+    puts "#{DateTime.now} WM: source=#{params[:source]} target=#{params[:target]}#{params[:code] ? ' private' : ''} ip=#{request.ip} status=#{status_url}"
 
     begin
-      result = process_mention(username, params[:source], params[:target], 'webmention', token, params[:debug])
+      result = process_mention(username, params[:source], params[:target], 'webmention', token, params[:code], params[:debug])
     rescue => e
       puts "!!!!!!!!!!!!!!!!!!!!!"
       puts "INTERNAL SERVER ERROR"
@@ -191,24 +191,26 @@ class Controller < Sinatra::Base
     end
   end    
 
-  def process_mention(username, source, target, protocol, token, debug=false)
+  def process_mention(username, source, target, protocol, token, code, debug=false)
     WebmentionProcessor.update_status @redis, token, {
       :status => 'pending',
       :source => source,
       :target => target,
+      :private => code ? true : false,
       :summary => "The webmention is currently being processed",
       :data => {}
     }
 
     if debug
-      WebmentionProcessor.new.process_mention username, source, target, protocol, token
+      WebmentionProcessor.new.process_mention username, source, target, protocol, token, code
     else
       WebmentionProcessor.new.async.perform(
         :username => username,
         :source => source,
         :target => target,
         :protocol => protocol,
-        :token => token
+        :token => token,
+        :code => code
       )
 
       'queued'

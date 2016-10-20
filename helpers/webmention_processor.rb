@@ -11,7 +11,7 @@ class WebmentionProcessor
   end
 
   def perform(event)
-    process_mention event[:username], event[:source], event[:target], event[:protocol], event[:token]
+    process_mention event[:username], event[:source], event[:target], event[:protocol], event[:token], event[:code]
   end
 
   def error_status(token, source, target, protocol, error, error_description=nil) 
@@ -36,7 +36,7 @@ class WebmentionProcessor
   end
 
   # Handles actually verifying source links to target, returning the list of errors based on the webmention errors
-  def process_mention(username, source, target, protocol, token)
+  def process_mention(username, source, target, protocol, token, code=nil)
     @redis = Redis.new :host => SiteConfig.redis.host, :port => SiteConfig.redis.port
 
     target_account = Account.first :username => username
@@ -76,7 +76,26 @@ class WebmentionProcessor
       return nil, error
     end
 
-    source_data = XRay.parse source, target
+    source_data = nil
+
+    # Private Webmentions
+    if code
+      access_token = XRay.get_access_token source, code
+      if access_token
+        if access_token.class == XRayError
+          error_status token, source, target, protocol, access_token.error, access_token.error_description
+          return nil, access_token.error
+        elsif access_token['access_token']
+          source_data = XRay.parse source, target, false, access_token['access_token']
+        end
+      else
+        error = 'access_token_error'
+        error_status token, source, target, protocol, error, 'Error obtaining an access token, no access token returned.'
+        return nil, error
+      end
+    else
+      source_data = XRay.parse source, target
+    end
 
     if source_data.nil?
       error = 'invalid_source'
@@ -164,6 +183,7 @@ class WebmentionProcessor
           secret: site.callback_secret,
           source: source,
           target: target,
+          private: code ? true : false,
           post: jf2
         }
 
@@ -200,12 +220,17 @@ class WebmentionProcessor
 
     link.token = token
     link.verified = true
+
+    # If a code was sent with the webmention, record that the post is private
+    link.is_private = code ? true : false
+
     link.save
 
     WebmentionProcessor.update_status @redis, token, {
       :status => 'success',
       :source => source,
       :target => target,
+      :private => link.is_private,
       :data => Formats.build_jf2_from_link(link)
     }
 

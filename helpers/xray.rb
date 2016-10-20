@@ -1,5 +1,5 @@
 class XRay
-  def self.parse(url, target=nil, html=false)
+  def self.parse(url, target=nil, html=false, access_token=nil)
     if SiteConfig.xray_server.blank?
       return nil
     end
@@ -15,12 +15,12 @@ class XRay
           :user_agent => user_agent
         }
       else
-        response = RestClient.get SiteConfig.xray_server, {
-          params: {
-            url: url,
-            target: target,
-            timeout: 12
-          },
+        response = RestClient.post SiteConfig.xray_server, {
+          url: url,
+          target: target,
+          token: access_token,
+          timeout: 12
+        }, {
           :user_agent => user_agent
         }
       end
@@ -51,6 +51,31 @@ class XRay
         return XRayError.new 'parse_error', "There was an error parsing the source URL"
       end
     end
+  end
+
+  def self.get_access_token(source, code)
+    if SiteConfig.xray_token.blank?
+      return nil
+    end
+
+    user_agent = SiteConfig.base_url.gsub /^https?:\/\//, ''
+
+    response = RestClient.post SiteConfig.xray_token, {
+      source: source,
+      code: code
+    }, {
+      :user_agent => user_agent
+    }
+
+    if response
+      data = JSON.parse response
+      if data['access_token']
+        return data
+      elsif !data['error'].blank?
+        return XRayError.new (data['error'] == 'unknown' ? 'error' : data['error']), data['error_description']
+      end
+    end
+    return nil
   end
 end
 

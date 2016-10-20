@@ -9,6 +9,7 @@ class Formats
         verified: link.verified == true,
         verified_date: link.updated_at,
         id: link.id,
+        private: link.is_private,
         data: {}
       }
 
@@ -139,6 +140,7 @@ class Formats
 
     jf2[relation] = link.page.href
     jf2[:'wm-property'] = relation
+    jf2[:'wm-private'] = link.is_private
 
     jf2
   end

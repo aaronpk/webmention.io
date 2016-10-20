@@ -5,6 +5,7 @@ class Link
   property :href, String, :length => 512
   property :verified, Boolean
   property :token, String, :length => 20, :index => true
+  property :is_private, Boolean, :default => false
 
   property :html, Text
   property :url, String, :length => 256
