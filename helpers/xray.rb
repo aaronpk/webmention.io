@@ -15,12 +15,15 @@ class XRay
           :user_agent => user_agent
         }
       else
-        response = RestClient.post SiteConfig.xray_server, {
+        params = {
           url: url,
           target: target,
-          token: access_token,
           timeout: 12
-        }, {
+        }
+        if access_token
+          params[:token] = access_token
+        end
+        response = RestClient.post SiteConfig.xray_server, params, {
           :user_agent => user_agent
         }
       end

@@ -134,7 +134,7 @@ class Controller < Sinatra::Base
       token = SecureRandom.urlsafe_base64 15
 
       begin
-        result = process_mention(username, source, target, 'pingback', token)
+        result = process_mention(username, source, target, 'pingback', token, nil)
       rescue => e
         puts "!!!!!!!!!!!!!!!!!!!!!"
         puts "INTERNAL SERVER ERROR"
