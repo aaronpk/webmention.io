@@ -5,7 +5,7 @@
   <div class="webmention-status error">
     <h2>Error: <%= @data[:error].titleize %></h2>
   
-    <p><%= CGI.escapeHTML @data[:error_description] %></p>
+    <p><%= CGI.escapeHTML "#{@data[:error_description]}" %></p>
   </div>
 
 <% elsif @data[:status] %>
@@ -24,7 +24,7 @@
       </tr>
     </table>
 
-    <p><%= CGI.escapeHTML @data[:summary] %></p>
+    <p><%= CGI.escapeHTML "#{@data[:summary]}" %></p>
 
     <% if @data[:location] %>
       <p><a href="<%= @data[:location] %>">view status</a></p>
