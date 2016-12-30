@@ -89,9 +89,15 @@ class Controller < Sinatra::Base
   end
 
   def json_response(code, data, headers={})
+    # Check if the request has an HTTP Accept header requesting HTML
     if params[:jsonp]
       string = "#{params[:jsonp]}(#{data.to_json})"
       content_type = 'text/javascript'
+    elsif accept_html
+      title "Webmention.io"
+      @data = data
+      string = erb :html_response
+      content_type = 'text/html'
     else
       string = data.to_json
       content_type = 'application/json'
@@ -102,6 +108,10 @@ class Controller < Sinatra::Base
         'Cache-Control' => 'no-store',
         'Access-Control-Allow-Origin' => '*'
       }.merge(headers), string
+  end
+
+  def accept_html
+    return request.env['HTTP_ACCEPT'] && request.env['HTTP_ACCEPT'].match(/text\/html/)
   end
 
   def xml_response(code, string)

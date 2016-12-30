@@ -19,7 +19,7 @@ class Controller < Sinatra::Base
     status = @redis.get "webmention:status:#{token}"
 
     if status
-      json_response 200, JSON.parse(status)
+      json_response 200, JSON.parse(status).symbolize_keys!
     else
       json_response 404, {
         :error => 'not_found',
@@ -63,10 +63,13 @@ class Controller < Sinatra::Base
 
     case result
     when 'queued'
-      json_response 201, {
+      code = accept_html ? 303 : 201 # send browsers a 303 so they get redirected to the status page
+      json_response code, {
         :status => 'queued',
         :summary => 'Webmention was queued for processing',
-        :location => status_url
+        :location => status_url,
+        :source => params[:source],
+        :target => params[:target]
       }, {
         'Location' => status_url
       }

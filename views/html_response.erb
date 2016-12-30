@@ -1,0 +1,43 @@
+<div class="container-narrow notification" style="padding-top: 30px;">
+
+<% if @data[:error] %>
+
+  <div class="webmention-status error">
+    <h2>Error: <%= @data[:error].titleize %></h2>
+  
+    <p><%= @data[:error_description] %></p>
+  </div>
+
+<% elsif @data[:status] %>
+
+  <div class="webmention-status">
+    <h2>Status: <%= @data[:status].titleize %></h2>
+
+    <table>
+      <tr>
+        <td>source</td>
+        <td><code><%= @data[:source] %></code></td>
+      </tr>
+      <tr>
+        <td>target</td>
+        <td><code><%= @data[:target] %></code></td>
+      </tr>
+    </table>
+
+    <p><%= @data[:summary] %></p>
+
+    <% if @data[:location] %>
+      <p><a href="<%= @data[:location] %>">view status</a></p>
+    <% end %>
+  </div>
+
+  <div class="webmention-status debug">
+    <h4>Debug Info</h4>
+    <pre><%= JSON.pretty_generate(@data) %></pre>
+  </div>
+
+<% else %>
+  <pre><%= JSON.pretty_generate(@data) %></pre>
+<% end %>
+
+</div>

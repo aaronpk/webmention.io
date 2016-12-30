@@ -64,6 +64,7 @@ a:focus {
 .container-narrow {
   margin: 0 auto;
   max-width: 800px;
+  padding: 1em;
 }
 
 .navbar {
@@ -134,6 +135,24 @@ a:focus {
   font-weight: normal;
 }
 */
+
+.webmention-status {
+  border-radius: 12px;
+  border: 2px #ccc solid;
+  padding: 1em 2em;
+  margin-bottom: 2em;
+}
+.webmention-status.error {
+  border: 2px #eaa solid;
+}
+.webmention-status.debug {
+  border: 2px #ddd solid;
+  color: #888;
+  overflow: scroll;
+}
+.webmention-status.error h2 {
+  color: #b55;
+}
 
 .header {
   background-image: linear-gradient(to bottom, #454545 0%, #2B2B2B 100%);
