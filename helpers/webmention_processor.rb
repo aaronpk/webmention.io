@@ -417,6 +417,10 @@ class WebmentionProcessor
       link.syndication = syndications.to_json
     end
 
+    if entry['swarm-coins']
+      link.swarm_coins = entry['swarm-coins'].to_i
+    end
+
     link.save
   end
 

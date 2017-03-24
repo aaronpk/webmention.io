@@ -20,6 +20,7 @@ class Link
   property :published_offset, Integer
   property :published_ts, Integer
   property :syndication, Text
+  property :swarm_coins, Integer
 
   property :type, String
   property :is_direct, Boolean, :default => true

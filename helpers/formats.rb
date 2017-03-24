@@ -34,6 +34,10 @@ class Formats
       obj[:data][:published] = link.published_date
       obj[:data][:published_ts] = link.published_ts
 
+      if link.swarm_coins
+        obj[:data][:swarm_coins] = link.swarm_coins
+      end
+
       obj[:activity] = {
         :type => link.type,
         :sentence => link.sentence,
@@ -112,6 +116,10 @@ class Formats
         :"content-type" => "text/plain",
         :value => link.content_text
       }
+    end
+
+    if link.swarm_coins
+      jf2[:'swarm-coins'] = link.swarm_coins
     end
 
     relation = nil
