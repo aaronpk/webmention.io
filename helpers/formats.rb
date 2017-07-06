@@ -157,6 +157,10 @@ class Formats
       relation = :"rsvp"
       jf2[:rsvp] = "maybe"
       jf2[:"in-reply-to"] = link.page.href
+    when "rsvp-interested"
+      relation = :"rsvp"
+      jf2[:rsvp] = "interested"
+      jf2[:"in-reply-to"] = link.page.href
     else
       relation = :"mention-of"
     end
