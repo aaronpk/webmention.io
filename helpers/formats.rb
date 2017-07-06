@@ -34,12 +34,16 @@ class Formats
       obj[:data][:published] = link.published_date
       obj[:data][:published_ts] = link.published_ts
 
+      if ["rsvp-yes","rsvp-no","rsvp-maybe"].include? link.type
+        obj[:data][:rsvp] = link.type.gsub("rsvp-","")
+      end
+
       if link.swarm_coins
         obj[:data][:swarm_coins] = link.swarm_coins
       end
 
       obj[:activity] = {
-        :type => link.type,
+        :type => link.type.gsub(/rsvp-.*/,"rsvp"),
         :sentence => link.sentence,
         :sentence_html => link.sentence_html
       }
