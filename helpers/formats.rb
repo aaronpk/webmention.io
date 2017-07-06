@@ -136,17 +136,23 @@ class Formats
     when "rsvp-yes"
       relation = :"rsvp"
       jf2[:rsvp] = "yes"
+      jf2[:"in-reply-to"] = link.page.href
     when "rsvp-no"
       relation = :"rsvp"
       jf2[:rsvp] = "no"
+      jf2[:"in-reply-to"] = link.page.href
     when "rsvp-maybe"
       relation = :"rsvp"
       jf2[:rsvp] = "maybe"
+      jf2[:"in-reply-to"] = link.page.href
     else
       relation = :"mention-of"
     end
 
-    jf2[relation] = link.page.href
+    if relation != :"rsvp"
+      jf2[relation] = link.page.href
+    end
+
     jf2[:'wm-property'] = relation
     jf2[:'wm-private'] = link.is_private
 
