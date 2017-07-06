@@ -52,7 +52,7 @@
 
     <p><b>Getting the data manually</b></p>
 
-    <p>To retrieve the data manually using jQuery, you can make a request like the following. Be sure to add a parameter for your access token if your account is set to disable public access to the data.</p>
+    <p>To retrieve the data manually using jQuery, you can make a request like the following.</p>
 
     <p><pre><code>$(function(){
   $.getJSON("https://webmention.io/api/count?jsonp=?", {
@@ -61,6 +61,19 @@
     console.log(data.count);
   });
 });</code></pre></p>
+  
+    <p>This will return a list of total mentions of the URL as well as grouped by type.</p>
+
+    <p><pre><code>{
+  "count": 6,
+  "type": {
+    "bookmark": 1,
+    "mention": 2,
+    "rsvp-maybe": 1,
+    "rsvp-no": 1,
+    "rsvp-yes": 1
+  }
+}</code></pre></p>
 
     <p><b>Displaying counts automatically</b></p>
 
