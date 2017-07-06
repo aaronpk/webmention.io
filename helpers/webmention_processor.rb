@@ -295,6 +295,7 @@ class WebmentionProcessor
     source_is_gplus = url.start_with? 'https://plus.google.com/'
 
     if rsvp = entry['rsvp']
+      rsvp = rsvp.downcase
       phrase = "RSVPed #{rsvp} to"
       link.type = "rsvp-#{rsvp}"
 
