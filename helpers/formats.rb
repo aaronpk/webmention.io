@@ -43,7 +43,7 @@ class Formats
       end
 
       obj[:activity] = {
-        :type => link.type.gsub(/rsvp-.*/,"rsvp"),
+        :type => (link.type ? link.type.gsub(/rsvp-.*/,"rsvp") : link.type),
         :sentence => link.sentence,
         :sentence_html => link.sentence_html
       }
