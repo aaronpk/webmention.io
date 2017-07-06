@@ -110,6 +110,13 @@ GET https://webmention.io/api/mentions?domain=indiewebcamp.com&token=xxxxx
 
 (You will see your account's token when you sign in.)
 
+You can optionally add a `since` parameter to return new webmentions as of a certain date. This is useful to poll for new webmentions you haven't seen yet.
+
+```
+GET https://webmention.io/api/mentions?domain=indiewebcamp.com&token=xxxxx&since=2017-06-01T10:00:00-0700
+```
+
+
 ### Find all links to all sites in your account
 
 With no parameters, the API will return all links to any site in your account:
