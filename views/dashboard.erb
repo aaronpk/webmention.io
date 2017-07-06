@@ -25,9 +25,6 @@
     <h3>Archive Avatars</h3>
     <p>By default, the author's avatar URL will be archived and an alternate URL will be returned. This means you won't have to worry about broken image links for past webmentions when someone changes their profile URL. If you want this behavior to be disabled, you can un-check "Archive Avatars" and the original avatar URL will be returned.</p>
 
-    <h3>Require API Key</h3>
-    <p>If "require token" is checked, you will need to include your api key when fetching webmentions for a specific URL. If you are loading your webmentions client-side via Javascript, you should leave this un-checked.</p>
-
     <% @user.sites.each do |site| %>
       <div style="border: 1px #eee solid; border-radius: 3px; padding: 10px; margin: 4px; width: 40%; float: left;">
         <%= site.domain %>
@@ -40,9 +37,6 @@
           </div>
           <div style="margin-top: 6px;">
             <input type="checkbox" name="archive_avatars" <%= site.archive_avatars ? 'checked="checked"' : '' %> value="1"> Archive Avatars
-          </div>
-          <div style="margin-top: 6px;">
-            <input type="checkbox" name="require_api_key" <%= site.public_access ? '' : 'checked="checked"' %> value="1"> Require API Key
           </div>
         </form>
       </div>
