@@ -129,13 +129,27 @@ GET https://webmention.io/api/mentions?token=xxxxxx
 }
 ```
 
+### Sorting
+
+You can choose the sorting mechanism to return the list of mentions. The following options are supported:
+
+* `sort-by=created` (default) - Sort by the date the mention was created in the webmention.io database.
+* `sort-by=updated` - Sort by the updated date of the page, as seen by webmention.io (not the date the post reports in its microformats data).
+* `sort-by=published` - Sort by the published date as reported by the linking page. Some pages don't include published date so this will fall back to created date if published is not present.
+* `sort-by=rsvp` - Sort by RSVP value, in the following order: "no", "interested", "maybe", "yes".
+
+By default, results are returned in descending order. You can control the ordering with the `sort-dir` parameter:
+
+* `sort-dir=down` (default) - Newest first, RSVP "yes" first
+* `sort-dir=up` - Oldest first, RSVP "no" first
+
 
 ### Paging
 
-Basic paging is supported by using the `perPage` and `page` parameters. For example,
+Basic paging is supported by using the `per-page` and `page` parameters. For example,
 
-* `?perPage=20&page=0` first page of 20 results
-* `?perPage=20&page=1` second page of 20 results
+* `?per-page=20&page=0` first page of 20 results
+* `?per-page=20&page=1` second page of 20 results
 
 The default number of results per page is 20. Results are always sorted newest first.
 
