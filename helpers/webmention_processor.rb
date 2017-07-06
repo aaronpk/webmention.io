@@ -248,6 +248,7 @@ class WebmentionProcessor
       page.site = site
       page.account = site.account
       page.href = target
+      page.save # save the page now since XRay may take a while to return
 
       begin
         page_data = XRay.parse target
