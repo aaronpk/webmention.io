@@ -2,22 +2,22 @@
 
 ![travis](https://travis-ci.org/aaronpk/webmention.io.svg)
 
-This project is an implementation of the [Webmention](http://indiewebcamp.com/webmention) and [Pingback](http://indiewebcamp.com/pingback) protocols. It allows the receiving service to be run separately from the blogging software or website environment, making it easier to manage and integrate with other services.
+This project is an implementation of the [Webmention](https://indieweb.org/webmention) and [Pingback](https://indieweb.org/pingback) protocols. It allows the receiving service to be run separately from the blogging software or website environment, making it easier to manage and integrate with other services.
 
 Say you have a statically-generated website using Jekyll or something similar, you can simply add the appropriate `<link>` tags to this service, and now you have Webmention and Pingback enabled on your static site!
 
-    <link rel="pingback" href="http://webmention.io/username/xmlrpc" />
-    <link rel="http://webmention.org/" href="http://webmention.io/username/webmention" />
+    <link rel="pingback" href="https://webmention.io/username/xmlrpc" />
+    <link rel="webmention" href="https://webmention.io/username/webmention" />
 
 The Webmention and Pingback protocols also support specifying the endpoint in the headers,
 
-    Link: <http://webmention.io/username/webmention>; rel="http://webmention.org/"
-    X-Pingback: http://webmention.io/username/xmlrpc
+    Link: <https://webmention.io/username/webmention>; rel="webmention"
+    X-Pingback: https://webmention.io/username/xmlrpc
 
 
 ## Features
 
-* Accept Webmentions for any site by adding a simple html tag: `<link rel="http://webmention.org/" href="http://webmention.io/username/webmention" />`
+* Accept Webmentions for any site by adding a simple html tag: `<link rel="webmention" href="http://webmention.io/username/webmention" />`
 * Accept Pingbacks for any site by adding a simple html tag: `<link rel="pingback" href="http://webmention.io/username/xmlrpc" />`
 * API to get a list of pages linking to your site or a specific page
 * If you want to receive Pingbacks on your site but don't want to deal with XMLRPC, then you can use this service to convert Pingbacks to Webmentions
@@ -34,7 +34,7 @@ The Webmention and Pingback protocols also support specifying the endpoint in th
 This service provides an API for returning a list of pages that have linked to a given page. For example:
 
 ```
-GET http://webmention.io/api/mentions?target=http://indiewebcamp.com
+GET https://webmention.io/api/mentions?target=https://indieweb.org
 
 {
   "links": [
@@ -47,12 +47,36 @@ GET http://webmention.io/api/mentions?target=http://indiewebcamp.com
 }
 ```
 
+### Find links of a specific type to a specific page
+
+You can include a parameter to limit the returned links to mentions of a specific type:
+
+```
+GET https://webmention.io/api/mentions?target=https://indieweb.org&wm-property=in-reply-to
+```
+
+or request multiple types by repeating the query parameter:
+
+```
+GET https://webmention.io/api/mentions?target=https://indieweb.org&wm-property[]=in-reply-to&wm-property[]=rsvp
+```
+
+The full list of recognized properties is below:
+
+* in-reply-to
+* like-of
+* repost-of
+* bookmark-of
+* mention-of
+* rsvp
+
+
 ### Find links to multiple pages
 
 This is useful for retrieving mentions from a post if you've changed the URL.
 
 ```
-GET http://webmention.io/api/mentions?target[]=http://indiewebcamp.com/a-blog-post&target[]=http://indiewebcamp.com/a-different-post
+GET https://webmention.io/api/mentions?target[]=http://indiewebcamp.com/a-blog-post&target[]=http://indiewebcamp.com/a-different-post
 
 {
   "links": [
@@ -70,7 +94,7 @@ GET http://webmention.io/api/mentions?target[]=http://indiewebcamp.com/a-blog-po
 You can also find all links to your domain:
 
 ```
-GET http://webmention.io/api/mentions?domain=indiewebcamp.com&token=xxxxx
+GET https://webmention.io/api/mentions?domain=indiewebcamp.com&token=xxxxx
 
 {
   "links": [
@@ -91,7 +115,7 @@ GET http://webmention.io/api/mentions?domain=indiewebcamp.com&token=xxxxx
 With no parameters, the API will return all links to any site in your account:
 
 ```
-GET http://webmention.io/api/mentions?token=xxxxxx
+GET https://webmention.io/api/mentions?token=xxxxxx
 
 {
   "links": [
@@ -154,7 +178,7 @@ Using Webmention.io in this mode does not require an registration, and this serv
 
 To use, add a Pingback header like the following:
 
-    <link rel="pingback" href="http://webmention.io/webmention?forward=http://example.com/webmention" />
+    <link rel="pingback" href="https://webmention.io/webmention?forward=http://example.com/webmention" />
 
 Any Pingbacks received will be forwarded on to the specified Webmention endpoint. It is up to you to handle the Webmention and return an expected result. The Webmention result will be converted to a Pingback result and passed back to the sender.
 
@@ -168,14 +192,14 @@ GET http://example.com/post/1000
 <html>
   <head>
     <title>Example Post 1000</title>
-    <link rel="pingback" href="http://webmention.io/webmention?forward=http://example.com/webmention" />
+    <link rel="pingback" href="https://webmention.io/webmention?forward=http://example.com/webmention" />
     ...
 ```
 
 #### The blog sends a Pingback request to webmention.io
 
 ```
-POST http://webmention.io/webmention?forward=http://example.com/webmention
+POST https://webmention.io/webmention?forward=http://example.com/webmention
 Content-Type: application/xml
 
 <?xml version="1.0" ?>
@@ -202,7 +226,7 @@ Content-Type: application/xml
 POST http://example.com/webmention
 Content-Type: application/x-www-url-form-encoded
 
-source=http://aaronparecki.com/notes/2013/02/16/1/little-printer&
+source=https://aaronparecki.com/2013/02/16/2/little-printer&
 target=http://example.com/post/1000
 ```
 
@@ -228,7 +252,7 @@ Content-Type: application/xml
   <params>
     <param>
       <value>
-        <string>Pingback from http://aaronparecki.com/notes/2013/02/16/1/little-printer to http://example.com/post/1000 was successful!</string>
+        <string>Pingback from https://aaronparecki.com/2013/02/16/2/little-printer to http://example.com/post/1000 was successful!</string>
       </value>
     </param>
   </params>

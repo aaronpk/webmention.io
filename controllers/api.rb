@@ -173,8 +173,35 @@ class Controller < Sinatra::Base
         }
       end
 
-      links = targets.links.all(:verified => true, :order => [:created_at.desc], :offset => (pageNum * limit), :limit => limit)
+      opts = {
+        :verified => true, 
+        :order => [:created_at.desc], 
+        :offset => (pageNum * limit), 
+        :limit => limit
+      }
 
+      if params[:"wm-property"]
+        prop = params[:"wm-property"]
+
+        if prop.class == String
+          prop = [prop]
+        end
+
+        wm_type = []
+
+        prop.each do |pp|
+          if pp == "rsvp"
+            wm_type += ["rsvp-yes","rsvp-no","rsvp-maybe","rsvp-interested"]
+          elsif
+            wm_type << pp.gsub(/^in-/,'').gsub(/-(to|of)$/,'')
+          end
+        end
+
+        opts[:type] = wm_type
+      end
+
+      puts opts.inspect
+      links = targets.links.all(opts)
     end
 
     if format == 'json'
