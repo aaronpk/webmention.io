@@ -155,10 +155,10 @@ class Controller < Sinatra::Base
       # this is a horrible hack
       if params[:"sort-by"] == "rsvp"
         links = links.to_a
-        if params[:"sort-dir"] == "down"
-          rsvp_value_order = {"rsvp-no" => 3, "rsvp-interested" => 2, "rsvp-maybe" => 1, "rsvp-yes" => 0}
-        else
+        if params[:"sort-dir"] == "up"
           rsvp_value_order = {"rsvp-no" => 0, "rsvp-interested" => 1, "rsvp-maybe" => 2, "rsvp-yes" => 3}
+        else
+          rsvp_value_order = {"rsvp-no" => 3, "rsvp-interested" => 2, "rsvp-maybe" => 1, "rsvp-yes" => 0}
         end
         links.sort! {|a, b|
           if rsvp_value_order[a[:type]] and rsvp_value_order[b[:type]]
