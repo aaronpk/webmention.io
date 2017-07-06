@@ -11,7 +11,7 @@
       Webmention.io is a hosted service created to easily handle webmentions (and legacy pingbacks) on any web page.
     </p>
     <p>
-      You might also be interested in reading about this project<br>on the <a href="http://indiewebcamp.com/webmention.io">IndieWebCamp wiki</a>.
+      You might also be interested in reading about this project<br>on the <a href="https://indieweb.org/webmention.io">IndieWebCamp wiki</a>.
     </p>
 
     <a class="btn btn-primary btn-large" href="/auth/indieauth">
@@ -55,13 +55,12 @@
     <p>To retrieve the data manually using jQuery, you can make a request like the following. Be sure to add a parameter for your access token if your account is set to disable public access to the data.</p>
 
     <p><pre><code>$(function(){
-  $.getJSON("http://webmention.io/api/count?jsonp=?", {
+  $.getJSON("https://webmention.io/api/count?jsonp=?", {
     target: "http://example.com/page/100"
   }, function(data){
     console.log(data.count);
   });
-});
-</code></pre></p>
+});</code></pre></p>
 
     <p><b>Displaying counts automatically</b></p>
 
@@ -73,9 +72,7 @@
 
     <p>Then, add the following script tag to your page after you've included jQuery:</p>
 
-    <p><pre><code>&lt;script type="text/javascript" src="//webmention.io/js/mentions.js"&gt;&lt;/script&gt;</code></pre></p>
-
-    <p>
+    <p><pre><code>&lt;script type="text/javascript" src="https://webmention.io/js/mentions.js"&gt;&lt;/script&gt;</code></pre></p>
 
   </div>
 
