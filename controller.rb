@@ -73,7 +73,7 @@ class Controller < Sinatra::Base
   end
 
   def api_response(format, code, data)
-    if format == 'json'
+    if format == 'json' || format == 'jf2'
       json_response(code, data)
     elsif format == 'atom'
       xml_response(code, data)

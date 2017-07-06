@@ -147,22 +147,82 @@ class Controller < Sinatra::Base
       }
     end
 
+    opts = {
+      :verified => true, 
+      :order => [],
+      :offset => (pageNum * limit), 
+      :limit => limit
+    }
+
+    if params[:"sort-dir"]
+      orderDir = (params[:"sort-dir"] == "down" ? :desc : :asc)
+    else
+      orderDir = :desc
+    end
+
+    if params[:"sort-by"]
+      if params[:"sort-by"] == "rsvp"
+        # can't find a way to provide this raw SQL to datamapper, ugh
+        # opts[:order] << 'FIELD(type, "rsvp-no","rsvp-interested","rsvp-maybe","rsvp-yes") DESC'
+        opts[:order] << :created_at.send(orderDir)
+      elsif params[:"sort-by"] == "published"
+        opts[:order] << :published.send(orderDir)
+        opts[:order] << :created_at.send(orderDir)
+      elsif params[:"sort-by"] == "updated"
+        opts[:order] << :updated_at.send(orderDir)
+      else
+        opts[:order] << :created_at.send(orderDir)
+      end
+    else
+      opts[:order] << :created_at.send(orderDir)
+    end
+
+    if params[:"wm-property"]
+      prop = params[:"wm-property"]
+
+      if prop.class == String
+        prop = [prop]
+      end
+
+      wm_type = []
+
+      prop.each do |pp|
+        if pp == "rsvp"
+          wm_type += ["rsvp-yes","rsvp-no","rsvp-maybe","rsvp-interested"]
+        elsif pp == "mention-of"
+          wm_type = "link"
+        elsif
+          wm_type << pp.gsub(/^in-/,'').gsub(/-(to|of)$/,'')
+        end
+      end
+
+      opts[:type] = wm_type
+    end
+
+    if params[:since]
+      opts[:created_at.gt] = params[:since]
+    end
+    if params[:since_id]
+      opts[:id.gt] = params[:since_id].to_i
+    end
+
+
     if params[:target].empty?
       # access token required for everything except target requests
 
       account = Account.first :token => params[:access_token]
 
       if account.nil?
-        api_response format, 401, {
+        return api_response format, 401, {
           error: "forbidden",
           error_description: "Access token was not valid"
         }
       end
 
       if params[:domain]
-        links = account.sites.all(:domain => params[:domain]).pages.links.all(:verified => true, :order => [:created_at.desc], :offset => (pageNum * limit), :limit => limit)
+        links = account.sites.all(:domain => params[:domain]).pages.links.all(opts)
       else
-        links = account.sites.pages.links.all(:verified => true, :order => [:created_at.desc], :offset => (pageNum * limit), :limit => limit)
+        links = account.sites.pages.links.all(opts)
       end
 
     else
@@ -170,61 +230,9 @@ class Controller < Sinatra::Base
       targets = Page.all :href => params[:target]
 
       if targets.nil?
-        api_response format, 200, {
+        return api_response format, 200, {
           links: []
         }
-      end
-
-      opts = {
-        :verified => true, 
-        :order => [],
-        :offset => (pageNum * limit), 
-        :limit => limit
-      }
-
-      if params[:"sort-dir"]
-        orderDir = (params[:"sort-dir"] == "down" ? :desc : :asc)
-      else
-        orderDir = :desc
-      end
-
-      if params[:"sort-by"]
-        if params[:"sort-by"] == "rsvp"
-          # can't find a way to provide this raw SQL to datamapper, ugh
-          # opts[:order] << 'FIELD(type, "rsvp-no","rsvp-interested","rsvp-maybe","rsvp-yes") DESC'
-          opts[:order] << :created_at.send(orderDir)
-        elsif params[:"sort-by"] == "published"
-          opts[:order] << :published.send(orderDir)
-          opts[:order] << :created_at.send(orderDir)
-        elsif params[:"sort-by"] == "updated"
-          opts[:order] << :updated_at.send(orderDir)
-        else
-          opts[:order] << :created_at.send(orderDir)
-        end
-      else
-        opts[:order] << :created_at.send(orderDir)
-      end
-
-      if params[:"wm-property"]
-        prop = params[:"wm-property"]
-
-        if prop.class == String
-          prop = [prop]
-        end
-
-        wm_type = []
-
-        prop.each do |pp|
-          if pp == "rsvp"
-            wm_type += ["rsvp-yes","rsvp-no","rsvp-maybe","rsvp-interested"]
-          elsif pp == "mention-of"
-            wm_type = "link"
-          elsif
-            wm_type << pp.gsub(/^in-/,'').gsub(/-(to|of)$/,'')
-          end
-        end
-
-        opts[:type] = wm_type
       end
 
       links = targets.links.all(opts)
@@ -274,7 +282,6 @@ class Controller < Sinatra::Base
           end
         end
       }
-
       api_response format, 200, feed.to_xml
     end
   end

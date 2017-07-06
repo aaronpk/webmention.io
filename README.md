@@ -154,6 +154,14 @@ Basic paging is supported by using the `per-page` and `page` parameters. For exa
 The default number of results per page is 20. Results are always sorted newest first.
 
 
+### Finding New Mentions
+
+You can use the `since` or `since_id` parameters to find new mentions retrieved by the service. 
+
+* `since=2017-06-01T10:00:00-0700` - pass a full timestamp to the `since` parameter to return links created after that date. This corresponds to the date the link was created in the webmention.io service, not the published date that the page reports.
+* `since_id=1000` - pass an ID to return links with a greater ID
+
+
 ### JSONP
 
 The API also supports JSONP so you can use it to show pingbacks on your own sites via Javascript. Simply add a parameter `jsonp` to the API call, for example, http://webmention.io/api/mentions?jsonp=f&target=http%3A%2F%2Fwebmention.io
