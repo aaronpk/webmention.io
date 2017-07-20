@@ -19,6 +19,7 @@ class Controller < Sinatra::Base
       links = targets.links.all(:verified => true).each{|link| link.id}.length
       types = repository(:default).adapter.select('SELECT type, COUNT(1) AS num FROM links 
         WHERE page_id IN ('+targets.map{|t| t.id}.join(',')+')
+          AND deleted = 0
         GROUP BY type')
       types.each do |type|
         if type.type
@@ -63,6 +64,7 @@ class Controller < Sinatra::Base
 
     opts = {
       :verified => true, 
+      :deleted => false,
       :order => [],
       :offset => (pageNum * limit), 
       :limit => limit

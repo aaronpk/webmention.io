@@ -28,6 +28,16 @@ class Controller < Sinatra::Base
       @user.save
     end
 
+    opts = {
+      :verified => true, 
+      :deleted => false,
+      :order => [],
+      :limit => 40
+    }
+    opts[:order] << :created_at.send(:desc)
+
+    @recent = @user.sites.pages.links.all(opts)
+
     title "Dashboard"
     erb :dashboard
   end
@@ -42,6 +52,73 @@ class Controller < Sinatra::Base
 
     title "Settings"
     erb :settings
+  end
+
+  get '/delete/?' do
+    require_login
+
+    opts = {
+      href: params[:source],
+      deleted: false
+    }
+    @links = @user.sites.links.all opts
+
+    if params[:id]
+      @link = @user.sites.links.first({ id: params[:id] })
+    else
+      @link = nil
+    end
+
+    title "Delete"
+    erb :delete
+  end
+
+  post '/delete/?' do
+    require_login
+    verify_csrf '/delete'
+
+    # Delete this single webmention
+    if params[:id]
+      # Check that this ID belongs to this user
+      link = Link.get params[:id]
+      if link && link.site.account_id = session[:user_id]
+        # Mark this particular webmention as deleted
+        link.deleted = true
+        link.save
+        # Add this source URL to the blacklist for just this site
+        blacklist = Blacklist.new
+        blacklist.site = link.site
+        blacklist.source = link.href
+        blacklist.created_at = Time.now
+        blacklist.save
+      else
+        redirect "/dashboard"
+      end
+    end
+
+    # Delete all webmentions from this source
+    if params[:source]
+      # Mark each webmention as deleted
+      opts = {
+        href: params[:source],
+        deleted: false
+      }
+      links = @user.sites.links.all opts
+      links.each do |link|
+        link.deleted = true
+        link.save
+      end
+      # Add this source URL to the blacklist for each site
+      @user.sites.each do |site|
+        blacklist = Blacklist.new
+        blacklist.site = site
+        blacklist.source = params[:source]
+        blacklist.created_at = Time.now
+        blacklist.save
+      end
+    end
+
+    redirect "/dashboard"
   end
 
   post '/webhook/configure' do

@@ -1,15 +1,45 @@
 <div class="container-narrow">
-<%= partial :'partials/_topbar' %>
-<div class="page">
+  <%= partial :'partials/_topbar' %>
+  <div class="page">
 
+    <section>
     <p>Congrats, you've signed in. Now you can use the following tags to accept webmentions for this account.</p>
 
     <p><pre><code>&lt;link rel="pingback" href="https://webmention.io/<%= @user.username %>/xmlrpc" /&gt;
-&lt;link rel="webmention" href="https://webmention.io/<%= @user.username %>/webmention" /&gt;</code></pre>
+&lt;link rel="webmention" href="https://webmention.io/<%= @user.username %>/webmention" /&gt;</code></pre></p>
 
     <p>You can use this account on any number of websites. The webmentions can be queried per website <a href="https://github.com/aaronpk/webmention.io#api">using the API</a>.</p>
+  </section>
 
+  <section>
+    <h2>Recent Webmentions</h2>
 
+    <ul class="recent-webmentions">
+      <% @recent.each do |link| %>
+        <li>
+          <a href="<%= link.author_url %>" class="u-author h-card"><img src="<%= link.author_photo.blank? ? '/img/noise.jpg' : link.author_photo %>" class="u-photo" width="24" title="<%= link.author_name %>"></a>
+          <a href="<%= link.href %>"><%= link.href %></a>
+          <span>on</span>
+          <a href="<%= link.page.href %>"><%= link.page.href %></a>
+          
+          <a href="/delete?source=<%= CGI.escape link.href %>&id=<%= link.id %>" class="delete">&times;</a>
+        </li>
+      <% end %>
+    </ul>
+
+    <% if @recent.length == 0 %>
+      <p>There are no Webmentions yet! Add the tags above to your site and wait for someone to send you a Webmention!</p>
+    <% end %>
+
+    <h3>Delete Webmention</h3>
+    
+    <p>Paste the source URL for a webmention you want to delete. You'll be able to delete any webmentions from that URL in the next step.</p>
+
+    <form action="/delete" method="get">
+      <input type="url" name="source" placeholder="source url">
+      <button type="submit">Preview Delete</button>
+    </form>
+  </section>
 
 </div>
 

@@ -32,6 +32,8 @@ class Link
 
   belongs_to :notification, :required => false
 
+  property :deleted, Boolean, :default => false
+
   property :created_at, DateTime
   property :updated_at, DateTime
 

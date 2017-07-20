@@ -7,6 +7,7 @@ class Site
   belongs_to :account
   has n, :pages
   has n, :notifications
+  has n, :links
 
   property :public_access, Boolean, :default => true
   property :irc_channel, String, :length => 255

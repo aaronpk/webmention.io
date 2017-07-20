@@ -305,3 +305,39 @@ input {
   border-radius: 3px;
   border: 1px #ddd solid;
 }
+
+
+/* mention list */
+ul.recent-webmentions {
+  margin: 0;
+  margin-left: 1em;
+  padding: 0;
+}
+
+.recent-webmentions li {
+  display: flex;
+  align-items: center;
+}
+
+.recent-webmentions a, .recent-webmentions span {
+  margin-right: 0.5em;
+}
+
+.recent-webmentions a.delete {
+  font-weight: bold;
+  color: #C62F34;
+  font-size: 16px;
+}
+.recent-webmentions a.delete:hover {
+  text-decoration: none;
+  color: #E64152;
+}
+
+
+.h-card img {
+  max-height: 24px;
+  max-width: 24px;
+  border-radius: 4px;
+}
+
+

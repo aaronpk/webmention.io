@@ -405,9 +405,8 @@ Counts that are tracked, one graph for webmention, another for pingback
 * unknown_error
 
 
-
 ## License
 
-Copyright 2016 by Aaron Parecki.
+Copyright 2017 by Aaron Parecki.
 
 Available under the BSD License. See LICENSE.txt

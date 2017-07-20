@@ -1,0 +1,58 @@
+<div class="container-narrow">
+  <%= partial :'partials/_topbar' %>
+  <div class="page">
+
+    <section>
+
+      <% if @link %>
+      <div style="border: 1px #ddd solid; border-radius: 4px; margin-bottom: 20px; padding: 10px;">
+        <h2 style="margin-top: 0">Delete this Webmention</h2>
+
+        <ul class="recent-webmentions">
+          <li>
+            <a href="<%= @link.author_url %>" class="u-author h-card"><img src="<%= @link.author_photo.blank? ? '/img/noise.jpg' : @link.author_photo %>" class="u-photo" width="24" title="<%= @link.author_name %>"></a>
+            <a href="<%= @link.href %>"><%= @link.href %></a>
+            <span>on</span>
+            <a href="<%= @link.page.href %>"><%= @link.page.href %></a>
+          </li>
+        </ul>
+
+        <form action="/delete" method="post" style="margin-top: 6px;">
+          <button type="submit">Delete</button>
+          <input type="hidden" name="id" value="<%= @link.id %>">
+          <input type="hidden" name="csrf" value="<%= csrf_token('/delete') %>">
+        </form>
+      </div>
+      <% end %>
+
+      <% if @links.length > 1 %>
+      <div style="border: 1px #ddd solid; border-radius: 4px; margin-bottom: 20px; padding: 10px;">
+        <h2 style="margin-top: 0">Delete all Webmentions from this Source</h2>
+
+        <form action="/delete" method="post" style="margin-bottom: 10px;">
+          <button type="submit">Delete All</button>
+          <input type="hidden" name="source" value="<%= @links.first.href %>">
+          <input type="hidden" name="csrf" value="<%= csrf_token('/delete') %>">
+        </form>
+
+        <ul class="recent-webmentions">
+          <% @links.each do |link| %>
+            <li>
+              <a href="<%= link.author_url %>" class="u-author h-card"><img src="<%= link.author_photo.blank? ? '/img/noise.jpg' : link.author_photo %>" class="u-photo" width="24" title="<%= link.author_name %>"></a>
+              <a href="<%= link.href %>"><%= link.href %></a>
+              <span>on</span>
+              <a href="<%= link.page.href %>"><%= link.page.href %></a>
+            </li>
+          <% end %>
+        </ul>
+      </div>
+      <% end %>
+
+      <% if @link || @links.length > 1 %>
+        <p><small>Note: This will mark the specified webmentions as deleted, and they will no longer show up in the API. Future webmentions from this source URL will be ignored. If you have a callback URL configured, this will not send anything to the callback URL, so you will need to delete your own copy of it in that case.</small></p>
+      <% else %>
+        <p>No webmentions were found with that source.</p>
+      <% end %>
+    </section>
+  </div>
+</div>

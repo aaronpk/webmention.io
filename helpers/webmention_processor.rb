@@ -76,6 +76,15 @@ class WebmentionProcessor
       return nil, error
     end
 
+    # Check that the source URL is not in the blacklist
+    site = Site.first :account => target_account, :domain => target_domain
+    if !site.nil?
+      bl = Blacklist.first :site => site, :source => source
+      if !bl.nil?
+        return nil, 'blocked'
+      end
+    end
+
     source_data = nil
 
     # Private Webmentions
@@ -175,7 +184,7 @@ class WebmentionProcessor
     end
 
     # If a callback URL is defined for this site, send to the callback now
-    if site.callback_url
+    if !site.callback_url.blank?
       begin
         puts "Sending to callback URL: #{site.callback_url}"
 
