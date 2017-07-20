@@ -308,19 +308,12 @@ input {
 
 
 /* mention list */
-ul.recent-webmentions {
-  margin: 0;
-  margin-left: 1em;
-  padding: 0;
+table.recent-webmentions {
+  width: 100%;
 }
 
-.recent-webmentions li {
-  display: flex;
-  align-items: center;
-}
-
-.recent-webmentions a, .recent-webmentions span {
-  margin-right: 0.5em;
+table.recent-webmentions tr:hover {
+  background: #fafafa;
 }
 
 .recent-webmentions a.delete {

@@ -1,0 +1,13 @@
+        <tr>
+          <td>
+            <a href="<%= link.author_url %>" class="u-author h-card"><img src="<%= link.author_photo.blank? ? '/img/noise.jpg' : link.author_photo %>" class="u-photo" width="24" title="<%= link.author_name %>"></a>
+          </td>
+          <td>
+            <a href="<%= link.href %>"><%= link.href %></a><br>
+            <span>on</span>
+            <a href="<%= link.page.href %>"><%= link.page.href %></a>
+          </td>
+          <td>
+            <a href="/delete?source=<%= CGI.escape link.href %>&id=<%= link.id %>" class="delete">&times;</a>
+          </td>
+        </tr>

@@ -8,14 +8,9 @@
       <div style="border: 1px #ddd solid; border-radius: 4px; margin-bottom: 20px; padding: 10px;">
         <h2 style="margin-top: 0">Delete this Webmention</h2>
 
-        <ul class="recent-webmentions">
-          <li>
-            <a href="<%= @link.author_url %>" class="u-author h-card"><img src="<%= @link.author_photo.blank? ? '/img/noise.jpg' : @link.author_photo %>" class="u-photo" width="24" title="<%= @link.author_name %>"></a>
-            <a href="<%= @link.href %>"><%= @link.href %></a>
-            <span>on</span>
-            <a href="<%= @link.page.href %>"><%= @link.page.href %></a>
-          </li>
-        </ul>
+        <table class="recent-webmentions">
+          <%= partial :'partials/_webmention_row', {:locals => {:link => @link}} %>
+        </table>
 
         <form action="/delete" method="post" style="margin-top: 6px;">
           <button type="submit">Delete</button>
@@ -35,16 +30,11 @@
           <input type="hidden" name="csrf" value="<%= csrf_token('/delete') %>">
         </form>
 
-        <ul class="recent-webmentions">
+        <table class="recent-webmentions">
           <% @links.each do |link| %>
-            <li>
-              <a href="<%= link.author_url %>" class="u-author h-card"><img src="<%= link.author_photo.blank? ? '/img/noise.jpg' : link.author_photo %>" class="u-photo" width="24" title="<%= link.author_name %>"></a>
-              <a href="<%= link.href %>"><%= link.href %></a>
-              <span>on</span>
-              <a href="<%= link.page.href %>"><%= link.page.href %></a>
-            </li>
+            <%= partial :'partials/_webmention_row', {:locals => {:link => link}} %>
           <% end %>
-        </ul>
+        </table>
       </div>
       <% end %>
 
