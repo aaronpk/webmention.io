@@ -32,6 +32,18 @@ class Controller < Sinatra::Base
     erb :dashboard
   end
 
+  get '/settings/?' do
+    require_login
+
+    if @user.token.nil?
+      @user.token = SecureRandom.urlsafe_base64 16
+      @user.save
+    end
+
+    title "Settings"
+    erb :settings
+  end
+
   post '/webhook/configure' do
     require_login
 
@@ -44,8 +56,7 @@ class Controller < Sinatra::Base
       site.save
     end
 
-    title "Dashboard"
-    erb :dashboard
+    redirect "/settings"
   end
 
   # Authentication

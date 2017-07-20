@@ -1,9 +1,6 @@
 <div class="container-narrow">
-<div class="header">
-  <div style="float: right;"><a href="/logout">Sign Out</a></div>
-  <div><%= @user.domain %></div>
-</div>
-<div style="background-color: #fff; padding: 10px 20px;">
+<%= partial :'partials/_topbar' %>
+<div class="page">
 
     <p>Congrats, you've signed in. Now you can use the following tags to accept webmentions for this account.</p>
 
@@ -18,65 +15,6 @@
 
     <p><pre><code><%= @user.token %></code></pre></p>
 
-    <h2>Web Hook</h2>
-
-    <p>If you configure a web hook for a site, webmention.io will send a post request every time a webmention is received and verified. You will not receive webhooks for webmentions that are invalid.
-
-    <% if @user.sites.length > 0 %>
-      <h3>Archive Avatars</h3>
-      <p>By default, the author's avatar URL will be archived and an alternate URL will be returned. This means you won't have to worry about broken image links for past webmentions when someone changes their profile URL. If you want this behavior to be disabled, you can un-check "Archive Avatars" and the original avatar URL will be returned.</p>
-
-      <% @user.sites.each do |site| %>
-        <div style="border: 1px #eee solid; border-radius: 3px; padding: 10px; margin: 4px; width: 40%; float: left;">
-          <%= site.domain %>
-          <form action="/webhook/configure" method="post">
-            <input type="hidden" name="site_id" value="<%= site.id %>">
-            <input type="url" name="callback_url" placeholder="http://example.com/webmention/hook" style="margin-bottom: 4px; width: 90%;" value="<%= site.callback_url %>"><br>
-            <input type="text" name="callback_secret" placeholder="callback secret" style="margin-bottom: 4px; width: 90%;" value="<%= site.callback_secret %>"><br>
-            <div style="margin-top: 6px; float: right;">
-              <input type="submit" class="button" value="Save">
-            </div>
-            <div style="margin-top: 6px;">
-              <input type="checkbox" name="archive_avatars" <%= site.archive_avatars ? 'checked="checked"' : '' %> value="1"> Archive Avatars
-            </div>
-          </form>
-        </div>
-      <% end %>
-    <% else %>
-      <p>You haven't received any webmentions yet. Once you receive a webmention at a website, the domain will appear here and you can change its settings.</p>
-    <% end %>
-    <div style="clear:both;"></div>
-
-    <p>The payload that is sent in the webhook will look like the below:</p>
-
-    <pre><code>{
-  "secret": "1234abcd",
-  "source": "http://rhiaro.co.uk/2015/11/1446953889",
-  "target": "http://aaronparecki.com/notes/2015/11/07/4/indiewebcamp",
-  "post": {
-    "type": "entry",
-    "author": {
-      "name": "Amy Guy",
-      "photo": "http://webmention.io/avatar/rhiaro.co.uk/829d3f6e7083d7ee8bd7b20363da84d88ce5b4ce094f78fd1b27d8d3dc42560e.png",
-      "url": "http://rhiaro.co.uk/about#me"
-    },
-    "url": "http://rhiaro.co.uk/2015/11/1446953889",
-    "published": "2015-11-08T03:38:09+00:00",
-    "name": "repost of http://aaronparecki.com/notes/2015/11/07/4/indiewebcamp",
-    "repost-of": "http://aaronparecki.com/notes/2015/11/07/4/indiewebcamp",
-    "wm-property": "repost-of"
-  }
-}</code></pre>
-
-  <p>The payload will indicate the type of post that was sent. Other values for "property" (and corresponding property in the "post" object) are:</p>
-
-  <ul>
-    <li><code>in-reply-to</code></li>
-    <li><code>like-of</code></li>
-    <li><code>repost-of</code></li>
-    <li><code>rsvp</code></li>
-    <li><code>bookmark-of</code></li>
-  </ul>
 
 </div>
 
