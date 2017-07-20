@@ -316,6 +316,11 @@ table.recent-webmentions tr:hover {
   background: #fafafa;
 }
 
+table.recent-webmentions td {
+  word-wrap: break-word;
+  word-break: break-all;  
+}
+
 .recent-webmentions a.delete {
   font-weight: bold;
   color: #C62F34;
