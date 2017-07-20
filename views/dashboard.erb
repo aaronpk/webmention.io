@@ -22,28 +22,32 @@
 
     <p>If you configure a web hook for a site, webmention.io will send a post request every time a webmention is received and verified. You will not receive webhooks for webmentions that are invalid.
 
-    <h3>Archive Avatars</h3>
-    <p>By default, the author's avatar URL will be archived and an alternate URL will be returned. This means you won't have to worry about broken image links for past webmentions when someone changes their profile URL. If you want this behavior to be disabled, you can un-check "Archive Avatars" and the original avatar URL will be returned.</p>
+    <% if @user.sites.length > 0 %>
+      <h3>Archive Avatars</h3>
+      <p>By default, the author's avatar URL will be archived and an alternate URL will be returned. This means you won't have to worry about broken image links for past webmentions when someone changes their profile URL. If you want this behavior to be disabled, you can un-check "Archive Avatars" and the original avatar URL will be returned.</p>
 
-    <% @user.sites.each do |site| %>
-      <div style="border: 1px #eee solid; border-radius: 3px; padding: 10px; margin: 4px; width: 40%; float: left;">
-        <%= site.domain %>
-        <form action="/webhook/configure" method="post">
-          <input type="hidden" name="site_id" value="<%= site.id %>">
-          <input type="url" name="callback_url" placeholder="http://example.com/webmention/hook" style="margin-bottom: 4px; width: 90%;" value="<%= site.callback_url %>"><br>
-          <input type="text" name="callback_secret" placeholder="callback secret" style="margin-bottom: 4px; width: 90%;" value="<%= site.callback_secret %>"><br>
-          <div style="margin-top: 6px; float: right;">
-            <input type="submit" class="button" value="Save">
-          </div>
-          <div style="margin-top: 6px;">
-            <input type="checkbox" name="archive_avatars" <%= site.archive_avatars ? 'checked="checked"' : '' %> value="1"> Archive Avatars
-          </div>
-        </form>
-      </div>
+      <% @user.sites.each do |site| %>
+        <div style="border: 1px #eee solid; border-radius: 3px; padding: 10px; margin: 4px; width: 40%; float: left;">
+          <%= site.domain %>
+          <form action="/webhook/configure" method="post">
+            <input type="hidden" name="site_id" value="<%= site.id %>">
+            <input type="url" name="callback_url" placeholder="http://example.com/webmention/hook" style="margin-bottom: 4px; width: 90%;" value="<%= site.callback_url %>"><br>
+            <input type="text" name="callback_secret" placeholder="callback secret" style="margin-bottom: 4px; width: 90%;" value="<%= site.callback_secret %>"><br>
+            <div style="margin-top: 6px; float: right;">
+              <input type="submit" class="button" value="Save">
+            </div>
+            <div style="margin-top: 6px;">
+              <input type="checkbox" name="archive_avatars" <%= site.archive_avatars ? 'checked="checked"' : '' %> value="1"> Archive Avatars
+            </div>
+          </form>
+        </div>
+      <% end %>
+    <% else %>
+      <p>You haven't received any webmentions yet. Once you receive a webmention at a website, the domain will appear here and you can change its settings.</p>
     <% end %>
     <div style="clear:both;"></div>
 
-    <p>The payload that is sent will look like the below:</p>
+    <p>The payload that is sent in the webhook will look like the below:</p>
 
     <pre><code>{
   "secret": "1234abcd",
@@ -67,11 +71,11 @@
   <p>The payload will indicate the type of post that was sent. Other values for "property" (and corresponding property in the "post" object) are:</p>
 
   <ul>
-    <li>in-reply-to</li>
-    <li>like-of</li>
-    <li>repost-of</li>
-    <li>rsvp</li>
-    <li>bookmark-of</li>
+    <li><code>in-reply-to</code></li>
+    <li><code>like-of</code></li>
+    <li><code>repost-of</code></li>
+    <li><code>rsvp</code></li>
+    <li><code>bookmark-of</code></li>
   </ul>
 
 </div>
