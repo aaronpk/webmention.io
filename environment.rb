@@ -48,9 +48,11 @@ class Controller < Sinatra::Base
       provider :indieauth, :client_id => SiteConfig.base_url, :server => SiteConfig.indieauth_server
     end
 
+    DataMapper::Logger.new(STDOUT, :debug)
     DataMapper.finalize
     DataMapper.setup :default, SiteConfig.database_url
     DataMapper.repository.adapter.execute('SET NAMES utf8mb4')
+    DataMapper.repository.adapter.execute('SET SESSION sql_mode = ""')
 
     set :views, 'views'
     set :erubis,          :escape_html => true
@@ -60,7 +62,6 @@ class Controller < Sinatra::Base
   def p; params end
 end
 
-require_relative './controller.rb'
 Dir.glob(['controllers'].map! {|d| File.join d, '*.rb'}).each do |f|
   require_relative f
 end
