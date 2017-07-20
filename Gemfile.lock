@@ -47,6 +47,8 @@ GEM
     hashie (3.3.2)
     http-cookie (1.0.2)
       domain_name (~> 0.5)
+    httparty (0.15.5)
+      multi_xml (>= 0.5.2)
     i18n (0.6.11)
     indefinite_article (0.2.4)
       activesupport
@@ -71,6 +73,7 @@ GEM
     mini_portile (0.6.1)
     minitest (5.4.3)
     multi_json (1.10.1)
+    multi_xml (0.6.0)
     multipart-post (2.0.0)
     mysql2 (0.4.2)
     net-http-digest_auth (1.4)
@@ -164,6 +167,7 @@ DEPENDENCIES
   dm-timestamps
   erubis
   hashie
+  httparty
   indefinite_article
   json
   jwt

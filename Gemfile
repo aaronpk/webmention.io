@@ -12,6 +12,7 @@ gem 'json'
 gem 'dalli'
 gem 'ratom', :require => 'atom'
 gem 'jwt'
+gem 'httparty'
 
 gem 'omniauth'
 gem 'omniauth-indieauth'

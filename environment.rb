@@ -1,4 +1,5 @@
 Encoding.default_internal = 'UTF-8'
+Encoding.default_external = 'UTF-8'
 ENV['TZ'] = 'UTC'
 require 'rubygems'
 require 'bundler/setup'
