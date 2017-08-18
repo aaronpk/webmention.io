@@ -16,10 +16,13 @@ class Controller < Sinatra::Base
     if targets.nil?
       links = 0
     else
-      links = targets.links.all(:verified => true).each{|link| link.id}.length
+      links = 0
+      targets.each do |t|
+        links += t.links.count(:verified => true, :deleted => false)
+      end
       types = repository(:default).adapter.select('SELECT type, COUNT(1) AS num FROM links 
         WHERE page_id IN ('+targets.map{|t| t.id}.join(',')+')
-          AND deleted = 0
+          AND deleted = 0 AND verified = 1
         GROUP BY type')
       types.each do |type|
         if type.type
