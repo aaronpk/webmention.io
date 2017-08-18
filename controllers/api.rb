@@ -13,7 +13,7 @@ class Controller < Sinatra::Base
     links_of_type = {}
 
     targets = Page.all :href => params[:target]
-    if targets.length == 0
+    if targets.count == 0
       links = 0
     else
       links = 0
