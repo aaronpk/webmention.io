@@ -116,7 +116,7 @@ class Link
     if url.blank?
       href
     else
-      Microformats2::AbsoluteUri.new(href, url).absolutize
+      Microformats2::AbsoluteUri.new(href, base: url).absolutize
     end
   end
 

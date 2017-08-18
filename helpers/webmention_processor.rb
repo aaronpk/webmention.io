@@ -409,7 +409,7 @@ class WebmentionProcessor
 
     if !link.url.blank?
       # Set link.url relative to source URL from the webmention
-      link.url = Microformats2::AbsoluteUri.new(link.href, link.url).absolutize
+      link.url = Microformats2::AbsoluteUri.new(link.href, base: link.url).absolutize
     end
 
     published = entry['published']
