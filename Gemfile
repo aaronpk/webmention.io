@@ -8,7 +8,7 @@ gem 'erubis'
 gem 'rainbows', :require => nil
 gem 'rake',                     :require => nil
 gem 'hashie'
-gem 'json'
+gem 'json', ">2.0.0"
 gem 'dalli'
 gem 'ratom', :require => 'atom'
 gem 'jwt'
