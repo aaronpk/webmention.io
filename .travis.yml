@@ -1,6 +1,6 @@
 language: ruby
 rvm:
-  - 2.1.3
+  - 2.3.3
 root: false
 services:
   - mysql
