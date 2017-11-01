@@ -71,7 +71,7 @@ class Formats
   end
 
   def self.build_jf2_from_link(link)
-	if link.published
+  	if link.published
       # Convert the date to a date with timezone offset
       time = link.published_date.to_time + (link.published_offset ? link.published_offset : 0)
       published = time.strftime('%Y-%m-%dT%H:%M:%S')
@@ -86,6 +86,8 @@ class Formats
       published = nil
     end
 
+    received = link.created_at.to_time.strftime('%Y-%m-%dT%H:%M:%SZ')
+
     jf2 = {
       type: "entry",
       author: {
@@ -95,7 +97,8 @@ class Formats
         url: link.author_url
       },
       url: link.absolute_url,
-      published: published
+      published: published,
+      "wm-received": received
     }
 
     if !link.name.blank?
