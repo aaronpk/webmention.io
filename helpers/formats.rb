@@ -117,20 +117,34 @@ class Formats
     end
 
     # 2017-07-06 switching to `html` and `text` properties according to the latest jf2 spec.
-    # TODO: Deprecate the `content-type` and `value` properties in the future.
+    # 2017-12-27 new sites created after this date will not have content-type/value properties
+    content_deprecation_date = DateTime.parse("2017-12-27T15:00:00Z")
     if !link.content.blank?
-      jf2[:content] = {
-        :"content-type" => "text/html",
-        :value => link.content,
-        :html => link.content,
-        :text => link.content_text
-      }
+      if link.site.created_at > content_deprecation_date
+        jf2[:content] = {
+          :html => link.content,
+          :text => link.content_text
+        }
+      else
+        jf2[:content] = {
+          :"content-type" => "text/html",
+          :value => link.content,
+          :html => link.content,
+          :text => link.content_text
+        }
+      end
     elsif !link.content_text.blank?
-      jf2[:content] = {
-        :"content-type" => "text/plain",
-        :value => link.content_text,
-        :text => link.content_text
-      }
+      if link.site.created_at > content_deprecation_date
+        jf2[:content] = {
+          :text => link.content_text
+        }
+      else
+        jf2[:content] = {
+          :"content-type" => "text/plain",
+          :value => link.content_text,
+          :text => link.content_text
+        }
+      end
     end
 
     if link.swarm_coins
