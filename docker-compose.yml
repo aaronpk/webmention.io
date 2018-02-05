@@ -1,0 +1,23 @@
+version: '3'
+
+services:
+
+  db:
+    image: mysql:8.0.3
+    environment:
+      MYSQL_DATABASE: webmention
+      MYSQL_USER: webmention
+      MYSQL_PASSWORD: webmention
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+
+  redis:
+    image: redis:3.2.11
+
+  web:
+    build: .
+    image: webmentionio
+    ports:
+      - "9019:9019"
+    depends_on:
+      - db
+      - redis

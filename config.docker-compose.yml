@@ -1,0 +1,19 @@
+development:
+  database_url: "mysql://webmention:webmention@db/webmention"
+  session_secret: SUPERSECRET
+  ga_id:
+  base_url: "http://localhost:9019"
+  indieauth_server: "https://indieauth.com"
+  xray_server: "https://xray.p3k.io/parse"
+  xray_token: "https://xray.p3k.io/token"
+  redis:
+    host: redis
+    port: 6379
+  ca3db:
+    api_endpoint: https://xxxxxx.execute-api.us-west-2.amazonaws.com/prod/ca3db
+    api_key: xxxx
+    key_id: xxxx
+    secret_key: xxxx
+    region: us-west-2
+    bucket: example
+    s3_url: https://s3-us-west-2.amazonaws.com/example
