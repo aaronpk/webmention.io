@@ -176,6 +176,7 @@ GEM
       crack (>= 0.3.2)
       hashdiff
     webrobots (0.1.2)
+    xmlrpc (0.3.0)
 
 PLATFORMS
   ruby
@@ -213,6 +214,7 @@ DEPENDENCIES
   sucker_punch (~> 1.0)
   thin
   webmock
+  xmlrpc (~> 0.3.0)
 
 BUNDLED WITH
-   1.14.4
+   1.16.1

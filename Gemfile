@@ -50,3 +50,5 @@ group :test do
   gem 'minitest'
   gem 'webmock'
 end
+
+gem "xmlrpc", "~> 0.3.0"
