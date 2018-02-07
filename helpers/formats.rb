@@ -221,6 +221,7 @@ class Formats
           escaped_source = CGI::escapeHTML(source.to_s)
           escaped_target = CGI::escapeHTML(target.to_s)
           entry.content = Atom::Content::Xhtml.new("<p><a href=\"#{escaped_source}\">#{escaped_source}</a> linked to <a href=\"#{escaped_target}\">#{escaped_target}</a></p>")
+          entry.content.xml_lang = "en"
         end
       end
     }
