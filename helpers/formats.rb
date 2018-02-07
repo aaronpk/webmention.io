@@ -196,6 +196,29 @@ class Formats
     jf2
   end
 
+  def self.english_description(type)
+    case type
+    when "like"
+      "liked"
+    when "repost"
+      "reposted"
+    when "reply"
+      "replied to"
+    when "bookmark"
+      "bookmarked"
+    when "rsvp-yes"
+      "RSVPed “yes” to"
+    when "rsvp-no"
+      "RSVPed “no” to"
+    when "rsvp-maybe"
+      "RSVPed “maybe” to"
+    when "rsvp-interested"
+      "RSVPed “interested” to"
+    else
+      "mentioned"
+    end
+  end
+
   def self.links_to_atom(links)
     base_url = "https://webmention.io"
     atom_url = "#{base_url}/api/mentions.atom"
@@ -213,14 +236,16 @@ class Formats
         target.path = "/" if target.path == ""
 
         f.entries << Atom::Entry.new do |entry|
-          entry.title = "#{source.host} linked to #{target.path}"
+          verb = self.english_description(link.type)
+
+          entry.title = "#{source.host} #{verb} #{target.path}"
           entry.id = "#{base_url}/api/mention/#{link.id}"
           entry.updated = link.updated_at
-          entry.summary = "#{source} linked to #{target}"
+          entry.summary = "#{source} #{verb} #{target}"
 
           escaped_source = CGI::escapeHTML(source.to_s)
           escaped_target = CGI::escapeHTML(target.to_s)
-          entry.content = Atom::Content::Xhtml.new("<p><a href=\"#{escaped_source}\">#{escaped_source}</a> linked to <a href=\"#{escaped_target}\">#{escaped_target}</a></p>")
+          entry.content = Atom::Content::Xhtml.new("<p><a href=\"#{escaped_source}\">#{escaped_source}</a> #{verb} <a href=\"#{escaped_target}\">#{escaped_target}</a></p>")
           entry.content.xml_lang = "en"
         end
       end
