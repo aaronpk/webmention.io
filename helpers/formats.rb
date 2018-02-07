@@ -199,25 +199,32 @@ class Formats
   def self.links_to_atom(links)
     base_url = "https://webmention.io"
     atom_url = "#{base_url}/api/mentions.atom"
+
     feed = Atom::Feed.new{|f|
       f.title = "Mentions"
       f.links << Atom::Link.new(:href => atom_url)
-      f.updated = link_array.collect{|l| l[:verified_date]}.max
+      f.updated = links.collect{|l| l.updated_at}.max
       f.authors << Atom::Person.new(:name => "webmention.io")
       f.id = atom_url
-      link_array.each do |link|
-        source = URI.parse link[:source]
-        target = URI.parse link[:target]
+
+      links.each do |link|
+        source = URI.parse link.href
+        target = URI.parse link.page.href
         target.path = "/" if target.path == ""
+
         f.entries << Atom::Entry.new do |entry|
           entry.title = "#{source.host} linked to #{target.path}"
-          entry.id = "#{base_url}/api/mention/#{link[:id]}"
-          entry.updated = link[:verified_date]
-          entry.summary = "#{link[:source]} linked to #{link[:target]}"
-          entry.content = Atom::Content::Xhtml.new("<p><a href=\"#{link[:source]}\">#{link[:source]}</a> linked to <a href=\"#{link[:target]}\">#{link[:target]}</a></p>")
+          entry.id = "#{base_url}/api/mention/#{link.id}"
+          entry.updated = link.updated_at
+          entry.summary = "#{source} linked to #{target}"
+
+          escaped_source = CGI::escapeHTML(source.to_s)
+          escaped_target = CGI::escapeHTML(target.to_s)
+          entry.content = Atom::Content::Xhtml.new("<p><a href=\"#{escaped_source}\">#{escaped_source}</a> linked to <a href=\"#{escaped_target}\">#{escaped_target}</a></p>")
         end
       end
     }
+
     feed.to_xml
   end
 
