@@ -73,7 +73,7 @@ class Formats
   def self.build_jf2_from_link(link)
     if link.published
       # Convert the date to a date with timezone offset
-      time = link.published_date.to_time + (link.published_offset ? link.published_offset : 0)
+      time = link.published.to_time + (link.published_offset ? link.published_offset : 0)
       published = time.strftime('%Y-%m-%dT%H:%M:%S')
 
       if !(link.published_offset === nil)
