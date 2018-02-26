@@ -14,7 +14,7 @@ class WebmentionProcessor
     process_mention event[:username], event[:source], event[:target], event[:protocol], event[:token], event[:code]
   end
 
-  def error_status(token, source, target, protocol, error, error_description=nil) 
+  def error_status(token, source, target, protocol, error, error_description=nil)
     status = {
       :status => error,
       :source => source,
@@ -415,7 +415,7 @@ class WebmentionProcessor
     published = entry['published']
     if !published.blank?
       date = DateTime.parse(published.to_s)
-      link.published = date.to_time # Convert to UTC (uses ENV timezone)
+      link.published = date.to_time.utc # Convert to UTC (uses ENV timezone)
       # only set the timezone offset if it was provided in the original publish date string
       if published.to_s.match(/[+-]\d{2}:?\d{2}/)
         link.published_offset = date.utc_offset
