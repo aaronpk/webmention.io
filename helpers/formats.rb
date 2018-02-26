@@ -71,7 +71,7 @@ class Formats
   end
 
   def self.build_jf2_from_link(link)
-  	if link.published
+    if link.published
       # Convert the date to a date with timezone offset
       time = link.published_date.to_time + (link.published_offset ? link.published_offset : 0)
       published = time.strftime('%Y-%m-%dT%H:%M:%S')
@@ -117,8 +117,8 @@ class Formats
     end
 
     # 2017-07-06 switching to `html` and `text` properties according to the latest jf2 spec.
-    # 2017-12-27 new sites created after this date will not have content-type/value properties
-    content_deprecation_date = DateTime.parse("2017-12-27T15:00:00Z")
+    # 2018-02-26 new sites created after this date will not have content-type/value properties
+    content_deprecation_date = DateTime.parse("2018-02-26T17:00:00Z")
     if !link.content.blank?
       if link.site.created_at > content_deprecation_date
         jf2[:content] = {
