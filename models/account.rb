@@ -11,6 +11,8 @@ class Account
   property :xmpp_password, String, :length => 255
   property :tiktokbot_uri, String, :length => 255
   property :tiktokbot_token, String, :length => 255
+  property :aperture_uri, String, :length => 255
+  property :aperture_token, String, :length => 255
 
   has n, :sites
 

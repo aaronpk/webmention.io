@@ -97,7 +97,7 @@ class NotificationQueue
     notifications = []
 
     is_direct = main_link.is_direct
-    
+
     # Process the one with more mentions
     if target_links.length > source_links.length
       # One source linked to many targets.
@@ -290,13 +290,25 @@ class NotificationQueue
     puts "Sending notification: #{message}"
 
     if !site.account.tiktokbot_uri.empty? and !site.irc_channel.empty?
-
       begin
         puts RestClient.post site.account.tiktokbot_uri, {
           channel: site.irc_channel,
           content: message
         }, {
           :Authorization => "Bearer #{site.account.tiktokbot_token}"
+        }
+      rescue
+        # ignore errors sending to IRC
+      end
+    end
+
+    if !site.account.aperture_uri.empty?
+      begin
+        puts RestClient.post site.account.aperture_uri, {
+          h: "entry",
+          content: message
+        }, {
+          :Authorization => "Bearer #{site.account.aperture_token}"
         }
       rescue
         # ignore errors sending to IRC
