@@ -156,9 +156,6 @@ class WebmentionProcessor
       phrase = get_phrase_and_set_type source_data, link, source, target
 
       message = "[#{source_is_bridgy ? 'bridgy' : 'mention'}] #{subject} #{phrase} #{target}"
-      if subject != url
-        message += " (#{url})"
-      end
 
       link.sentence = "#{subject} #{phrase} #{target}"
       link.sentence_html = "#{subject_html} #{phrase} <a href=\"#{target}\">#{target}</a>"
@@ -174,7 +171,7 @@ class WebmentionProcessor
         puts "Queuing notification: #{message}"
 
         if link.type == "reply"
-          NotificationQueue.send_notification link.page.site, message
+          NotificationQueue.send_notification link.page.site, message, url
         else
           NotificationQueue.queue_notification link
         end

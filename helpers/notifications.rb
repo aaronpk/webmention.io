@@ -81,7 +81,7 @@ class NotificationQueue
           puts "\t#{notification.url}"
           puts "\t#{notification.text}"
           puts ""
-          NotificationQueue.send_notification site, "[mention] #{notification.text} #{notification.url}"
+          NotificationQueue.send_notification site, "[mention] #{notification.text}", notification.url
         end
 
         # If there are no other timers set for this account, remove it from the queue
@@ -293,7 +293,7 @@ class NotificationQueue
       begin
         puts RestClient.post site.account.tiktokbot_uri, {
           channel: site.irc_channel,
-          content: message
+          content: "#{message} #{url}"
         }, {
           :Authorization => "Bearer #{site.account.tiktokbot_token}"
         }
@@ -306,7 +306,9 @@ class NotificationQueue
       begin
         puts RestClient.post site.account.aperture_uri, {
           h: "entry",
-          content: message
+          content: message,
+          published: DateTime.now.to_s,
+          url: url
         }, {
           :Authorization => "Bearer #{site.account.aperture_token}"
         }
@@ -324,7 +326,7 @@ class NotificationQueue
         else
           jabber.auth(site.account.xmpp_password)
         end
-        jabbermsg = Jabber::Message::new(site.account.xmpp_to, message)
+        jabbermsg = Jabber::Message::new(site.account.xmpp_to, "#{message} #{url}")
         jabbermsg.set_type(:headline)
         jabber.send(jabbermsg)
         jabber.close
