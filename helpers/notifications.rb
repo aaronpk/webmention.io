@@ -286,7 +286,7 @@ class NotificationQueue
     notifications
   end
 
-  def self.send_notification(site, message)
+  def self.send_notification(site, message, url)
     puts "Sending notification: #{message}"
 
     if !site.account.tiktokbot_uri.empty? and !site.irc_channel.empty?
