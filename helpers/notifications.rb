@@ -306,9 +306,9 @@ class NotificationQueue
       begin
         puts RestClient.post site.account.aperture_uri, {
           h: "entry",
-          content: message,
           published: DateTime.now.to_s,
-          url: url
+          url: url,
+          content: message,
         }, {
           :Authorization => "Bearer #{site.account.aperture_token}"
         }
