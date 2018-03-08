@@ -302,20 +302,20 @@ class NotificationQueue
       end
     end
 
-    if !site.account.aperture_uri.empty?
-      begin
-        puts RestClient.post site.account.aperture_uri, {
-          h: "entry",
-          published: DateTime.now.to_s,
-          url: url,
-          content: message,
-        }, {
-          :Authorization => "Bearer #{site.account.aperture_token}"
-        }
-      rescue
-        # ignore errors sending to IRC
-      end
-    end
+    # if !site.account.aperture_uri.empty?
+    #   begin
+    #     puts RestClient.post site.account.aperture_uri, {
+    #       h: "entry",
+    #       published: DateTime.now.to_s,
+    #       url: url,
+    #       content: message,
+    #     }, {
+    #       :Authorization => "Bearer #{site.account.aperture_token}"
+    #     }
+    #   rescue
+    #     # ignore errors sending to IRC
+    #   end
+    # end
 
     if !site.account.xmpp_user.empty? and !site.account.xmpp_to.empty? and site.xmpp_notify
       jabber = Jabber::Client::new(Jabber::JID::new(site.account.xmpp_user))

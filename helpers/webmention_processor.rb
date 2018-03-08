@@ -171,7 +171,7 @@ class WebmentionProcessor
         puts "Queuing notification: #{message}"
 
         if link.type == "reply"
-          NotificationQueue.send_notification link.page.site, message, url
+          NotificationQueue.send_notification link.page.site, message, source
         else
           NotificationQueue.queue_notification link
         end
@@ -203,6 +203,30 @@ class WebmentionProcessor
         puts "... success!"
       rescue => e
         puts "Failed to send to callback URL #{site.callback_url} #{e.inspect}"
+      end
+    end
+
+    if !site.account.aperture_uri.empty?
+      begin
+        puts "Posting to Aperture"
+
+        aperture_data = source_data
+
+        # override if XRay parsing failed
+        aperture_data['url'] = source if aperture_data['url'].nil?
+        aperture_data['published'] = DateTime.now.to_s if aperture_data['published'].nil?
+
+        # this might need to change to something more specific to indicating why the webmention is relevant
+        aperture_data['in-reply-to'] = target if aperture_data['in-reply-to'].nil?
+
+        puts aperture_data.to_json
+
+        puts RestClient.post site.account.aperture_uri, aperture_data.to_json, {
+          :Authorization => "Bearer #{site.account.aperture_token}",
+          :'Content-Type' => 'application/jf2+json'
+        }
+      rescue => e
+        # ignore errors sending to Aperture
       end
     end
 
