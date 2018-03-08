@@ -217,7 +217,7 @@ class WebmentionProcessor
         aperture_data['published'] = DateTime.now.to_s if (aperture_data['published'].nil? or aperture_data['published'].empty?)
 
         # this might need to change to something more specific to indicating why the webmention is relevant
-        aperture_data['in-reply-to'] = target if (aperture_data['in-reply-to'].nil? or aperture_data['in-reply-to'].empty?)
+        aperture_data['in-reply-to'] = [target] if (aperture_data['in-reply-to'].nil? or aperture_data['in-reply-to'].empty?)
 
         puts aperture_data.to_json
 
