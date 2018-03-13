@@ -38,7 +38,11 @@ class Link
   property :updated_at, DateTime
 
   def snippet
-    snippet = Sanitize.fragment(content).strip.gsub "\n", ' '
+    if content
+      snippet = Sanitize.fragment(content).strip.gsub "\n", ' '
+    else
+      snippet = content_text.gsub "\n", ' '
+    end
     if snippet.length > 80
       snippet = snippet[0, 80] + '...'
     end
