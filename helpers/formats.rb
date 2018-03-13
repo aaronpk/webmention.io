@@ -116,6 +116,10 @@ class Formats
       }
     end
 
+    jf2[:photo] = JSON.parse(link.photo) if !link.photo.blank?
+    jf2[:video] = JSON.parse(link.video) if !link.video.blank?
+    jf2[:audio] = JSON.parse(link.audio) if !link.audio.blank?
+
     # 2017-07-06 switching to `html` and `text` properties according to the latest jf2 spec.
     # 2018-02-26 new sites created after this date will not have content-type/value properties
     content_deprecation_date = DateTime.parse("2018-02-26T17:00:00Z")

@@ -433,6 +433,10 @@ class WebmentionProcessor
       link.url = Microformats2::AbsoluteUri.new(link.url, base: link.href).absolutize
     end
 
+    link.photo = entry['photo'].to_json if entry['photo']
+    link.video = entry['video'].to_json if entry['video']
+    link.audio = entry['audio'].to_json if entry['audio']
+
     published = entry['published']
     if !published.blank?
       date = DateTime.parse(published.to_s)

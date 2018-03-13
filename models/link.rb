@@ -16,6 +16,11 @@ class Link
   property :summary, Text
   property :content, Text
   property :content_text, Text
+
+  property :photo, Text
+  property :video, Text
+  property :audio, Text
+
   property :published, DateTime
   property :published_offset, Integer
   property :published_ts, Integer
