@@ -404,7 +404,7 @@ class WebmentionProcessor
       link.author_url = entry['author']['url'] if entry['author']['url']
       link.author_name = entry['author']['name'] if entry['author']['name']
       link.author_photo = entry['author']['photo'] if entry['author']['photo']
-      if link.site.archive_avatars
+      if link.site.archive_avatars && link.author_photo
         # Replace the author photo with an archive URL
         archive_photo_url = Avatar.get_avatar_archive_url link.author_photo
         link.author_photo = archive_photo_url
