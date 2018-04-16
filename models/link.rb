@@ -44,9 +44,18 @@ class Link
 
   def snippet
     if content
-      snippet = Sanitize.fragment(content).strip.gsub "\n", ' '
+      stripped = Sanitize.fragment(content).strip
+      if stripped
+        snippet = stripped.gsub "\n", ' '
+      else
+        snippet = ''
+      end
     else
-      snippet = content_text.gsub "\n", ' '
+      if content_text
+        snippet = content_text.gsub "\n", ' '
+      else
+        snippet = ''
+      end
     end
     if snippet.length > 80
       snippet = snippet[0, 80] + '...'

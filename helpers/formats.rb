@@ -124,7 +124,7 @@ class Formats
     # 2018-02-26 new sites created after this date will not have content-type/value properties
     content_deprecation_date = DateTime.parse("2018-02-26T17:00:00Z")
     if !link.content.blank?
-      if link.site.created_at > content_deprecation_date
+      if link.site && link.site.created_at > content_deprecation_date
         jf2[:content] = {
           :html => link.content,
           :text => link.content_text
@@ -138,7 +138,7 @@ class Formats
         }
       end
     elsif !link.content_text.blank?
-      if link.site.created_at > content_deprecation_date
+      if link.site && link.site.created_at > content_deprecation_date
         jf2[:content] = {
           :text => link.content_text
         }
