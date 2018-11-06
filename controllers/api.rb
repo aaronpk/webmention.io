@@ -20,7 +20,7 @@ class Controller < Sinatra::Base
       targets.each do |t|
         links += t.links.count(:verified => true, :deleted => false)
       end
-      types = repository(:default).adapter.select('SELECT type, COUNT(1) AS num FROM links 
+      types = repository(:default).adapter.select('SELECT type, COUNT(1) AS num FROM links
         WHERE page_id IN ('+targets.map{|t| t.id}.join(',')+')
           AND deleted = 0 AND verified = 1
         GROUP BY type')
@@ -66,10 +66,10 @@ class Controller < Sinatra::Base
     end
 
     opts = {
-      :verified => true, 
+      :verified => true,
       :deleted => false,
       :order => [],
-      :offset => (pageNum * limit), 
+      :offset => (pageNum * limit),
       :limit => limit
     }
 
