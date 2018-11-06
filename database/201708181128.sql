@@ -1,0 +1,1 @@
+ALTER TABLE `links` ADD INDEX `page_index` (`page_id`, `deleted`, `verified`);
