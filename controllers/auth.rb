@@ -26,6 +26,11 @@ class Controller < Sinatra::Base
 
     puts response.parsed_response
 
+    if !response.parsed_response['me']
+      session[:state] = nil
+      redirect "/auth/start"
+    end
+
     signed_in_uri = URI.parse(response.parsed_response['me'])
 
     if !['','/'].include? signed_in_uri.path
@@ -49,8 +54,19 @@ class Controller < Sinatra::Base
 
       session[:user_id] = user[:id]
       puts "User successfully logged in"
-      redirect "/dashboard"
+
+      # If the user has no mentions yet, redirect to the settings page
+      if user.sites.pages.links(:verified => true, :deleted => false).count == 0
+        redirect "/settings"
+      else
+        redirect "/dashboard"
+      end
     end
+  end
+
+  get '/logout' do
+    session[:user_id] = nil
+    redirect "/"
   end
 
 end
