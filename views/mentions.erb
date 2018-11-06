@@ -1,5 +1,7 @@
 <div class="mentions h-feed">
-  <h1 class="p-name"><%= @account.username %></h1>
+  <% if @account %>
+    <h1 class="p-name"><%= @account.username %></h1>
+  <% end %>
 
   <% @links.each do |link| %>
 
