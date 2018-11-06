@@ -39,6 +39,8 @@ class Link
 
   property :deleted, Boolean, :default => false
 
+  property :protocol, String, :length => 30 # webmention or pingback
+
   property :created_at, DateTime
   property :updated_at, DateTime
 

@@ -153,6 +153,8 @@ class WebmentionProcessor
 
     link = Link.first_or_create({:page => page, :href => source}, {:site => site})
 
+    link.protocol = protocol
+
     already_registered = link[:verified]
 
     # Parse for microformats and look for "like", "invite", "rsvp", or other post types
