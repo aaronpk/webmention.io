@@ -37,7 +37,7 @@ class Controller < Sinatra::Base
     }
   end
 
-  get %r{/api/(links|mentions)(:?\.(?<format>json|atom|jf2))?} do
+  get %r{/api/(links|mentions)(:?\.(?<format>json|atom|jf2|html))?} do
     format = params['format'] || 'json'
 
     if params[:token]
@@ -138,6 +138,8 @@ class Controller < Sinatra::Base
         }
       end
 
+      @account = account
+
       if params[:domain]
         links = account.sites.all(:domain => params[:domain]).pages.links.all(opts)
       else
@@ -179,25 +181,31 @@ class Controller < Sinatra::Base
       api_response format, 200, Formats.links_to_json(links)
     elsif format =='jf2'
       api_response 'json', 200, Formats.links_to_jf2(links)
+    elsif format == 'html'
+      @links = links
+      erb :mentions
     else
       base_url = "https://webmention.io"
       atom_url = "#{base_url}/api/mentions.atom"
       feed = Atom::Feed.new{|f|
         f.title = "Mentions"
         f.links << Atom::Link.new(:href => atom_url)
-        f.updated = link_array.collect{|l| l[:verified_date]}.max
+        f.updated = links.collect{|l| l[:verified_date]}.max
         f.authors << Atom::Person.new(:name => "webmention.io")
         f.id = atom_url
-        link_array.each do |link|
-          source = URI.parse link[:source]
-          target = URI.parse link[:target]
-          target.path = "/" if target.path == ""
-          f.entries << Atom::Entry.new do |entry|
-            entry.title = "#{source.host} linked to #{target.path}"
-            entry.id = "#{base_url}/api/mention/#{link[:id]}"
-            entry.updated = link[:verified_date]
-            entry.summary = "#{link[:source]} linked to #{link[:target]}"
-            entry.content = Atom::Content::Xhtml.new("<p><a href=\"#{link[:source]}\">#{link[:source]}</a> linked to <a href=\"#{link[:target]}\">#{link[:target]}</a></p>")
+        links.each do |link|
+          begin
+            source = URI.parse link[:source]
+            target = URI.parse link[:target]
+            target.path = "/" if target.path == ""
+            f.entries << Atom::Entry.new do |entry|
+              entry.title = "#{source.host} linked to #{target.path}"
+              entry.id = "#{base_url}/api/mention/#{link[:id]}"
+              entry.updated = link[:verified_date]
+              entry.summary = "#{link[:source]} linked to #{link[:target]}"
+              entry.content = Atom::Content::Xhtml.new("<p><a href=\"#{link[:source]}\">#{link[:source]}</a> linked to <a href=\"#{link[:target]}\">#{link[:target]}</a></p>")
+            end
+          rescue => e
           end
         end
       }

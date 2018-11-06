@@ -63,6 +63,10 @@ class Link
     snippet
   end
 
+  def has_author_info
+    !author_name.blank? || !author_url.blank? || !author_photo.blank?
+  end
+
   def author_text(fallback="someone")
     if !author_name.blank?
       author_name
