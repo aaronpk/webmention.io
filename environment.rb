@@ -45,10 +45,6 @@ class Controller < Sinatra::Base
     set :raise_errors,    false
     set :protection, :except => [:frame_options, :json_csrf]
 
-    use OmniAuth::Builder do
-      provider :indieauth, :client_id => SiteConfig.base_url, :server => SiteConfig.indieauth_server
-    end
-
     DataMapper::Logger.new(STDOUT, :debug)
     DataMapper.finalize
     DataMapper.setup :default, SiteConfig.database_url
