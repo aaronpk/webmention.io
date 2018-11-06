@@ -114,6 +114,26 @@ class WebmentionProcessor
       return nil, error
     end
 
+
+
+    debug = Debug.first(:page_url => target)
+    puts "Debug enabled for #{target}: #{debug ? 'yes' : 'no'}"
+    if debug && debug.enabled
+      filename = File.join(File.expand_path(File.dirname(__FILE__)), '../debug.log')
+      log = Logger.new(filename)
+      log.debug "==================================================="
+      log.debug "Webmention from #{source} to #{target}"
+      log.debug source_data.to_json
+      begin
+        # Fetch the content and write it to the log
+        debug_content = HTTParty.get source
+        log.debug debug_content.response.body
+      rescue => e
+      end
+    end
+
+
+
     if source_data.class == XRayError
       if source_data.error != "no_link_found"
         # Don't log these errors
