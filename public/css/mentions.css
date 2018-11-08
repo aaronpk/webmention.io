@@ -6,12 +6,22 @@
 .mention {
   border: 1px #ddd solid;
   border-radius: 4px;
+  margin-top: 30px;
   margin-bottom: 10px;
   padding: 10px;
 }
 
+.mention .context {
+  margin-bottom: 12px;
+  margin-top: -30px;
+}
+
 .mention h3 {
   margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.mention .author {
   margin-bottom: 10px;
 }
 
@@ -40,6 +50,11 @@
   margin-bottom: 0;
 }
 
+.mention .plaintext {
+  font-size: 1.2em;
+}
+
 .mention .metaline {
   margin-top: 1em;
 }
+

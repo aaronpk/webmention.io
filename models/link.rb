@@ -159,4 +159,19 @@ class Link
   def target_id
     self.page.id
   end
+
+  def mf2_relation_class
+    case self.type
+    when 'repost'
+      'u-repost-of'
+    when 'like'
+      'u-like-of'
+    when 'reply'
+      'u-in-reply-to'
+    when 'bookmark'
+      'u-bookmark-of'
+    else
+      'u-mention-of'
+    end
+  end
 end

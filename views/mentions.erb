@@ -7,6 +7,10 @@
 
     <div class="h-entry mention">
 
+      <div class="context">
+        ↩ <a href="<%= link.page.href %>" class="<%= link.mf2_relation_class %>"><%= link.page.href %></a>
+      </div>
+
       <% if link.has_author_info %>
         <div class="author u-author h-card">
           <% if !link.author_photo.blank? %>
@@ -28,7 +32,7 @@
       <% if !link.content.blank? %>
         <div class="e-content"><%= link.content %></div>
       <% elsif !link.content_text.blank? %>
-        <div class="e-content"><%== link.content_text %></div>
+        <div class="e-content plaintext"><%== link.content_text %></div>
       <% end %>
 
       <div class="metaline">
