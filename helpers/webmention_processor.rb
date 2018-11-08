@@ -116,9 +116,9 @@ class WebmentionProcessor
 
 
 
-    debug = Debug.first(:page_url => target)
+    debug = Debug.all(:page_url => target, :enabled => true) | Debug.all(:domain => target_domain, :enabled => true)
     puts "Debug enabled for #{target}: #{debug ? 'yes' : 'no'}"
-    if debug && debug.enabled
+    if debug.length > 0
       filename = File.join(File.expand_path(File.dirname(__FILE__)), '../debug.log')
       log = Logger.new(filename)
       log.debug "==================================================="
