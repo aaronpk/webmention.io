@@ -58,6 +58,6 @@
   margin-top: 1em;
 }
 
-.mention img {
+.mention .e-content .html img {
   max-width: 100%;
 }
