@@ -10,7 +10,14 @@ class Controller < Sinatra::Base
 
   get '/auth/start' do
     session[:state] = SecureRandom.urlsafe_base64 16
-    redirect "#{SiteConfig.indieauth_server}/auth?client_id=#{URI.encode_www_form_component(get_client_id)}&state=#{session[:state]}&redirect_uri=#{URI.encode_www_form_component(get_redirect_uri)}"
+    query_params = {
+      client_id: get_client_id,
+      state: session[:state],
+      redirect_uri: get_redirect_uri,
+      me: params[:me],
+    }
+    query = URI.encode_www_form query_params
+    redirect "#{SiteConfig.indieauth_server}/auth?#{query}"
   end
 
   get '/auth/callback' do

@@ -86,7 +86,7 @@ a:focus {
 }
 
 .page {
-  background-color: #fff; 
+  background-color: #fff;
   padding: 10px 20px;
   border-bottom-left-radius: 6px;
   border-bottom-right-radius: 6px;
@@ -230,6 +230,30 @@ body {
   font-size: 1.12em;
 }
 
+#web-sign-in {
+  max-width: 400px;
+  margin: 0 auto;
+}
+#web-sign-in h3 {
+  padding: 0;
+  margin: 0;
+  margin-bottom: 4px;
+  font-weight: normal;
+  text-align: center;
+}
+#web-sign-in input {
+  border: 1px #d8d8d8 solid;
+  border-radius: 6px;
+  font-size: 16px;
+  padding: 11px 19px;
+  display: block;
+  margin-bottom: 6px;
+  box-sizing: border-box;
+}
+#web-sign-in .form-control {
+  width: 100%;
+}
+
 /**
  * Headers
  */
@@ -318,7 +342,7 @@ table.recent-webmentions tr:hover {
 
 table.recent-webmentions td {
   word-wrap: break-word;
-  word-break: break-all;  
+  word-break: break-all;
 }
 
 .recent-webmentions a.delete {
