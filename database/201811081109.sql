@@ -1,0 +1,1 @@
+ALTER TABLE `debugs` ADD COLUMN `on_success` TINYINT(4) NOT NULL DEFAULT '0' AFTER enabled;

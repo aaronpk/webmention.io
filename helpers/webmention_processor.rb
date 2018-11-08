@@ -147,6 +147,24 @@ class WebmentionProcessor
 
     puts "Processing... s=#{source} t=#{target}"
 
+
+    debug = Debug.all(:page_url => target, :on_success => true) | Debug.all(:domain => target_domain, :on_success => true)
+    puts "Debug enabled for #{target}: #{debug ? 'yes' : 'no'}"
+    if debug.length > 0
+      filename = File.join(File.expand_path(File.dirname(__FILE__)), '../debug.log')
+      log = Logger.new(filename)
+      log.debug "==================================================="
+      log.debug "Webmention successful from #{source} to #{target}"
+      log.debug source_data.to_json
+      begin
+        # Fetch the content and write it to the log
+        debug_content = HTTParty.get source
+        log.debug debug_content.response.body
+      rescue => e
+      end
+    end
+
+
     # If the page already exists, use that record. Otherwise create it and find out what kind of object is on the page.
     # This currently uses the Ruby mf2 parser to parse the target URL
     page = create_page_in_site site, target
