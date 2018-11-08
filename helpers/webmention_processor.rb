@@ -117,8 +117,8 @@ class WebmentionProcessor
 
 
     debug = Debug.all(:page_url => target, :enabled => true) | Debug.all(:domain => target_domain, :enabled => true)
-    puts "Debug enabled for #{target}: #{debug ? 'yes' : 'no'}"
-    if debug.length > 0
+    if debug.count > 0
+      puts "Debug enabled for #{target}"
       filename = File.join(File.expand_path(File.dirname(__FILE__)), '../debug.log')
       log = Logger.new(filename)
       log.debug "==================================================="
@@ -149,8 +149,8 @@ class WebmentionProcessor
 
 
     debug = Debug.all(:page_url => target, :on_success => true) | Debug.all(:domain => target_domain, :on_success => true)
-    puts "Debug enabled for #{target}: #{debug ? 'yes' : 'no'}"
-    if debug.length > 0
+    if debug.count > 0
+      puts "Debug success enabled for #{target}"
       filename = File.join(File.expand_path(File.dirname(__FILE__)), '../debug.log')
       log = Logger.new(filename)
       log.debug "==================================================="
