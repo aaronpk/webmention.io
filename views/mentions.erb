@@ -27,11 +27,13 @@
 
       <% if !link.content.blank? %>
         <div class="e-content"><%= link.content %></div>
+      <% elsif !link.content_text.blank? %>
+        <div class="e-content"><%== link.content_text %></div>
       <% end %>
 
       <div class="metaline">
         <time class="dt-published" datetime="<%= (link.published_date ? link.published_date : link.created_at.to_time).strftime('%Y-%m-%dT%H:%M:%S%z') %>">
-          <a href="<%= link.url %>" class="u-url">
+          <a href="<%= (link.url ? link.url : link.href) %>" class="u-url">
             <%= (link.published_date ? link.published_date : link.created_at.to_time).strftime('%b %-d, %Y %l:%M%P %:z') %>
           </a>
         </time>
