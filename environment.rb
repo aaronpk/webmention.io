@@ -45,7 +45,7 @@ class Controller < Sinatra::Base
     set :raise_errors,    false
     set :protection, :except => [:frame_options, :json_csrf]
 
-    DataMapper::Logger.new(STDOUT, :debug)
+    #DataMapper::Logger.new(STDOUT, :debug)
     DataMapper.finalize
     DataMapper.setup :default, SiteConfig.database_url
     DataMapper.repository.adapter.execute('SET NAMES utf8mb4')

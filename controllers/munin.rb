@@ -31,7 +31,7 @@ class Controller < Sinatra::Base
   get '/stats/:type/config' do
     response = "graph_title Webmention.io - #{params[:type]}\n"
     response += "graph_info Counts the number of success and failures of incoming #{params[:type]} requests\n"
-    response += "graph_vlabel /second\n"
+    response += "graph_vlabel requests per 5 minutes\n"
     response += "graph_category webmention\n"
     response += "graph_args --lower-limit 0\n"
     response += "graph_scale yes\n"

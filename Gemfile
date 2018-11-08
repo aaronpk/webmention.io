@@ -13,6 +13,7 @@ gem 'dalli'
 gem 'ratom', :require => 'atom'
 gem 'jwt'
 gem 'httparty'
+gem 'xmlrpc'
 
 gem 'mechanize'
 #gem 'pingback'
