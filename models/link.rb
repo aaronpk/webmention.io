@@ -34,6 +34,7 @@ class Link
 
   belongs_to :page
   belongs_to :site
+  belongs_to :account
 
   belongs_to :notification, :required => false
 

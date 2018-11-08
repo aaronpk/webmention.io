@@ -15,6 +15,7 @@ class Account
   property :aperture_token, String, :length => 255
 
   has n, :sites
+  has n, :links
 
   property :token, String, :length => 255
 

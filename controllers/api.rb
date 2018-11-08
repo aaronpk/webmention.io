@@ -141,9 +141,15 @@ class Controller < Sinatra::Base
       @account = account
 
       if params[:domain]
-        links = account.sites.all(:domain => params[:domain]).pages.links.all(opts)
+        site = Site.first :domain => params[:domain]
+        if site
+          opts[:site] = site
+          links = account.links.all(opts)
+        else
+          links = []
+        end
       else
-        links = account.sites.pages.links.all(opts)
+        links = account.links.all(opts)
       end
 
     else
