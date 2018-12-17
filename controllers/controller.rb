@@ -54,6 +54,17 @@ class Controller < Sinatra::Base
     erb :settings
   end
 
+  get '/settings/webhooks' do
+    require_login
+
+    if @user.token.nil?
+      @user.token = SecureRandom.urlsafe_base64 16
+      @user.save
+    end
+
+    title "Web Hook Settings"
+    erb :webhooks
+  end
   get '/delete/?' do
     require_login
 
