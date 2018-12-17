@@ -1,0 +1,43 @@
+<div class="container-narrow">
+<%= partial :'partials/_topbar' %>
+<div class="page">
+
+  <section>
+    <h2>Blocklists</h2>
+
+    <p>You have blocked the following domains:</p>
+
+    <table class="recent-webmentions">
+      <% @blocks.each do |block| %>
+        <tr>
+          <td>
+            <a href="http://<%= block.domain %>"><%= block.domain %></a>
+          </td>
+          <td>
+            <form action="/unblock" method="post">
+              <input type="hidden" name="domain" value="<%= block.domain %>">
+              <input type="hidden" name="csrf" value="<%= csrf_token('/unblock') %>">
+              <button type="submit">&times;</button>
+            </form>
+          </td>
+        </tr>
+      <% end %>
+    </table>
+
+    <p><small>Note: Unblocking a domain will not restore any webmentions previously deleted.</small></p>
+
+
+    <h3>Block a Domain</h3>
+
+    <p>Enter the URL of a webmention you'd like to block and delete below. You'll be able to confirm in the next step.</p>
+
+    <form action="/delete" method="get">
+      <input type="url" name="source" placeholder="source url">
+      <button type="submit">Preview Delete</button>
+    </form>
+
+  </section>
+
+</div>
+
+</div><!-- container -->

@@ -76,11 +76,21 @@ class WebmentionProcessor
       return nil, error
     end
 
+    # Check that the domain is not blocked
+    block = target_account.blocks.first({domain: source_uri.host})
+    if !block.nil?
+      error = 'blocked'
+      error_status token, source, target, protocol, error, 'source domain is blocked'
+      return nil, error
+    end
+
     # Check that the source URL is not in the blacklist
     site = Site.first :account => target_account, :domain => target_domain
     if !site.nil?
       bl = Blacklist.first :site => site, :source => source
       if !bl.nil?
+        error = 'blocked'
+        error_status token, source, target, protocol, error, 'source URL is blocked'
         return nil, 'blocked'
       end
     end
@@ -142,6 +152,11 @@ class WebmentionProcessor
       error_status token, source, target, protocol, source_data.error, source_data.error_description
       return nil, source_data.error
     end
+
+
+
+
+
 
     site = Site.first_or_create :account => target_account, :domain => target_domain
 

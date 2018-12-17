@@ -16,6 +16,7 @@ class Account
 
   has n, :sites
   has n, :links
+  has n, :blocks
 
   property :token, String, :length => 255
 

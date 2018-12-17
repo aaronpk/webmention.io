@@ -20,9 +20,9 @@
       </div>
       <% end %>
 
-      <% if @links.length > 1 %>
+      <% if @links.length >= 1 %>
       <div style="border: 1px #ddd solid; border-radius: 4px; margin-bottom: 20px; padding: 10px;">
-        <h2 style="margin-top: 0">Delete all Webmentions from this Source</h2>
+        <h2 style="margin-top: 0">Delete all Webmentions from this Source URL</h2>
 
         <form action="/delete" method="post" style="margin-bottom: 10px;">
           <button type="submit">Delete All</button>
@@ -38,11 +38,29 @@
       </div>
       <% end %>
 
-      <% if @link || @links.length > 1 %>
+      <% if @link || @links.length >= 1 %>
+      <div style="border: 1px #ddd solid; border-radius: 4px; margin-bottom: 20px; padding: 10px;">
+        <h2 style="margin-top: 0">Block this Domain</h2>
+
+        <p><pre><b><%= @domain %></b></pre></p>
+        <p>You have received <%= @domain_count %> webmentions from this domain.</p>
+        <p>Blocking this domain will prevent it from sending any future webmentions to your account, and will delete all webmentions you have received from it.</p>
+
+        <form action="/delete" method="post" style="margin-bottom: 10px;">
+          <button type="submit">Block and Delete</button>
+          <input type="hidden" name="domain" value="<%= @domain %>">
+          <input type="hidden" name="csrf" value="<%= csrf_token('/delete') %>">
+        </form>
+
+      </div>
+      <% end %>
+
+      <% if @link || @links.length >= 1 %>
         <p><small>Note: This will mark the specified webmentions as deleted, and they will no longer show up in the API. Future webmentions from this source URL will be ignored. If you have a callback URL configured, this will not send anything to the callback URL, so you will need to delete your own copy of it in that case.</small></p>
       <% else %>
         <p>No webmentions were found with that source.</p>
       <% end %>
     </section>
+
   </div>
 </div>

@@ -3,6 +3,7 @@ class Link
   property :id, Serial
 
   property :href, String, :length => 512
+  property :domain, String, :length => 256, :index => true
   property :verified, Boolean
   property :token, String, :length => 20, :index => true
   property :is_private, Boolean, :default => false

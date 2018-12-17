@@ -29,14 +29,14 @@ class Controller < Sinatra::Base
     end
 
     opts = {
-      :verified => true, 
+      :verified => true,
       :deleted => false,
       :order => [],
       :limit => 40
     }
     opts[:order] << :created_at.send(:desc)
 
-    @recent = @user.sites.pages.links.all(opts)
+    @recent = @user.links.all(opts)
 
     title "Dashboard"
     erb :dashboard
@@ -65,6 +65,16 @@ class Controller < Sinatra::Base
     title "Web Hook Settings"
     erb :webhooks
   end
+
+  get '/settings/blocks' do
+    require_login
+
+    @blocks = @user.blocks.all
+
+    title "Blocklist Settings"
+    erb :blocklists
+  end
+
   get '/delete/?' do
     require_login
 
@@ -72,13 +82,21 @@ class Controller < Sinatra::Base
       href: params[:source],
       deleted: false
     }
-    @links = @user.sites.links.all opts
+    @links = @user.links.all opts
 
     if params[:id]
-      @link = @user.sites.links.first({ id: params[:id] })
+      @link = @user.links.first({ id: params[:id] })
+      @domain = @link.domain
     else
       @link = nil
+      uri = URI params[:source]
+      @domain = uri.host
     end
+
+    @domain_count = @user.sites.links.all({
+      domain: @domain,
+      unique: true
+    }).count
 
     title "Delete"
     erb :delete
@@ -107,14 +125,14 @@ class Controller < Sinatra::Base
       end
     end
 
-    # Delete all webmentions from this source
+    # Delete all webmentions from this source URL
     if params[:source]
       # Mark each webmention as deleted
       opts = {
         href: params[:source],
         deleted: false
       }
-      links = @user.sites.links.all opts
+      links = @user.links.all opts
       links.each do |link|
         link.deleted = true
         link.save
@@ -129,7 +147,31 @@ class Controller < Sinatra::Base
       end
     end
 
+    if params[:domain]
+      links = @user.links.all({
+        domain: params[:domain]
+      }).update({
+        deleted: true
+      })
+      block = Block.new
+      block.account = @user
+      block.created_at = Time.now
+      block.domain = params[:domain]
+      block.save
+    end
+
     redirect "/dashboard"
+  end
+
+  post '/unblock' do
+    require_login
+
+    block = @user.blocks.first({ domain: params[:domain] })
+    if block
+      block.destroy
+    end
+
+    redirect '/settings/blocks'
   end
 
   post '/webhook/configure' do
