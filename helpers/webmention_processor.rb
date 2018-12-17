@@ -91,7 +91,7 @@ class WebmentionProcessor
       if !bl.nil?
         error = 'blocked'
         error_status token, source, target, protocol, error, 'source URL is blocked'
-        return nil, 'blocked'
+        return nil, error
       end
     end
 
