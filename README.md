@@ -152,6 +152,39 @@ You can use the `since` or `since_id` parameters to find new mentions retrieved 
 The API also supports JSONP so you can use it to show pingbacks on your own sites via Javascript. Simply add a parameter `jsonp` to the API call, for example, https://webmention.io/api/mentions.jf2?jsonp=f&target=https%3A%2F%2Fwebmention.io
 
 
+### Atom
+
+You can change `/mentions` to `/mentions.atom` to receive your results in the [Atom] format:
+
+[Atom]: https://en.wikipedia.org/wiki/Atom_(Web_standard)
+
+```
+GET https://webmention.io/api/mentions.atom?token=xxxxxx
+
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <id>https://webmention.io/api/mentions.atom</id>
+  <title>Mentions</title>
+  <updated>2013-04-25T17:09:33-07:00</updated>
+  <link href="https://webmention.io/api/mentions.atom"/>
+  <author>
+    <name>webmention.io</name>
+  </author>
+  <entry>
+    <title>tantek.com mentioned /webmention</title>
+    <id>https://webmention.io/api/mention/8675309</id>
+    <summary>http://tantek.com/2013/113/b1/first-federated-indieweb-comment-thread mentioned http://indiewebcamp.com/webmention</summary>
+    <updated>2013-04-25T17:09:33-07:00</updated>
+    <content type="xhtml" xml:lang="en">
+      <div xmlns="http://www.w3.org/1999/xhtml">
+        <p><a href="http://tantek.com/2013/113/b1/first-federated-indieweb-comment-thread">http://tantek.com/2013/113/b1/first-federated-indieweb-comment-thread</a> mentioned <a href="http://indiewebcamp.com/webmention">http://indiewebcamp.com/webmention</a></p>
+      </div>
+    </content>
+  </entry>
+</feed>
+```
+
+
 ## Notifications
 
 ### IRC
