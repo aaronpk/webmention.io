@@ -1,0 +1,48 @@
+<div class="mentions h-feed">
+  <% if @account %>
+    <h1 class="p-name"><%= @account.username %></h1>
+  <% end %>
+
+  <% @links.each do |link| %>
+
+    <div class="h-entry mention">
+
+      <div class="context">
+        ↩ <a href="<%= link.page.href %>" class="<%= link.mf2_relation_class %>"><%= link.page.href %></a>
+      </div>
+
+      <% if link.has_author_info %>
+        <div class="author u-author h-card">
+          <% if !link.author_photo.blank? %>
+            <img src="<%= link.author_photo %>" class="photo u-photo">
+          <% end %>
+          <% if !link.author_url.blank? %>
+            <a href="<%= link.author_url %>" class="name u-url p-name"><%== link.author_name %></a>
+            <a href="<%= link.author_url %>" class="url"><%= link.author_url %></a>
+          <% elsif !link.author_name.blank? %>
+            <span class="name p-name"><?== link.author_name %></span>
+          <% end %>
+        </div>
+      <% end %>
+
+      <% if !link.name.blank? %>
+        <h1 class="p-name"><%== link.name %></h1>
+      <% end %>
+
+      <% if !link.content.blank? %>
+        <div class="e-content html"><%= link.content %></div>
+      <% elsif !link.content_text.blank? %>
+        <div class="e-content plaintext"><%== link.content_text %></div>
+      <% end %>
+
+      <div class="metaline">
+        <time class="dt-published" datetime="<%= (link.published_date ? link.published_date : link.created_at.to_time).strftime('%Y-%m-%dT%H:%M:%S%z') %>">
+          <a href="<%= (link.url ? link.url : link.href) %>" class="u-url">
+            <%= (link.published_date ? link.published_date : link.created_at.to_time).strftime('%b %-d, %Y %l:%M%P %:z') %>
+          </a>
+        </time>
+      </div>
+    </div>
+
+  <% end %>
+</div>

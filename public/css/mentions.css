@@ -1,0 +1,63 @@
+.mentions {
+  max-width: 600px;
+  margin: 20px auto;
+}
+
+.mention {
+  border: 1px #ddd solid;
+  border-radius: 4px;
+  margin-top: 30px;
+  margin-bottom: 10px;
+  padding: 10px;
+}
+
+.mention .context {
+  margin-bottom: 12px;
+  margin-top: -30px;
+}
+
+.mention h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.mention .author {
+  margin-bottom: 10px;
+}
+
+.mention .author .photo {
+  margin-left: -54px;
+  float: left;
+  border-radius: 4px;
+  width: 48px;
+}
+
+.mention .author a.name {
+  text-decoration: none;
+}
+
+.mention .author a.url {
+  color: #888;
+  font-weight: normal;
+  text-decoration: none;
+}
+
+.mention code {
+  white-space: normal;
+}
+
+.mention .e-content p:last-child {
+  margin-bottom: 0;
+}
+
+.mention .plaintext {
+  font-size: 1.2em;
+}
+
+.mention .metaline {
+  margin-top: 1em;
+}
+
+.mention .e-content .html img {
+  max-width: 100%;
+}

@@ -34,10 +34,13 @@ class Link
 
   belongs_to :page
   belongs_to :site
+  belongs_to :account
 
   belongs_to :notification, :required => false
 
   property :deleted, Boolean, :default => false
+
+  property :protocol, String, :length => 30 # webmention or pingback
 
   property :created_at, DateTime
   property :updated_at, DateTime
@@ -61,6 +64,10 @@ class Link
       snippet = snippet[0, 80] + '...'
     end
     snippet
+  end
+
+  def has_author_info
+    !author_name.blank? || !author_url.blank? || !author_photo.blank?
   end
 
   def author_text(fallback="someone")
@@ -152,5 +159,20 @@ class Link
 
   def target_id
     self.page.id
+  end
+
+  def mf2_relation_class
+    case self.type
+    when 'repost'
+      'u-repost-of'
+    when 'like'
+      'u-like-of'
+    when 'reply'
+      'u-in-reply-to'
+    when 'bookmark'
+      'u-bookmark-of'
+    else
+      'u-mention-of'
+    end
   end
 end

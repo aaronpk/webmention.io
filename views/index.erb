@@ -1,4 +1,3 @@
-
 <div class="container-narrow">
 
   <br /><br />
@@ -8,27 +7,30 @@
 
     <h1>Webmention.io</h1>
     <p>
-      Webmention.io is a hosted service created to easily handle webmentions (and legacy pingbacks) on any web page.
+      Webmention.io is a hosted service created to easily receive webmentions on any web page.
     </p>
     <p>
       You might also be interested in reading about this project<br>on the <a href="https://indieweb.org/webmention.io">IndieWeb wiki</a>.
     </p>
 
-    <a class="btn btn-primary btn-large" href="/auth/indieauth">
-      Sign in with your domain
-    </a>
+    <div id="web-sign-in">
+      <form action="/auth/start" method="get">
+        <h3>Web Sign-In</h3>
+        <input type="url" name="me" placeholder="example.com" class="form-control">
+        <button class="btn btn-primary btn-large form-control" type="submit">Sign in</button>
+      </form>
+    </div>
   </div>
 
   <div class="home-section" style="margin-top: 0;">
     <h2 id="use-it"><a href="#use-it" class="in-page-link icon-link"></a>Use it on your site</h2>
 
-    <p>Once you have a username, add the following tags to your HTML:</p>
+    <p>Once you have signed up, add the following tags to your HTML, replacing "username" with the username you got when you signed up:</p>
 
-    <p><pre><code>    &lt;link rel="pingback" href="https://webmention.io/username/xmlrpc" /&gt;
-    &lt;link rel="webmention" href="https://webmention.io/username/webmention" /&gt;
-</code></pre></p>
+    <p><pre><code>    &lt;link rel="webmention" href="https://webmention.io/username/webmention" /&gt;
+    &lt;link rel="pingback" href="https://webmention.io/username/xmlrpc" /&gt;</code></pre></p>
 
-    <p>The system will begin collecting webmentions and pingbacks on your behalf.</p>
+    <p>The system will begin collecting webmentions and pingbacks on your behalf. Of course you can leave off the pingback endpoint if you'd like.</p>
   </div>
 
 
@@ -36,9 +38,9 @@
   <div class="home-section">
     <h2 id="forwarding"><a href="#forwarding" class="in-page-link icon-link"></a>Forward pingbacks to webmentions</h2>
 
-    <p>If you want to accept pingbacks but don't want to deal with the hassle of XMLRPC, you can use this service to forward pingbacks as webmentions to your server. You don't need an account for this to work.</p>
+    <p>If you want to accept pingbacks on your website but don't want to deal with the hassle of XMLRPC, you can use this service to forward pingbacks as webmentions to your server. You don't need an account for this to work.</p>
 
-    <p><pre><code>&lt;link rel="pingback" href="https://webmention.io/webmention?forward=http://example.com/endpoint" /&gt;</code></pre></p>
+    <p><pre><code>&lt;link rel="pingback" href="https://webmention.io/webmention?forward=https://example.com/endpoint" /&gt;</code></pre></p>
 
     <p>For further details and an example, please refer to the <a href="https://github.com/aaronpk/webmention.io#pingback-to-webmention-service">README</a>.</p>
   </div>
@@ -55,7 +57,7 @@
     <p>To retrieve the data manually using jQuery, you can make a request like the following.</p>
 
     <p><pre><code>$(function(){
-  $.getJSON("https://webmention.io/api/count?jsonp=?", {
+  $.getJSON("https://webmention.io/api/count", {
     target: "http://example.com/page/100"
   }, function(data){
     console.log(data.count);
@@ -81,7 +83,7 @@
 
     <p>First, choose an element that will be used to display the counter. Add the attribute <code>data-webmention-count</code> to it, as well as <code>data-url=""</code> with the full URL of the page you would like to count. This might look something like the following:</p>
 
-    <p><pre><code>&lt;span data-webmention-count data-url="http://example.com/page/100"&gt;&lt;/span&gt; mentions</code></pre></p>
+    <p><pre><code>&lt;span data-webmention-count data-url="https://example.com/page/100"&gt;&lt;/span&gt; mentions</code></pre></p>
 
     <p>Then, add the following script tag to your page after you've included jQuery:</p>
 
@@ -96,8 +98,8 @@
     <p>You can also use the API to show all mentions of a URL. This will work with jQuery or you can use the API directly from a server.</p>
 
     <p><pre><code>$(function(){
-  $.getJSON("https://webmention.io/api/mentions?jsonp=?", {
-    target: "http://example.com/page/100"
+  $.getJSON("https://webmention.io/api/mentions.jf2", {
+    target: "https://example.com/page/100"
   }, function(data){
     console.log(data);
   });
@@ -106,24 +108,28 @@
     <p>Which will return data in this format:</p>
 
     <p><pre><code>{
-  "links": [
+  "type": "feed",
+  "name": "Webmentions",
+  "children": [
     {
-      "source": "http://tantek.com/2013/112/t2/milestone-show-indieweb-comments-h-entry-pingback",
-      "verified": true,
-      "verified_date": "2013-04-25T17:09:33-07:00",
-      "id": 900,
-      "data": {
-        "author": {
-          "name": "Tantek Çelik",
-          "url": "http://tantek.com/",
-          "photo": "http://tantek.com/logo.jpg"
-        },
-        "name": "Another milestone: @eschnou automatically shows #indieweb comments with h-entry sent via pingback http://eschnou.com/entry/testing-indieweb-federation-with-waterpigscouk-aaronpareckicom-and--62-24908.html",
-        "content": "Another milestone: &lt;a class=\"auto-link h-x-username\" href=\"https:\/\/twitter.com\/eschnou\">@eschnou&lt;\/a> automatically shows #indieweb comments with h-entry sent via pingback &lt;a class=\"auto-link\" href=\"http:\/\/eschnou.com\/entry\/testing-indieweb-federation-with-waterpigscouk-aaronpareckicom-and--62-24908.html\">http:\/\/eschnou.com\/entry\/testing-indieweb-federation-with-waterpigscouk-aaronpareckicom-and--62-24908.html&lt;\/a>",
-        "published": "2013-04-22T15:03:00-07:00",
-        "published_ts": 1366668180,
-        "url": "http://tantek.com/2013/112/t2/milestone-show-indieweb-comments-h-entry-pingback"
+      "type": "entry",
+      "author": {
+        "type": "card",
+        "name": "Tantek Çelik",
+        "url": "http://tantek.com/",
+        "photo": "http://tantek.com/logo.jpg"
+      },
+      "url": "http://tantek.com/2013/112/t2/milestone-show-indieweb-comments-h-entry-pingback",
+      "published": "2013-04-22T15:03:00-07:00",
+      "wm-received": "2013-04-25T17:09:33-07:00",
+      "wm-id": 900,
+      "content": {
+        "text": "Another milestone: @eschnou automatically shows #indieweb comments with h-entry sent via pingback http://eschnou.com/entry/testing-indieweb-federation-with-waterpigscouk-aaronpareckicom-and--62-24908.html",
+        "html": "Another milestone: &lt;a href=\"https:\/\/twitter.com\/eschnou\">@eschnou&lt;\/a> automatically shows #indieweb comments with h-entry sent via pingback &lt;a href=\"http:\/\/eschnou.com\/entry\/testing-indieweb-federation-with-waterpigscouk-aaronpareckicom-and--62-24908.html\">http:\/\/eschnou.com\/entry\/testing-indieweb-federation-with-waterpigscouk-aaronpareckicom-and--62-24908.html&lt;\/a>"
       }
+      "mention-of": "https://indieweb.org/",
+      "wm-property": "mention-of",
+      "wm-private": false
     }
   ]
 }</code></pre></p>
@@ -177,4 +183,17 @@ if($(commentContainerSelector).length > 0 && "WebSocket" in window) {
 
 
 </div><!-- container -->
-
+<script>
+// add http:// to URL fields on blur
+// https://aaronparecki.com/2018/06/03/3/
+document.addEventListener('DOMContentLoaded', function() {
+  var elements = document.querySelectorAll("input[type=url]");
+  Array.prototype.forEach.call(elements, function(el, i){
+    el.addEventListener("blur", function(e){
+      if(e.target.value.match(/^(?!https?:).+\..+/)) {
+        e.target.value = "http://"+e.target.value;
+      }
+    });
+  });
+});
+</script>

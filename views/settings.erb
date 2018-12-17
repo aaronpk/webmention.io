@@ -3,6 +3,25 @@
 <div class="page">
 
   <section>
+    <h2>Setup</h2>
+
+    <p>You can add the following tags to any website to accept webmentions.</p>
+
+    <p><pre><code>&lt;link rel="webmention" href="https://webmention.io/<%= @user.username %>/webmention" /&gt;
+&lt;link rel="pingback" href="https://webmention.io/<%= @user.username %>/xmlrpc" /&gt;</code></pre></p>
+
+    <p>You can use this account on any number of websites. The webmentions can be queried per website <a href="https://github.com/aaronpk/webmention.io#api">using the API</a>.</p>
+  </section>
+
+  <section>
+    <h2>Mentions Feed</h2>
+
+    <p>The link below provides all mentions received on your account as a Microformats feed. You can subscribe to this in a reader like <a href="https://aperture.p3k.io">Aperture</a>. You may want to add this to your Aperture "Notifications" channel!</p>
+
+    <p><pre><code><%= "#{SiteConfig.base_url}/api/mentions.html?token=#{@user.token}" %></code></pre></p>
+  </section>
+
+  <section>
     <h2>API Key</h2>
 
     <p>In order to access the list of mentions for a domain (not just a specific URL), you will need to use a token. Below is the token for your account.</p>
@@ -17,7 +36,7 @@
 
     <% if @user.sites.length > 0 %>
       <h3>Archive Avatars</h3>
-      <p>By default, the author's avatar URL will be archived and an alternate URL will be returned. This means you won't have to worry about broken image links for past webmentions when someone changes their profile URL. If you want this behavior to be disabled, you can un-check "Archive Avatars" and the original avatar URL will be returned.</p>
+      <p>By default, the author's avatar URL will be archived and an alternate URL will be returned. This means you won't have to worry about broken image links for past webmentions when someone changes their profile URL. If you want this behavior to be disabled, you can un-check "Archive Avatars" and the original avatar URL will be used instead.</p>
 
       <% @user.sites.each do |site| %>
         <div style="border: 1px #eee solid; border-radius: 3px; padding: 10px; margin: 4px; width: 40%; float: left;">
@@ -61,7 +80,7 @@
   }
 }</code></pre>
 
-    <p>The payload will indicate the type of post that was sent. Other values for "property" (and corresponding property in the "post" object) are:</p>
+    <p>The payload will indicate the type of post that was sent. Other values for "wm-property" (and corresponding property in the "post" object) are:</p>
 
     <ul>
       <li><code>in-reply-to</code></li>

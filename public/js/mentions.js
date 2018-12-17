@@ -9,7 +9,7 @@ jQuery(function($){
     urls.push(parser.pathname+parser.search);
   });
 
-  $.getJSON("https://webmention.io/api/count?jsonp=?", {
+  $.getJSON("https://webmention.io/api/count", {
     base: base,
     targets: urls.join(",")
   }, function(data){

@@ -98,7 +98,8 @@ class Formats
       },
       url: link.absolute_url,
       published: published,
-      "wm-received": received
+      "wm-received": received,
+      "wm-id": link.id,
     }
 
     if !link.name.blank?

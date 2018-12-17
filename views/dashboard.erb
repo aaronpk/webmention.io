@@ -2,15 +2,6 @@
   <%= partial :'partials/_topbar' %>
   <div class="page">
 
-    <section>
-    <p>Congrats, you've signed in. Now you can use the following tags to accept webmentions for this account.</p>
-
-    <p><pre><code>&lt;link rel="pingback" href="https://webmention.io/<%= @user.username %>/xmlrpc" /&gt;
-&lt;link rel="webmention" href="https://webmention.io/<%= @user.username %>/webmention" /&gt;</code></pre></p>
-
-    <p>You can use this account on any number of websites. The webmentions can be queried per website <a href="https://github.com/aaronpk/webmention.io#api">using the API</a>.</p>
-  </section>
-
   <section>
     <h2>Recent Webmentions</h2>
 
@@ -25,7 +16,7 @@
     <% end %>
 
     <h3>Delete Webmention</h3>
-    
+
     <p>Paste the source URL for a webmention you want to delete. You'll be able to delete any webmentions from that URL in the next step.</p>
 
     <form action="/delete" method="get">

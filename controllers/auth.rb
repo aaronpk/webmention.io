@@ -1,14 +1,44 @@
 class Controller < Sinatra::Base
 
-  get '/auth/start' do
-    redirect "#{SiteConfig.indieauth_server}/auth?client_id=#{SiteConfig.base_url}/&redirect_uri=#{SiteConfig.base_url}/auth/callback"
+  def get_client_id
+    SiteConfig.base_url+"/"
   end
 
-  get '/auth/indieauth/callback' do
-    auth = request.env["omniauth.auth"]
-    puts auth.info.url.inspect
+  def get_redirect_uri
+    "#{SiteConfig.base_url}/auth/callback"
+  end
 
-    signed_in_uri = URI.parse(auth.info.url)
+  get '/auth/start' do
+    session[:state] = SecureRandom.urlsafe_base64 16
+    query_params = {
+      client_id: get_client_id,
+      state: session[:state],
+      redirect_uri: get_redirect_uri,
+      me: params[:me],
+    }
+    query = URI.encode_www_form query_params
+    redirect "#{SiteConfig.indieauth_server}/auth?#{query}"
+  end
+
+  get '/auth/callback' do
+    puts request.params.inspect
+
+    response = HTTParty.post SiteConfig.indieauth_server+"/auth", {
+      :body => {
+        :code => request.params['code'],
+        :client_id => get_client_id,
+        :redirect_uri => get_redirect_uri,
+      }
+    }
+
+    puts response.parsed_response
+
+    if !response.parsed_response['me']
+      session[:state] = nil
+      redirect "/auth/start"
+    end
+
+    signed_in_uri = URI.parse(response.parsed_response['me'])
 
     if !['','/'].include? signed_in_uri.path
       @message = "Sorry, you can't use this service if your IndieAuth URL contains a path component. Only root domains are supported.<br><br>You signed in as <code>#{auth.info.url}</code>"
@@ -31,8 +61,19 @@ class Controller < Sinatra::Base
 
       session[:user_id] = user[:id]
       puts "User successfully logged in"
-      redirect "/dashboard"
+
+      # If the user has no mentions yet, redirect to the settings page
+      if user.sites.pages.links(:verified => true, :deleted => false).count == 0
+        redirect "/settings"
+      else
+        redirect "/dashboard"
+      end
     end
+  end
+
+  get '/logout' do
+    session[:user_id] = nil
+    redirect "/"
   end
 
 end

@@ -41,15 +41,16 @@ class Controller < Sinatra::Base
                                :secret => SiteConfig.session_secret
 
     set :root, File.dirname(__FILE__)
-    set :show_exceptions, true
     set :raise_errors,    false
     set :protection, :except => [:frame_options, :json_csrf]
 
-    use OmniAuth::Builder do
-      provider :indieauth, :client_id => SiteConfig.base_url, :server => SiteConfig.indieauth_server
+    if ENV['RACK_ENV'] == 'development'
+      set :show_exceptions, true
+      DataMapper::Logger.new(STDOUT, :debug)
+    else
+      set :show_exceptions, false
     end
 
-    DataMapper::Logger.new(STDOUT, :debug)
     DataMapper.finalize
     DataMapper.setup :default, SiteConfig.database_url
     DataMapper.repository.adapter.execute('SET NAMES utf8mb4')

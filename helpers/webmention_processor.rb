@@ -114,6 +114,26 @@ class WebmentionProcessor
       return nil, error
     end
 
+
+
+    debug = Debug.all(:page_url => target, :enabled => true) | Debug.all(:domain => target_domain, :enabled => true)
+    if debug.count > 0
+      puts "Debug enabled for #{target}"
+      filename = File.join(File.expand_path(File.dirname(__FILE__)), '../debug.log')
+      log = Logger.new(filename)
+      log.debug "==================================================="
+      log.debug "Webmention from #{source} to #{target}"
+      log.debug source_data.to_json
+      begin
+        # Fetch the content and write it to the log
+        debug_content = HTTParty.get source
+        log.debug debug_content.response.body
+      rescue => e
+      end
+    end
+
+
+
     if source_data.class == XRayError
       if source_data.error != "no_link_found"
         # Don't log these errors
@@ -127,11 +147,31 @@ class WebmentionProcessor
 
     puts "Processing... s=#{source} t=#{target}"
 
+
+    debug = Debug.all(:page_url => target, :on_success => true) | Debug.all(:domain => target_domain, :on_success => true)
+    if debug.count > 0
+      puts "Debug success enabled for #{target}"
+      filename = File.join(File.expand_path(File.dirname(__FILE__)), '../debug.log')
+      log = Logger.new(filename)
+      log.debug "==================================================="
+      log.debug "Webmention successful from #{source} to #{target}"
+      log.debug source_data.to_json
+      begin
+        # Fetch the content and write it to the log
+        debug_content = HTTParty.get source
+        log.debug debug_content.response.body
+      rescue => e
+      end
+    end
+
+
     # If the page already exists, use that record. Otherwise create it and find out what kind of object is on the page.
     # This currently uses the Ruby mf2 parser to parse the target URL
     page = create_page_in_site site, target
 
     link = Link.first_or_create({:page => page, :href => source}, {:site => site})
+
+    link.protocol = protocol
 
     already_registered = link[:verified]
 

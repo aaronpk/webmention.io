@@ -13,9 +13,7 @@ gem 'dalli'
 gem 'ratom', :require => 'atom'
 gem 'jwt'
 gem 'httparty'
-
-gem 'omniauth'
-gem 'omniauth-indieauth'
+gem 'xmlrpc'
 
 gem 'mechanize'
 #gem 'pingback'
@@ -23,7 +21,7 @@ gem 'mechanize'
 gem 'rest-client'
 #gem 'xmpp4r', :require => 'xmpp4r/client'
 gem 'redis'
- 
+
 gem 'microformats2'
 gem 'sanitize', '~>3.0.3'
 gem 'indefinite_article'
@@ -36,12 +34,9 @@ gem 'dm-aggregates'
 gem 'dm-mysql-adapter'
 gem 'dm-pager'
 
-group :production do
-  gem 'sucker_punch', '~> 1.0'
-end
+gem 'sucker_punch', '~> 1.0'
 
 group :development do
-  gem 'sucker_punch', '~> 1.0'
   gem 'shotgun',                :require => nil
   gem 'thin',                   :require => nil
 end

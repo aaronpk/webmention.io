@@ -6,8 +6,8 @@ This project is an implementation of the [Webmention](https://indieweb.org/webme
 
 Say you have a statically-generated website using Jekyll or something similar, you can simply add the appropriate `<link>` tags to this service, and now you have Webmention and Pingback enabled on your static site!
 
-    <link rel="pingback" href="https://webmention.io/username/xmlrpc" />
     <link rel="webmention" href="https://webmention.io/username/webmention" />
+    <link rel="pingback" href="https://webmention.io/username/xmlrpc" />
 
 The Webmention and Pingback protocols also support specifying the endpoint in the headers,
 
@@ -23,10 +23,6 @@ The Webmention and Pingback protocols also support specifying the endpoint in th
 * If you want to receive Pingbacks on your site but don't want to deal with XMLRPC, then you can use this service to convert Pingbacks to Webmentions
 
 
-### Future Features
-
-* Provide an API method for sending outgoing pingbacks from your own site to pages you link to
-
 ## API
 
 ### Find links to a specific page
@@ -34,14 +30,28 @@ The Webmention and Pingback protocols also support specifying the endpoint in th
 This service provides an API for returning a list of pages that have linked to a given page. For example:
 
 ```
-GET https://webmention.io/api/mentions?target=https://indieweb.org
+GET https://webmention.io/api/mentions.jf2?target=https://indieweb.org
 
 {
-  "links": [
+  "type": "feed",
+  "name": "Webmentions",
+  "children": [
     {
-      "source": "http://tantek.com/2013/113/b1/first-federated-indieweb-comment-thread",
-      "verified": true,
-      "verified_date": "2013-04-25T17:09:33-07:00"
+      "type": "entry",
+      "author": {
+        "type": "card",
+        "name": "Tantek Çelik",
+        "url": "http://tantek.com/",
+        "photo": "http://tantek.com/logo.jpg"
+      },
+      "url": "http://tantek.com/2013/112/t2/milestone-show-indieweb-comments-h-entry-pingback",
+      "published": "2013-04-22T15:03:00-07:00",
+      "wm-received": "2013-04-25T17:09:33-07:00",
+      "wm-id": 900,
+      "content": {
+        "text": "Another milestone: @eschnou automatically shows #indieweb comments with h-entry sent via pingback http://eschnou.com/entry/testing-indieweb-federation-with-waterpigscouk-aaronpareckicom-and--62-24908.html",
+        "html": "Another milestone: &lt;a href=\"https:\/\/twitter.com\/eschnou\">@eschnou&lt;\/a> automatically shows #indieweb comments with h-entry sent via pingback &lt;a href=\"http:\/\/eschnou.com\/entry\/testing-indieweb-federation-with-waterpigscouk-aaronpareckicom-and--62-24908.html\">http:\/\/eschnou.com\/entry\/testing-indieweb-federation-with-waterpigscouk-aaronpareckicom-and--62-24908.html&lt;\/a>"
+      }
     }
   ]
 }
@@ -52,13 +62,13 @@ GET https://webmention.io/api/mentions?target=https://indieweb.org
 You can include a parameter to limit the returned links to mentions of a specific type:
 
 ```
-GET https://webmention.io/api/mentions?target=https://indieweb.org&wm-property=in-reply-to
+GET https://webmention.io/api/mentions.jf2?target=https://indieweb.org&wm-property=in-reply-to
 ```
 
 or request multiple types by repeating the query parameter:
 
 ```
-GET https://webmention.io/api/mentions?target=https://indieweb.org&wm-property[]=in-reply-to&wm-property[]=rsvp
+GET https://webmention.io/api/mentions.jf2?target=https://indieweb.org&wm-property[]=in-reply-to&wm-property[]=rsvp
 ```
 
 The full list of recognized properties is below:
@@ -76,17 +86,7 @@ The full list of recognized properties is below:
 This is useful for retrieving mentions from a post if you've changed the URL.
 
 ```
-GET https://webmention.io/api/mentions?target[]=http://indiewebcamp.com/a-blog-post&target[]=http://indiewebcamp.com/a-different-post
-
-{
-  "links": [
-    {
-      "source": "http://tantek.com/2013/113/b1/first-federated-indieweb-comment-thread",
-      "verified": true,
-      "verified_date": "2013-04-25T17:09:33-07:00"
-    }
-  ]
-}
+GET https://webmention.io/api/mentions.jf2?target[]=https://indieweb.org/a-blog-post&target[]=https://indieweb.org/a-different-post
 ```
 
 ### Find all links to your domain
@@ -94,18 +94,7 @@ GET https://webmention.io/api/mentions?target[]=http://indiewebcamp.com/a-blog-p
 You can also find all links to your domain:
 
 ```
-GET https://webmention.io/api/mentions?domain=indiewebcamp.com&token=xxxxx
-
-{
-  "links": [
-    {
-      "source": "http://tantek.com/2013/113/b1/first-federated-indieweb-comment-thread",
-      "verified": true,
-      "verified_date": "2013-04-25T17:09:33-07:00",
-      "target": "http://indiewebcamp.com/webmention"
-    }
-  ]
-}
+GET https://webmention.io/api/mentions.jf2?domain=indiewebcamp.com&token=xxxxx
 ```
 
 (You will see your account's token when you sign in.)
@@ -113,7 +102,7 @@ GET https://webmention.io/api/mentions?domain=indiewebcamp.com&token=xxxxx
 You can optionally add a `since` parameter to return new webmentions as of a certain date. This is useful to poll for new webmentions you haven't seen yet.
 
 ```
-GET https://webmention.io/api/mentions?domain=indiewebcamp.com&token=xxxxx&since=2017-06-01T10:00:00-0700
+GET https://webmention.io/api/mentions.jf2?domain=indiewebcamp.com&token=xxxxx&since=2017-06-01T10:00:00-0700
 ```
 
 
@@ -123,17 +112,6 @@ With no parameters, the API will return all links to any site in your account:
 
 ```
 GET https://webmention.io/api/mentions?token=xxxxxx
-
-{
-  "links": [
-    {
-      "source": "http://tantek.com/2013/113/b1/first-federated-indieweb-comment-thread",
-      "verified": true,
-      "verified_date": "2013-04-25T17:09:33-07:00",
-      "target": "http://indiewebcamp.com/webmention"
-    }
-  ]
-}
 ```
 
 ### Sorting
@@ -163,7 +141,7 @@ The default number of results per page is 20. Results are always sorted newest f
 
 ### Finding New Mentions
 
-You can use the `since` or `since_id` parameters to find new mentions retrieved by the service. 
+You can use the `since` or `since_id` parameters to find new mentions retrieved by the service.
 
 * `since=2017-06-01T10:00:00-0700` - pass a full timestamp to the `since` parameter to return links created after that date. This corresponds to the date the link was created in the webmention.io service, not the published date that the page reports.
 * `since_id=1000` - pass an ID to return links with a greater ID
@@ -171,7 +149,7 @@ You can use the `since` or `since_id` parameters to find new mentions retrieved 
 
 ### JSONP
 
-The API also supports JSONP so you can use it to show pingbacks on your own sites via Javascript. Simply add a parameter `jsonp` to the API call, for example, http://webmention.io/api/mentions?jsonp=f&target=http%3A%2F%2Fwebmention.io
+The API also supports JSONP so you can use it to show pingbacks on your own sites via Javascript. Simply add a parameter `jsonp` to the API call, for example, https://webmention.io/api/mentions.jf2?jsonp=f&target=https%3A%2F%2Fwebmention.io
 
 
 ### Atom
@@ -211,7 +189,7 @@ GET https://webmention.io/api/mentions.atom?token=xxxxxx
 
 ### IRC
 
-If you are running an instance of [TikTokBot](https://github.com/aaronpk/tiktokbot), you can use it to receive IRC notifications when a new webmention or pingback is received.
+If you are running an instance of [TikTokBot](https://github.com/aaronpk/TikTokBot), you can use it to receive IRC notifications when a new webmention or pingback is received.
 
 ### Jabber
 
@@ -234,13 +212,13 @@ Read the full protocol here: http://www.hixie.ch/specs/pingback/pingback
 
 ## Pingback to Webmention Service
 
-[Webmention](http://webmention.org) is a modern alternative to Pingback. It's analogous to the Pingback protocol except does not use XML-RPC and is much easier to implement. This project also includes a simple API for converting XML-RPC Pingbacks to Webmentions and forwarding the request on to your own site.
+[Webmention](https://webmention.net) is a modern alternative to Pingback. It's analogous to the Pingback protocol except does not use XML-RPC and is much easier to implement. This project also includes a simple API for converting XML-RPC Pingbacks to Webmentions and forwarding the request on to your own site.
 
 Using Webmention.io in this mode does not require an registration, and this service does not store any of the information. The Pingback request is simply forwarded on to your server as a Webmention.
 
 To use, add a Pingback header like the following:
 
-    <link rel="pingback" href="https://webmention.io/webmention?forward=http://example.com/webmention" />
+    <link rel="pingback" href="https://webmention.io/webmention?forward=https://example.com/webmention" />
 
 Any Pingbacks received will be forwarded on to the specified Webmention endpoint. It is up to you to handle the Webmention and return an expected result. The Webmention result will be converted to a Pingback result and passed back to the sender.
 
@@ -440,6 +418,6 @@ Counts that are tracked, one graph for webmention, another for pingback
 
 ## License
 
-Copyright 2017 by Aaron Parecki.
+Copyright 2018 by Aaron Parecki.
 
 Available under the BSD License. See LICENSE.txt

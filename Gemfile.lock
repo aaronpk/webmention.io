@@ -57,8 +57,6 @@ GEM
       unf (>= 0.0.5, < 1.0.0)
     erubis (2.7.0)
     eventmachine (1.2.5)
-    faraday (0.9.2)
-      multipart-post (>= 1.2, < 3)
     hashdiff (0.3.5)
     hashie (3.5.6)
     hitimes (1.2.6)
@@ -82,9 +80,6 @@ GEM
       nokogiri (~> 1.6)
       ntlm-http (~> 0.1, >= 0.1.1)
       webrobots (>= 0.0.9, < 0.2)
-    microformats (4.0.7)
-      json
-      nokogiri
     microformats2 (3.1.0)
       json
       nokogiri
@@ -95,7 +90,6 @@ GEM
     minitest (5.10.3)
     multi_json (1.12.1)
     multi_xml (0.6.0)
-    multipart-post (2.0.0)
     mustermann (1.0.0)
     mysql2 (0.4.2)
     net-http-digest_auth (1.4.1)
@@ -106,13 +100,6 @@ GEM
     nokogumbo (1.1.12)
       nokogiri
     ntlm-http (0.1.1)
-    omniauth (1.6.1)
-      hashie (>= 3.4.6, < 3.6.0)
-      rack (>= 1.6.2, < 3)
-    omniauth-indieauth (0.1.5)
-      faraday (~> 0.9.0)
-      microformats (>= 4.0.7)
-      omniauth (~> 1.0)
     public_suffix (2.0.5)
     rack (2.0.3)
     rack-protection (2.0.0)
@@ -176,6 +163,7 @@ GEM
       crack (>= 0.3.2)
       hashdiff
     webrobots (0.1.2)
+    xmlrpc (0.3.0)
 
 PLATFORMS
   ruby
@@ -198,8 +186,6 @@ DEPENDENCIES
   microformats2
   minitest
   mysql2 (= 0.4.2)
-  omniauth
-  omniauth-indieauth
   rainbows
   rake
   ratom
@@ -213,6 +199,7 @@ DEPENDENCIES
   sucker_punch (~> 1.0)
   thin
   webmock
+  xmlrpc
 
 BUNDLED WITH
-   1.14.4
+   1.16.0

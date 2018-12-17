@@ -20,7 +20,7 @@ class Controller < Sinatra::Base
       targets.each do |t|
         links += t.links.count(:verified => true, :deleted => false)
       end
-      types = repository(:default).adapter.select('SELECT type, COUNT(1) AS num FROM links 
+      types = repository(:default).adapter.select('SELECT type, COUNT(1) AS num FROM links
         WHERE page_id IN ('+targets.map{|t| t.id}.join(',')+')
           AND deleted = 0 AND verified = 1
         GROUP BY type')
@@ -37,7 +37,7 @@ class Controller < Sinatra::Base
     }
   end
 
-  get %r{/api/(links|mentions)(:?\.(?<format>json|atom|jf2))?} do
+  get %r{/api/(links|mentions)(:?\.(?<format>json|atom|jf2|html))?} do
     format = params['format'] || 'json'
 
     if params[:token]
@@ -66,10 +66,10 @@ class Controller < Sinatra::Base
     end
 
     opts = {
-      :verified => true, 
+      :verified => true,
       :deleted => false,
       :order => [],
-      :offset => (pageNum * limit), 
+      :offset => (pageNum * limit),
       :limit => limit
     }
 
@@ -138,10 +138,18 @@ class Controller < Sinatra::Base
         }
       end
 
+      @account = account
+
       if params[:domain]
-        links = account.sites.all(:domain => params[:domain]).pages.links.all(opts)
+        site = Site.first :domain => params[:domain]
+        if site
+          opts[:site] = site
+          links = account.links.all(opts)
+        else
+          links = []
+        end
       else
-        links = account.sites.pages.links.all(opts)
+        links = account.links.all(opts)
       end
 
     else
@@ -179,6 +187,9 @@ class Controller < Sinatra::Base
       api_response format, 200, Formats.links_to_json(links)
     elsif format =='jf2'
       api_response format, 200, Formats.links_to_jf2(links)
+    elsif format == 'html'
+      @links = links
+      erb :mentions
     else
       api_response format, 200, Formats.links_to_atom(links)
     end

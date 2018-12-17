@@ -3,7 +3,7 @@ class XRay
     if SiteConfig.xray_server.blank?
       return nil
     end
-      
+
     begin
       user_agent = SiteConfig.base_url.gsub /^https?:\/\//, ''
       if html
@@ -89,5 +89,12 @@ class XRayError
   def initialize(error, error_description)
     @error = error
     @error_description = error_description
+  end
+
+  def to_json
+    {
+      :error => @error,
+      :error_description => @error_description
+    }.to_json
   end
 end
