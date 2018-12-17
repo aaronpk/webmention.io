@@ -184,7 +184,7 @@ class WebmentionProcessor
     # This currently uses the Ruby mf2 parser to parse the target URL
     page = create_page_in_site site, target
 
-    link = Link.first_or_create({:page => page, :href => source}, {:site => site})
+    link = Link.first_or_create({:page => page, :href => source}, {:site => site, :domain => source_uri.host})
 
     link.protocol = protocol
 
