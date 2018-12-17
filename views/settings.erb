@@ -19,6 +19,7 @@
     <p>The link below provides all mentions received on your account as a Microformats feed. You can subscribe to this in a reader like <a href="https://aperture.p3k.io">Aperture</a>. You may want to add this to your Aperture "Notifications" channel!</p>
 
     <p><pre><code><%= "#{SiteConfig.base_url}/api/mentions.html?token=#{@user.token}" %></code></pre></p>
+    <p><pre><code><%= "#{SiteConfig.base_url}/api/mentions.atom?token=#{@user.token}" %></code></pre></p>
   </section>
 
   <section>
