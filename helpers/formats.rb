@@ -100,6 +100,8 @@ class Formats
       published: published,
       "wm-received": received,
       "wm-id": link.id,
+      "wm-source": link.href,
+      "wm-target": link.page.href
     }
 
     if !link.name.blank?
