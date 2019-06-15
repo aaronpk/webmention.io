@@ -118,12 +118,12 @@ class WebmentionProcessor
       source_data = XRay.parse source, target
     end
 
+
     if source_data.nil?
       error = 'invalid_source'
       error_status token, source, target, protocol, error, 'Error retrieving source. No result returned from XRay.'
       return nil, error
     end
-
 
 
     debug = Debug.all(:page_url => target, :enabled => true) | Debug.all(:domain => target_domain, :enabled => true)
@@ -143,17 +143,38 @@ class WebmentionProcessor
     end
 
 
-
     if source_data.class == XRayError
       if source_data.error != "no_link_found"
         # Don't log these errors
         puts "\tError retrieving source: #{source_data.error} : #{source_data.error_description}"
       end
+
+      # Check for an existing post that has been deleted
+      site = Site.first :account => target_account, :domain => target_domain
+      if site
+        page = Page.first :site => site, :href => target
+        if page
+          link = Link.first_or_create({:page => page, :href => source}, {:site => site, :account => site.account, :domain => source_uri.host})
+          if link
+            # This webmention was previously received, but now was deleted, so delete from the DB
+            link.destroy
+
+            # And respond with a success
+            WebmentionProcessor.update_status @redis, token, {
+              :status => 'deleted',
+              :source => source,
+              :target => target,
+              :private => link.is_private,
+            }
+
+            return nil, 'deleted'
+          end
+        end
+      end
+
       error_status token, source, target, protocol, source_data.error, source_data.error_description
       return nil, source_data.error
     end
-
-
 
 
 
