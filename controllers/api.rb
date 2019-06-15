@@ -154,6 +154,16 @@ class Controller < Sinatra::Base
 
     else
 
+      if params[:target].class == String
+        target_uri = URI.parse params[:target]
+        if target_uri.scheme == nil
+          params[:target] = [
+            "https:#{params[:target]}",
+            "http:#{params[:target]}"
+          ]
+        end
+      end
+
       targets = Page.all :href => params[:target]
 
       if targets.nil?
