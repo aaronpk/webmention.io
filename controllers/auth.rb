@@ -44,6 +44,11 @@ class Controller < Sinatra::Base
       @message = "Sorry, you can't use this service if your IndieAuth URL contains a query string.<br><br>You signed in as <code>#{response.parsed_response['me']}</code><br><br>If you want to host your website at a subfolder, make sure your root domain redirects with a temporary HTTP 302 redirect."
       erb :error
     else
+      # don't include trailing slash in plain domain identities
+      if signed_in_uri.path == '/'
+        signed_in_uri.path = ''
+      end
+
       domain = signed_in_uri.to_s.downcase.gsub(/^https?:\/\//, '').gsub(/\//, '_')
 
       user = Account.first :domain => domain
