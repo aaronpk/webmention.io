@@ -40,11 +40,11 @@ class Controller < Sinatra::Base
 
     signed_in_uri = URI.parse(response.parsed_response['me'])
 
-    if !['','/'].include? signed_in_uri.path
-      @message = "Sorry, you can't use this service if your IndieAuth URL contains a path component. Only root domains are supported.<br><br>You signed in as <code>#{auth.info.url}</code>"
+    if signed_in_uri.query != nil
+      @message = "Sorry, you can't use this service if your IndieAuth URL contains a query string.<br><br>You signed in as <code>#{response.parsed_response['me']}</code><br><br>If you want to host your website at a subfolder, make sure your root domain redirects with a temporary HTTP 302 redirect."
       erb :error
     else
-      domain = signed_in_uri.host.downcase
+      domain = signed_in_uri.to_s.downcase.gsub(/^https?:\/\//, '').gsub(/\//, '_')
 
       user = Account.first :domain => domain
 
