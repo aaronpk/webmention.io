@@ -62,6 +62,15 @@
       <li><code>rsvp</code></li>
       <li><code>bookmark-of</code></li>
     </ul>
+
+    <p>If a webmention is deleted, either because the post was deleted or you deleted it from the dashboard, you will get a web hook notification like the below.</p>
+
+    <pre><code>{
+  "secret": "1234abcd",
+  "source": "http://rhiaro.co.uk/2015/11/1446953889",
+  "target": "http://aaronparecki.com/notes/2015/11/07/4/indiewebcamp",
+  "deleted": true
+}</code></pre>
   </section>
 
 </div>

@@ -114,12 +114,17 @@ class Controller < Sinatra::Base
         # Mark this particular webmention as deleted
         link.deleted = true
         link.save
+
         # Add this source URL to the blacklist for just this site
         blacklist = Blacklist.new
         blacklist.site = link.site
         blacklist.source = link.href
         blacklist.created_at = Time.now
         blacklist.save
+
+        # Notify the callback URL
+        WebHooks.deleted link.site, link.href, link.page.href, link.is_private
+
       else
         redirect "/dashboard"
       end
@@ -136,6 +141,9 @@ class Controller < Sinatra::Base
       links.each do |link|
         link.deleted = true
         link.save
+
+        # Notify the callback URL
+        WebHooks.deleted link.site, link.href, link.page.href, link.is_private
       end
       # Add this source URL to the blacklist for each site
       @user.sites.each do |site|
