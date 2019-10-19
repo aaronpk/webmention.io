@@ -106,7 +106,7 @@ class NotificationQueue
 
       targets = target_links.map{|id|
         Link.get(id)
-      }.uniq
+      }.uniq.compact
 
       source_authors = targets.map{|link|
         link.author_text unless link.nil?
@@ -121,25 +121,25 @@ class NotificationQueue
       html += " posted "
 
       text += targets.map{|link|
-        if !link.nil? and link.type and link.type != "link" and !link.name.blank?
+        if link.type and link.type != "link" and !link.name.blank?
           "#{link.type.with_indefinite_article}: \"#{link.name_truncated}\" #{link.href}"
-        elsif !link.nil? and !link.name.blank?
+        elsif !link.name.blank?
           "\"#{link.name_truncated}\" #{link.href}"
-        elsif !link.nil? and link.type and link.type != "link"
+        elsif link.type and link.type != "link"
           "#{link.type.with_indefinite_article} #{link.href}"
         else
-          link.href unless link.nil?
+          link.href
         end
       }.uniq.join_with_and
       html += targets.map{|link|
-        if !link.nil? and link.type and link.type != "link" and !link.name.blank?
+        if link.type and link.type != "link" and !link.name.blank?
           "#{link.type.with_indefinite_article}: <a href=\"#{link.href}\">#{link.name_truncated}</a>"
-        elsif !link.nil? and !link.name.blank?
+        elsif !link.name.blank?
           "<a href=\"#{link.href}\">#{link.name_truncated}</a>"
-        elsif !link.nil? and link.type and link.type != "link"
+        elsif link.type and link.type != "link"
           "#{link.type.with_indefinite_article} <a href=\"#{link.href}\">#{link.href}</a>"
         else
-          "<a href=\"#{link.href}\">#{link.href}</a>" unless link.nil?
+          "<a href=\"#{link.href}\">#{link.href}</a>"
         end
       }.uniq.join_with_and
 
@@ -147,10 +147,10 @@ class NotificationQueue
       html += " that linked to "
 
       text += targets.map{|link|
-        link.target unless link.nil?
+        link.target
       }.uniq.join_with_and
       html += targets.map{|link|
-        "<a href=\"#{link.target}\">#{link.target}</a>" unless link.nil?
+        "<a href=\"#{link.target}\">#{link.target}</a>"
       }.uniq.join_with_and
 
       puts "================"
