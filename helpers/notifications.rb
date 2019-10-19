@@ -121,23 +121,23 @@ class NotificationQueue
       html += " posted "
 
       text += targets.map{|link|
-        if link.type and link.type != "link" and !link.name.blank?
-          "#{link.type.with_indefinite_article}: \"#{link.name_truncated}\" #{link.href}" unless link.nil?
-        elsif !link.name.blank?
-          "\"#{link.name_truncated}\" #{link.href}" unless link.nil?
-        elsif link.type and link.type != "link"
-          "#{link.type.with_indefinite_article} #{link.href}" unless link.nil?
+        if !link.nil? and link.type and link.type != "link" and !link.name.blank?
+          "#{link.type.with_indefinite_article}: \"#{link.name_truncated}\" #{link.href}"
+        elsif !link.nil? and !link.name.blank?
+          "\"#{link.name_truncated}\" #{link.href}"
+        elsif !link.nil? and link.type and link.type != "link"
+          "#{link.type.with_indefinite_article} #{link.href}"
         else
           link.href unless link.nil?
         end
       }.uniq.join_with_and
       html += targets.map{|link|
-        if link.type and link.type != "link" and !link.name.blank?
-          "#{link.type.with_indefinite_article}: <a href=\"#{link.href}\">#{link.name_truncated}</a>" unless link.nil?
-        elsif !link.name.blank?
-          "<a href=\"#{link.href}\">#{link.name_truncated}</a>" unless link.nil?
-        elsif link.type and link.type != "link"
-          "#{link.type.with_indefinite_article} <a href=\"#{link.href}\">#{link.href}</a>" unless link.nil?
+        if !link.nil? and link.type and link.type != "link" and !link.name.blank?
+          "#{link.type.with_indefinite_article}: <a href=\"#{link.href}\">#{link.name_truncated}</a>"
+        elsif !link.nil? and !link.name.blank?
+          "<a href=\"#{link.href}\">#{link.name_truncated}</a>"
+        elsif !link.nil? and link.type and link.type != "link"
+          "#{link.type.with_indefinite_article} <a href=\"#{link.href}\">#{link.href}</a>"
         else
           "<a href=\"#{link.href}\">#{link.href}</a>" unless link.nil?
         end
