@@ -109,10 +109,10 @@ class NotificationQueue
       }.uniq
 
       source_authors = targets.map{|link|
-        link.author_text
+        link.author_text unless link.nil?
       }.uniq
       source_authors_html = targets.map{|link|
-        link.author_html
+        link.author_html unless link.nil?
       }.uniq
       text = source_authors.join_with_and
       html = source_authors_html.join_with_and
@@ -122,24 +122,24 @@ class NotificationQueue
 
       text += targets.map{|link|
         if link.type and link.type != "link" and !link.name.blank?
-          "#{link.type.with_indefinite_article}: \"#{link.name_truncated}\" #{link.href}"
+          "#{link.type.with_indefinite_article}: \"#{link.name_truncated}\" #{link.href}" unless link.nil?
         elsif !link.name.blank?
-          "\"#{link.name_truncated}\" #{link.href}"
+          "\"#{link.name_truncated}\" #{link.href}" unless link.nil?
         elsif link.type and link.type != "link"
-          "#{link.type.with_indefinite_article} #{link.href}"
+          "#{link.type.with_indefinite_article} #{link.href}" unless link.nil?
         else
-          link.href
+          link.href unless link.nil?
         end
       }.uniq.join_with_and
       html += targets.map{|link|
         if link.type and link.type != "link" and !link.name.blank?
-          "#{link.type.with_indefinite_article}: <a href=\"#{link.href}\">#{link.name_truncated}</a>"
+          "#{link.type.with_indefinite_article}: <a href=\"#{link.href}\">#{link.name_truncated}</a>" unless link.nil?
         elsif !link.name.blank?
-          "<a href=\"#{link.href}\">#{link.name_truncated}</a>"
+          "<a href=\"#{link.href}\">#{link.name_truncated}</a>" unless link.nil?
         elsif link.type and link.type != "link"
-          "#{link.type.with_indefinite_article} <a href=\"#{link.href}\">#{link.href}</a>"
+          "#{link.type.with_indefinite_article} <a href=\"#{link.href}\">#{link.href}</a>" unless link.nil?
         else
-          "<a href=\"#{link.href}\">#{link.href}</a>"
+          "<a href=\"#{link.href}\">#{link.href}</a>" unless link.nil?
         end
       }.uniq.join_with_and
 
@@ -147,10 +147,10 @@ class NotificationQueue
       html += " that linked to "
 
       text += targets.map{|link|
-        link.target
+        link.target unless link.nil?
       }.uniq.join_with_and
       html += targets.map{|link|
-        "<a href=\"#{link.target}\">#{link.target}</a>"
+        "<a href=\"#{link.target}\">#{link.target}</a>" unless link.nil?
       }.uniq.join_with_and
 
       puts "================"
