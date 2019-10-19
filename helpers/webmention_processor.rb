@@ -154,7 +154,7 @@ class WebmentionProcessor
       if site
         page = Page.first :site => site, :href => target
         if page
-          link = Link.first_or_create({:page => page, :href => source}, {:site => site, :account => site.account, :domain => source_uri.host})
+          link = Link.first :page => page, :href => source
           if link
             # This webmention was previously received, but now was deleted, so delete from the DB
             link.destroy
