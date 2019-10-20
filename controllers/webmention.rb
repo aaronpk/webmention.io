@@ -48,7 +48,7 @@ class Controller < Sinatra::Base
 
     # Swap Twitter URLs for Bridgy proxy URLs
     if m=params[:source].match(/https?:\/\/(?:www\.)?twitter\.com\/(.+)\/status(?:es)?\/([0-9]+)/)
-      params[:source] = "https://brid.gy/post/#{m[1]}/#{m[2]}"
+      params[:source] = "https://brid.gy/post/twitter/#{m[1]}/#{m[2]}"
     end
 
     puts "#{DateTime.now} WM: source=#{params[:source]} target=#{params[:target]}#{params[:code] ? ' private' : ''} ip=#{request.ip} status=#{status_url}"
