@@ -46,6 +46,11 @@ class Controller < Sinatra::Base
     token = SecureRandom.urlsafe_base64 15
     status_url = "#{SiteConfig.base_url}/#{username}/webmention/#{token}"
 
+    # Swap Twitter URLs for Bridgy proxy URLs
+    if m=params[:source].match(/https?:\/\/(?:www\.)?twitter\.com\/(.+)\/status(?:es)?\/([0-9]+)/)
+      params[:source] = "https://brid.gy/post/#{m[1]}/#{m[2]}"
+    end
+
     puts "#{DateTime.now} WM: source=#{params[:source]} target=#{params[:target]}#{params[:code] ? ' private' : ''} ip=#{request.ip} status=#{status_url}"
 
     begin
@@ -192,7 +197,7 @@ class Controller < Sinatra::Base
         :error_description => "source or target were invalid"
       }
     end
-  end    
+  end
 
   def process_mention(username, source, target, protocol, token, code, debug=false)
     WebmentionProcessor.update_status @redis, token, {
