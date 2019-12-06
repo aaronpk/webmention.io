@@ -43,6 +43,8 @@ class Link
 
   property :protocol, String, :length => 30 # webmention or pingback
 
+  property :relcanonical, String, :length => 255
+
   property :created_at, DateTime
   property :updated_at, DateTime
 

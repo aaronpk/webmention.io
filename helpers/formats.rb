@@ -48,6 +48,12 @@ class Formats
         :sentence_html => link.sentence_html
       }
 
+      if link.relcanonical
+        obj[:rels] = {
+          :canonical => link.relcanonical
+        }
+      end
+
       obj[:target] = link.page.href
 
       link_array << obj
@@ -195,6 +201,12 @@ class Formats
 
     jf2[:'wm-property'] = relation
     jf2[:'wm-private'] = link.is_private
+
+    if link.relcanonical
+      jf2[:rels] = {
+        :canonical => link.relcanonical
+      }
+    end
 
     jf2
   end

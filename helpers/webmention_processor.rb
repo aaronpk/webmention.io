@@ -511,6 +511,10 @@ class WebmentionProcessor
       link.swarm_coins = entry['swarm-coins'].to_i
     end
 
+    if !entry['rels'].blank? && !entry['rels']['canonical'].blank?
+      link.relcanonical = entry['rels']['canonical']
+    end
+
     link.save
   end
 
