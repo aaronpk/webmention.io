@@ -4,6 +4,6 @@
   "main": "server.js",
   "dependencies": {
     "redis": "~0.8.5",
-    "ws": "~0.4.31"
+    "ws": "~7.2.0"
   }
 }
