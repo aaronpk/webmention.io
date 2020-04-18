@@ -75,6 +75,15 @@ class Controller < Sinatra::Base
     erb :blocklists
   end
 
+  post '/settings/change_token' do
+    require_login
+
+    @user.token = SecureRandom.urlsafe_base64 16
+    @user.save
+
+    redirect "/settings"
+  end
+
   get '/delete/?' do
     require_login
 
