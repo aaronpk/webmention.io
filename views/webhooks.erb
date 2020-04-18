@@ -17,7 +17,7 @@
           <form action="/webhook/configure" method="post">
             <input type="hidden" name="site_id" value="<%= site.id %>">
             <input type="url" name="callback_url" placeholder="http://example.com/webmention/hook" style="margin-bottom: 4px; width: 90%;" value="<%= site.callback_url %>"><br>
-            <input type="text" name="callback_secret" placeholder="callback secret" style="margin-bottom: 4px; width: 90%;" value="<%= site.callback_secret %>"><br>
+            <input type="text" name="callback_secret" placeholder="callback secret" style="margin-bottom: 4px; width: 90%;" value="<%= site.callback_secret %>" maxlength="50"><br>
             <div style="margin-top: 6px; float: right;">
               <input type="submit" class="button" value="Save">
             </div>
