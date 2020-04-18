@@ -183,8 +183,8 @@ class Controller < Sinatra::Base
     end
 
     begin
-      source = URI.parse(source)
-      target = URI.parse(target)
+      source = URI.parse(URI.escape(source))
+      target = URI.parse(URI.escape(target))
       if source.host.nil? or target.host.nil?
         raise "missing host"
       end
@@ -194,7 +194,8 @@ class Controller < Sinatra::Base
     rescue => e
       json_response 400, {
         :error => 'invalid_request',
-        :error_description => "source or target were invalid"
+        :error_description => "source or target were invalid",
+        :error_details => e.message
       }
     end
   end
