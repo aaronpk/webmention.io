@@ -17,8 +17,8 @@ The Webmention and Pingback protocols also support specifying the endpoint in th
 
 ## Features
 
-* Accept Webmentions for any site by adding a simple html tag: `<link rel="webmention" href="http://webmention.io/username/webmention" />`
-* Accept Pingbacks for any site by adding a simple html tag: `<link rel="pingback" href="http://webmention.io/username/xmlrpc" />`
+* Accept Webmentions for any site by adding a simple html tag: `<link rel="webmention" href="https://webmention.io/username/webmention" />`
+* Accept Pingbacks for any site by adding a simple html tag: `<link rel="pingback" href="https://webmention.io/username/xmlrpc" />`
 * API to get a list of pages linking to your site or a specific page
 * If you want to receive Pingbacks on your site but don't want to deal with XMLRPC, then you can use this service to convert Pingbacks to Webmentions
 
