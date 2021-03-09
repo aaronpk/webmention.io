@@ -52,19 +52,15 @@
   <div class="home-section">
     <h2 id="display-mention-counter"><a href="#display-mention-counter" class="in-page-link icon-link"></a>Display a mention counter</h2>
 
-    <p>You can use the API from Javascript to display a mention count of one or more URLs</p>
+    <p>You can use the API from Javascript to display a mention count of one or more URLs.</p>
 
     <p><b>Getting the data manually</b></p>
 
-    <p>To retrieve the data manually using jQuery, you can make a request like the following.</p>
+    <p>To retrieve the data manually (via Fetch API, jQuery, raw XHR, etc.), you can make a request like the following. Webmention.io sets <code>Access-Control-Allow-Origin: *</code> in response headers, so you can query from a browser as well as from a server.</p>
 
-    <p><pre><code>$(function(){
-  $.getJSON("https://webmention.io/api/count", {
-    target: "http://example.com/page/100"
-  }, function(data){
-    console.log(data.count);
-  });
-});</code></pre></p>
+    <p><pre><code>fetch("https://webmention.io/api/count?target=https://example.com/page/100")
+    .then(response => response.json())
+    .then(responseJson => console.log(responseJson));</code></pre></p>
 
     <p>This will return a list of total mentions of the URL as well as grouped by type.</p>
 
@@ -97,15 +93,11 @@
   <div class="home-section">
     <h2 id="show-all-mentions"><a href="#show-all-mention" class="in-page-link icon-link"></a>Show all mentions</h2>
 
-    <p>You can also use the API to show all mentions of a URL. This will work with jQuery or you can use the API directly from a server.</p>
+    <p>You can also use the API to show all mentions of a URL. As with the <code>count</code> request, this will work from a browser or you can use the API directly from a server.</p>
 
-    <p><pre><code>$(function(){
-  $.getJSON("https://webmention.io/api/mentions.jf2", {
-    target: "https://example.com/page/100"
-  }, function(data){
-    console.log(data);
-  });
-});</code></pre></p>
+    <p><pre><code>fetch("https://webmention.io/api/mentions.jf2?target=https://example.com/page/100")
+    .then(response => response.json())
+    .then(responseJson => console.log(responseJson);</code></pre></p>
 
     <p>Which will return data in this format:</p>
 
