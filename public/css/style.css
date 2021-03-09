@@ -85,6 +85,10 @@ a:focus {
   padding: 1em;
 }
 
+.container-narrow p {
+  line-height: 1.5em;
+}
+
 .page {
   background-color: #fff;
   padding: 10px 20px;
@@ -118,6 +122,12 @@ a:focus {
   line-height: 1;
   letter-spacing: -1px;
   color: inherit;
+}
+
+@media (max-width: 767px) {
+  .hero-unit h1 {
+    font-size: 32px;
+  }
 }
 
 .btn {
