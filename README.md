@@ -149,7 +149,7 @@ You can use the `since` or `since_id` parameters to find new mentions retrieved 
 
 ### JSONP
 
-The API also supports JSONP so you can use it to show pingbacks on your own sites via Javascript. Simply add a parameter `jsonp` to the API call, for example, https://webmention.io/api/mentions.jf2?jsonp=f&target=https%3A%2F%2Fwebmention.io
+The API also supports JSONP so you can use it to show pingbacks on your own sites via JavaScript. Simply add a parameter `jsonp` to the API call, for example, https://webmention.io/api/mentions.jf2?jsonp=f&target=https%3A%2F%2Fwebmention.io
 
 
 ### Atom
