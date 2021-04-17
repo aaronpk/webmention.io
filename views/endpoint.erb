@@ -4,9 +4,9 @@
 
   <form action="/<%= @username %>/webmention" method="post">
     <label for="source">Source URL:</label>
-    <input type="text" name="source" id="source" placeholder="The page sending this webmention (probably yours)" style="margin-bottom: 14px; width: 90%; display: block;">
+    <input type="url" name="source" id="source" placeholder="The page sending this webmention (probably yours)" style="margin-bottom: 14px; width: 90%; display: block;">
     <label for="target">Target URL:</label>
-    <input type="text" name="target" id="target" placeholder="The page that should receive this webmention" style="margin-bottom: 14px; width: 90%; display: block;">
+    <input type="url" name="target" id="target" placeholder="The page that should receive this webmention" style="margin-bottom: 14px; width: 90%; display: block;">
     <div style="margin-top: 16px;">
       <input type="submit" class="button" value="Send Webmention">
     </div>
