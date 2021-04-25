@@ -37,8 +37,6 @@ class Link
   belongs_to :site
   belongs_to :account
 
-  belongs_to :notification, :required => false
-
   property :deleted, Boolean, :default => false
 
   property :protocol, String, :length => 30 # webmention or pingback

@@ -6,7 +6,6 @@ class Site
 
   belongs_to :account
   has n, :pages
-  has n, :notifications
   has n, :links
 
   property :public_access, Boolean, :default => true
@@ -18,8 +17,4 @@ class Site
 
   property :created_at, DateTime
   property :updated_at, DateTime
-
-  def supports_notifications?
-    return (!account.tiktokbot_uri.empty? && !irc_channel.empty?) || (!account.aperture_uri.empty? && !account.aperture_token.empty?) || (!account.xmpp_user.empty? && !account.xmpp_to.empty? && xmpp_notify)
-  end
 end

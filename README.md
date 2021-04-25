@@ -185,16 +185,6 @@ GET https://webmention.io/api/mentions.atom?token=xxxxxx
 ```
 
 
-## Notifications
-
-### IRC
-
-If you are running an instance of [TikTokBot](https://github.com/aaronpk/TikTokBot), you can use it to receive IRC notifications when a new webmention or pingback is received.
-
-### Jabber
-
-You may receive a notification using XMPP. Configure the Jabber account to send notifications from (JID as `foo@bar.tld/Resource` and password) as well as the JID the messages should be sent to. Jabber notification has to be enabled on a per-site basis.
-
 ## About the Pingback Protocol
 
 The pingback system is a way for a blog to be automatically notified when other Web sites link to it. It is entirely transparent to the linking author, requiring no user intervention to work, and operates on principles of automatic discovery of everything that it needs to know.

@@ -243,21 +243,6 @@ class WebmentionProcessor
       puts e.backtrace
     end
 
-    # Only send notifications about new webmentions
-    if site.supports_notifications?
-      if !already_registered
-        puts "Queuing notification: #{message}"
-
-        if link.type == "reply"
-          NotificationQueue.send_notification link.page.site, message, source
-        else
-          NotificationQueue.queue_notification link
-        end
-      else
-        puts "Already sent notification: #{message}"
-      end # notification
-    end
-
     WebHooks.notify site, link, source, target, (code ? true : false)
 
     if !site.account.aperture_uri.empty?
