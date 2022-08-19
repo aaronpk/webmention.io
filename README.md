@@ -405,9 +405,16 @@ Counts that are tracked, one graph for webmention, another for pingback
 * no_link_found
 * unknown_error
 
+## FAQ
+
+### Is there a way to replay webhooks
+
+Q: Is there a way to replay webhooks from webmention.io?
+
+A: In short no, however you should be able to get the same data from the API, and make sure you use the .jf2 URLs instead of .json since that's the format it uses for the webhook.
 
 ## License
 
-Copyright 2018 by Aaron Parecki.
+Copyright 2018-2022 by Aaron Parecki.
 
 Available under the BSD License. See LICENSE.txt
