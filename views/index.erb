@@ -27,8 +27,10 @@
 
     <p>Once you have signed up, add the following tags to your HTML, replacing "username" with the username you got when you signed up:</p>
 
-    <p><pre><code>    &lt;link rel="webmention" href="https://webmention.io/username/webmention" /&gt;
-    &lt;link rel="pingback" href="https://webmention.io/username/xmlrpc" /&gt;</code></pre></p>
+    <p><pre><code>    &lt;link rel="webmention" href="https://webmention.io/username/webmention" /&gt;</code></pre></p>
+    
+    <p>If you would also like to receive pingbacks, you can use the tag below. Keep in mind that you are likely to receive lots of pingback spam though, so only add this if you're sure you want to support legacy pingbacks.</p>
+    <p><pre><code>    &lt;link rel="pingback" href="https://webmention.io/username/xmlrpc" /&gt;</code></pre></p>
 
     <p>The system will begin collecting webmentions and pingbacks on your behalf. Of course you can leave off the pingback endpoint if you'd like.</p>
 
