@@ -101,7 +101,8 @@ class Formats
       "wm-received": received,
       "wm-id": link.id,
       "wm-source": link.href,
-      "wm-target": link.page.href
+      "wm-target": link.page.href,
+      "wm-protocol": link.protocol
     }
 
     if !link.name.blank?
