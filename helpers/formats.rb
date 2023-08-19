@@ -42,12 +42,6 @@ class Formats
         obj[:data][:swarm_coins] = link.swarm_coins
       end
 
-      obj[:activity] = {
-        :type => (link.type ? link.type.gsub(/rsvp-.*/,"rsvp") : link.type),
-        :sentence => link.sentence,
-        :sentence_html => link.sentence_html
-      }
-
       if link.relcanonical
         obj[:rels] = {
           :canonical => link.relcanonical

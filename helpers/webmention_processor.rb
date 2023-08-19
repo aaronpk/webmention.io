@@ -217,9 +217,6 @@ class WebmentionProcessor
     parsed = false
     source_is_bridgy = source.start_with? 'https://www.brid.gy/', 'https://brid.gy', 'https://brid-gy.appspot.com/'
 
-    # Default message. Overridden for some post types below.
-    message = "[mention] #{source} linked to #{target} (#{protocol})"
-
     begin
       add_author_to_link source_data, link
       add_mf2_data_to_link source_data, link
@@ -232,11 +229,6 @@ class WebmentionProcessor
       subject_html = link.author_html "someone", url
 
       phrase = get_phrase_and_set_type source_data, link, source, target
-
-      message = "[#{source_is_bridgy ? 'bridgy' : 'mention'}] #{subject} #{phrase} #{target}"
-
-      link.sentence = "#{subject} #{phrase} #{target}"
-      link.sentence_html = "#{subject_html} #{phrase} <a href=\"#{target}\">#{target}</a>"
     rescue => e
       # Ignore errors trying to parse for upgraded microformats
       puts "Error while parsing microformats #{e.message}"

@@ -30,8 +30,6 @@ class Link
 
   property :type, String
   property :is_direct, Boolean, :default => true
-  property :sentence, Text
-  property :sentence_html, Text
 
   belongs_to :page
   belongs_to :site
