@@ -109,7 +109,7 @@ class Controller < Sinatra::Base
         if pp == "rsvp"
           wm_type += ["rsvp-yes","rsvp-no","rsvp-maybe","rsvp-interested"]
         elsif pp == "mention-of"
-          wm_type = "link"
+          wm_type << "link"
         elsif
           wm_type << pp.gsub(/^in-/,'').gsub(/-(to|of)$/,'')
         end
