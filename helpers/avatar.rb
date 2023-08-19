@@ -11,7 +11,7 @@ class Avatar
         region: SiteConfig.ca3db.region,
         bucket: SiteConfig.ca3db.bucket,
         url: original_url,
-        max_height: 256
+        max_height: 96
       }.to_json, {
         content_type: :json,
         'x-api-key' => SiteConfig.ca3db.api_key
