@@ -24,4 +24,9 @@ class Account
   property :updated_at, DateTime
   property :last_login, DateTime
 
+  def generate_new_token!
+    self.token = SecureRandom.urlsafe_base64 16
+    self.save
+  end
+
 end

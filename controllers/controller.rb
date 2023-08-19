@@ -24,8 +24,7 @@ class Controller < Sinatra::Base
     require_login
 
     if @user.token.nil?
-      @user.token = SecureRandom.urlsafe_base64 16
-      @user.save
+      @user.generate_new_token!
     end
 
     opts = {
@@ -46,8 +45,7 @@ class Controller < Sinatra::Base
     require_login
 
     if @user.token.nil?
-      @user.token = SecureRandom.urlsafe_base64 16
-      @user.save
+      @user.generate_new_token!
     end
 
     title "Settings"
@@ -58,8 +56,7 @@ class Controller < Sinatra::Base
     require_login
 
     if @user.token.nil?
-      @user.token = SecureRandom.urlsafe_base64 16
-      @user.save
+      @user.generate_new_token!
     end
 
     title "Web Hook Settings"
@@ -78,8 +75,7 @@ class Controller < Sinatra::Base
   post '/settings/change_token' do
     require_login
 
-    @user.token = SecureRandom.urlsafe_base64 16
-    @user.save
+    @user.generate_new_token!
 
     redirect "/settings"
   end
