@@ -124,12 +124,12 @@ class Controller < Sinatra::Base
         link.deleted = true
         link.save
 
-        # Add this source URL to the blacklist for just this site
-        blacklist = Blacklist.new
-        blacklist.site = link.site
-        blacklist.source = link.href
-        blacklist.created_at = Time.now
-        blacklist.save
+        # Add this source URL to the blocklist for just this site
+        blocklist = Blocklist.new
+        blocklist.site = link.site
+        blocklist.source = link.href
+        blocklist.created_at = Time.now
+        blocklist.save
 
         # Notify the callback URL
         WebHooks.deleted link.site, link.href, link.page.href, link.is_private
@@ -154,13 +154,13 @@ class Controller < Sinatra::Base
         # Notify the callback URL
         WebHooks.deleted link.site, link.href, link.page.href, link.is_private
       end
-      # Add this source URL to the blacklist for each site
+      # Add this source URL to the blocklist for each site
       @user.sites.each do |site|
-        blacklist = Blacklist.new
-        blacklist.site = site
-        blacklist.source = params[:source]
-        blacklist.created_at = Time.now
-        blacklist.save
+        blocklist = Blocklist.new
+        blocklist.site = site
+        blocklist.source = params[:source]
+        blocklist.created_at = Time.now
+        blocklist.save
       end
     end
 

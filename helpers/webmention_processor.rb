@@ -84,10 +84,10 @@ class WebmentionProcessor
       return nil, error
     end
 
-    # Check that the source URL is not in the blacklist
+    # Check that the source URL is not in the blocklist
     site = Site.first :account => target_account, :domain => target_domain
     if !site.nil?
-      bl = Blacklist.first :site => site, :source => source
+      bl = Blocklist.first :site => site, :source => source
       if !bl.nil?
         error = 'blocked'
         error_status token, source, target, protocol, error, 'source URL is blocked'
