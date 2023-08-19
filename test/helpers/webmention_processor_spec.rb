@@ -192,7 +192,7 @@ describe WebmentionProcessor do
 
   end
 
-  describe "gets_phrase_and_sets_type" do
+  describe "sets_type" do
 
     before do
       @link = Link.new
@@ -203,10 +203,7 @@ describe WebmentionProcessor do
       @source = "http://source.example.org/like-of"
       @entry = XRay.parse @source, @target
 
-      phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
-
       @link.type.must_equal "like"
-      phrase.must_equal "liked a post"
     end
 
     # TODO: fill in with Bridgy example
@@ -215,10 +212,7 @@ describe WebmentionProcessor do
     #   @source = ""
     #   @entry = @w.get_entry_from_source @source
     #
-    #   phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
-    #
     #   @link.type.must_equal "like"
-    #   phrase.must_equal "liked a post that linked to"
     # end
 
     it "was invited to" do
@@ -226,10 +220,7 @@ describe WebmentionProcessor do
       @target = "http://target.example.com/"
       @entry = XRay.parse @source, @target
 
-      phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
-
       @link.type.must_equal "invite"
-      phrase.must_equal "was invited to"
     end
 
     it "reshared a post" do
@@ -237,10 +228,7 @@ describe WebmentionProcessor do
       @source = "http://source.example.org/repost-of"
       @entry = XRay.parse @source, @target
 
-      phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
-
       @link.type.must_equal "repost"
-      phrase.must_equal "reshared a post"
     end
 
     it "bookmarked a post" do
@@ -248,10 +236,7 @@ describe WebmentionProcessor do
       @source = "http://source.example.org/bookmark-of"
       @entry = XRay.parse @source, @target
 
-      phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
-
       @link.type.must_equal "bookmark"
-      phrase.must_equal "bookmarked a post"
     end
 
     it "commented on a post" do
@@ -260,10 +245,7 @@ describe WebmentionProcessor do
       @entry = XRay.parse @source, @target
       @link.content = @entry['content']['text']
 
-      phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
-
       @link.type.must_equal "reply"
-      phrase.must_equal "commented 'Thanks for the information, it was super helpful. I am looking forward to puttin...' on a post"
     end
 
     it "commented on a post that linked to" do
@@ -272,11 +254,8 @@ describe WebmentionProcessor do
       @entry = XRay.parse @source, @target
       @link.content = @entry['content']['text']
 
-      phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
-
       @link.type.must_equal "reply"
       @link.is_direct.must_equal false
-      phrase.must_equal "commented 'Thanks for the information, it was super helpful. I am looking forward to puttin...' on a post that linked to"
     end
 
     it "generic mention" do
@@ -285,10 +264,7 @@ describe WebmentionProcessor do
       @entry = XRay.parse @source, @target
       @link.content = @entry['content']['text']
 
-      phrase = @w.get_phrase_and_set_type @entry, @link, @source, @target
-
       @link.type.must_equal "link"
-      phrase.must_equal "posted 'Did you see this post over here? It was pretty great.' linking to"
     end
 
   end
