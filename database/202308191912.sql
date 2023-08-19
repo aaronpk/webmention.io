@@ -1,1 +1,1 @@
-RENAME TABLE blacklist TO blocklist;
+RENAME TABLE blacklists TO blocklists;
