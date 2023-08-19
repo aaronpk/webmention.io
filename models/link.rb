@@ -112,18 +112,6 @@ class Link
     end
   end
 
-  def name_truncated
-    return "" unless name
-
-    snippet = Sanitize.fragment(name).strip.gsub("\n", ' ').gsub(Regexp.new('\s+'),' ')
-    # TODO: better ellipsizing
-    if snippet.length > 80
-      snippet = snippet[0, 80] + '...'
-    end
-
-    snippet
-  end
-
   def syndications
     return nil if syndication.blank?
     return JSON.parse syndication

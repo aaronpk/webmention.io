@@ -105,30 +105,6 @@ describe Link do
 
   end
 
-  describe "name_truncated" do
-
-    def link_with_long_name
-      link = Link.new
-      link.href = "http://example.com/post/100"
-      link.name = "For some reason the name of this post is really long, far too long to be displayed normally, it should truncate it at some point"
-      link.author_name = "A. Example"
-      link.author_url = "/about"
-      link
-    end
-
-    it "truncates the name" do
-      link = link_with_long_name
-      link.name_truncated.must_equal "For some reason the name of this post is really long, far too long to be display..."
-    end
-
-    it "removes whitespace from the name" do
-      link = link_with_long_name
-      link.name = "This name has\na linebreak"
-      link.name_truncated.must_equal "This name has a linebreak"
-    end
-
-  end
-
   describe "published_date" do
 
     it "converts published date to local time" do
