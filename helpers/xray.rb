@@ -18,7 +18,8 @@ class XRay
         params = {
           url: url,
           target: target,
-          timeout: 12
+          timeout: 12,
+          accept: 'html'
         }
         if access_token
           params[:token] = access_token
