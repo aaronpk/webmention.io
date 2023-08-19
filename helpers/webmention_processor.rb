@@ -269,24 +269,6 @@ class WebmentionProcessor
       end
     end
 
-    # Publish on Redis for realtime comments
-    if @redis && parsed
-      @redis.publish "webmention.io::#{target}", {
-        type: 'webmention',
-        element_id: "external_#{source.gsub(/[\/:\.]+/, '_')}",
-        author: {
-          name: link.author_name,
-          url: link.author_url,
-          photo: link.author_photo
-        },
-        url: url,
-        name: link.name,
-        content: link.content,
-        published: link.published,
-        published_ts: link.published_ts
-      }.to_json
-    end
-
     puts "\tfinished #{token}"
 
     link.token = token
