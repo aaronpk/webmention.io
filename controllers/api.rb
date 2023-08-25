@@ -38,6 +38,8 @@ class Controller < Sinatra::Base
   end
 
   get %r{/api/(links|mentions)(:?\.(?<format>json|atom|jf2|html))?} do
+    DataMapper.repository.adapter.execute('SET collation_connection = "utf8mb4_general_ci";')
+    
     format = params['format'] || 'json'
 
     if params[:token]

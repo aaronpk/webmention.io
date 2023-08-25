@@ -55,6 +55,7 @@ class Controller < Sinatra::Base
     DataMapper.setup :default, SiteConfig.database_url
     DataMapper.repository.adapter.execute('SET NAMES utf8mb4')
     DataMapper.repository.adapter.execute('SET SESSION sql_mode = ""')
+    DataMapper.repository.adapter.execute('SET collation_connection = "utf8mb4_general_ci";')
 
     set :views, 'views'
     set :erubis,          :escape_html => true
