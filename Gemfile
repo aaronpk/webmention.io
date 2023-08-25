@@ -9,22 +9,13 @@ gem 'rainbows', :require => nil
 gem 'rake',                     :require => nil
 gem 'hashie'
 gem 'json', ">2.0.0"
-gem 'dalli'
 gem 'ratom', :require => 'atom'
 gem 'jwt'
 gem 'httparty'
 gem 'xmlrpc'
 
-gem 'mechanize'
-#gem 'pingback'
-#gem 'xml-simple', :require => 'xmlsimple'
 gem 'rest-client'
-#gem 'xmpp4r', :require => 'xmpp4r/client'
 gem 'redis'
-
-gem 'microformats2'
-gem 'sanitize', '~>3.0.3'
-gem 'indefinite_article'
 
 gem 'mysql2',          '0.4.2'
 gem 'dm-core'
@@ -35,6 +26,8 @@ gem 'dm-mysql-adapter'
 gem 'dm-pager'
 
 gem 'sucker_punch', '~> 1.0'
+
+gem 'activesupport', :require => 'active_support/core_ext/object/blank'
 
 group :development do
   gem 'shotgun',                :require => nil

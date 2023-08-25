@@ -225,9 +225,6 @@ class WebmentionProcessor
       # generate custom notification message.
       url = !link.url.blank? ? link.url : source
 
-      subject = link.author_text url
-      subject_html = link.author_html "someone", url
-
       set_type source_data, link, source, target
     rescue => e
       # Ignore errors trying to parse for upgraded microformats
@@ -422,7 +419,7 @@ class WebmentionProcessor
 
     if !link.url.blank?
       # Set link.url relative to source URL from the webmention
-      link.url = Microformats2::AbsoluteUri.new(link.url, base: link.href).absolutize
+      link.url = AbsoluteUri::AbsoluteUri.new(link.url, base: link.href).absolutize
     end
 
     link.photo = entry['photo'].to_json if entry['photo']

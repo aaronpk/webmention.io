@@ -17,12 +17,12 @@ class Formats
         obj[:data][:author] = {}
         obj[:data][:author][:name] = link.author_name if link.author_name
         if !link.author_url.blank?
-          obj[:data][:author][:url] = Microformats2::AbsoluteUri.new(link.author_url, base: link.href).absolutize
+          obj[:data][:author][:url] = AbsoluteUri::AbsoluteUri.new(link.author_url, base: link.href).absolutize
         else
           obj[:data][:author][:url] = nil
         end
         if !link.author_photo.blank?
-          obj[:data][:author][:photo] = Microformats2::AbsoluteUri.new(link.author_photo, base: link.href).absolutize
+          obj[:data][:author][:photo] = AbsoluteUri::AbsoluteUri.new(link.author_photo, base: link.href).absolutize
         else
           obj[:data][:author][:photo] = nil
         end

@@ -44,70 +44,8 @@ class Link
   property :created_at, DateTime
   property :updated_at, DateTime
 
-  def snippet
-    if content
-      stripped = Sanitize.fragment(content).strip
-      if stripped
-        snippet = stripped.gsub "\n", ' '
-      else
-        snippet = ''
-      end
-    else
-      if content_text
-        snippet = content_text.gsub "\n", ' '
-      else
-        snippet = ''
-      end
-    end
-    if snippet.length > 80
-      snippet = snippet[0, 80] + '...'
-    end
-    snippet
-  end
-
   def has_author_info
     !author_name.blank? || !author_url.blank? || !author_photo.blank?
-  end
-
-  def author_text(fallback="someone")
-    if !author_name.blank?
-      author_name
-    elsif !author_url.blank?
-      author_url
-    else
-      fallback
-    end
-  end
-
-  def author_html(fallback_text="someone", fallback_url=nil)
-    # The ruby mf2 parser doesn't resolve relative URLs, so the author URL might be relative.
-    # Use Ruby's "join" with the page href to get the absolute URL.
-    if !author_url.blank?
-      begin
-        absolute = URI.join(href,author_url)
-      rescue => e
-        absolute = author_url
-      end
-      if !author_name.blank?
-        "<a href=\"#{absolute}\">#{author_name}</a>"
-      else
-        "<a href=\"#{absolute}\">#{absolute}</a>"
-      end
-    else
-      if !author_name.blank?
-        if fallback_url
-          "<a href=\"#{fallback_url}\">#{author_name}</a>"
-        else
-          author_name
-        end
-      else
-        if fallback_url
-          "<a href=\"#{fallback_url}\">#{fallback_text}</a>"
-        else
-          fallback_text
-        end
-      end
-    end
   end
 
   def syndications
@@ -128,7 +66,7 @@ class Link
     if url.blank?
       href
     else
-      Microformats2::AbsoluteUri.new(url, base: href).absolutize
+      AbsoluteUri::AbsoluteUri.new(url, base: href).absolutize
     end
   end
 
