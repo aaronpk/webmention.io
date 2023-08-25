@@ -54,7 +54,7 @@ class WebmentionProcessor
     #puts "Verifying link exists from #{source} to #{target}"
 
     begin
-      target_uri = URI.parse(target)
+      target_uri = URI.parse(URI.escape(target))
       target_domain = target_uri.host
     rescue
       error = 'invalid_target'
@@ -69,7 +69,7 @@ class WebmentionProcessor
     end
 
     begin
-      source_uri = URI.parse(source)
+      source_uri = URI.parse(URI.escape(source))
     rescue
       error = 'invalid_source'
       error_status token, source, target, protocol, error, 'source could not be parsed as a URL'

@@ -81,6 +81,14 @@ describe Link do
       link2 = Link.get link.id
       _(link2.name).must_equal '💩'
     end
+    
+    it "handles a URL with emoji in it" do
+      link = Link.new
+      link.href = "http://example.com/💩/"
+      link.url  = "foo/"
+      _(link.absolute_url).must_equal "http://example.com/%F0%9F%92%A9/foo/"
+      
+    end
   end
 
 end

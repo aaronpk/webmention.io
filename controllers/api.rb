@@ -155,7 +155,7 @@ class Controller < Sinatra::Base
     else
 
       if params[:target].class == String
-        target_uri = URI.parse params[:target]
+        target_uri = URI.parse URI.escape params[:target]
         if target_uri.scheme == nil
           params[:target] = [
             "https:#{params[:target]}",
