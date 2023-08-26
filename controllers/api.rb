@@ -103,6 +103,8 @@ class Controller < Sinatra::Base
 
       if prop.class == String
         prop = [prop]
+      elsif prop.class == Sinatra::IndifferentHash
+        prop = prop.values
       end
 
       wm_type = []
