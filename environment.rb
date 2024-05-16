@@ -55,7 +55,13 @@ class Controller < Sinatra::Base
     DataMapper.setup :default, SiteConfig.database_url
     DataMapper.repository.adapter.execute('SET NAMES utf8mb4')
     DataMapper.repository.adapter.execute('SET SESSION sql_mode = ""')
-    DataMapper.repository.adapter.execute('SET collation_connection = "utf8mb4_general_ci";')
+
+    # This was added here and was supposed to be a fix for handling emoji in URLs:
+    # https://github.com/aaronpk/webmention.io/commit/1df6373363071c2d93e85d4d20b47fbe41424ed6
+    # However it instead seemed to break storing emoji in the post content entirely.
+    # Reverted this on 2023-11-06 and will come back to this later if emoji in URLs are still broken.
+    # https://github.com/aaronpk/webmention.io/issues/203
+    # DataMapper.repository.adapter.execute('SET collation_connection = "utf8mb4_general_ci";')
 
     set :views, 'views'
     set :erubis,          :escape_html => true
