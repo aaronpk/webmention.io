@@ -2,6 +2,10 @@
 
   <br /><br />
 
+  <div class="home-section hidden" id="error-message">
+    
+  </div>
+
   <div class="hero-unit">
     <img src="/img/webmention-logo-380.png" width="200px" class="pull-left" style="background-color: #eee; margin-right: 30px;" />
 
@@ -38,7 +42,7 @@
   </div>
 
 
-
+  <!--
   <div class="home-section">
     <h2 id="forwarding"><a href="#forwarding" class="in-page-link icon-link"></a>Forward pingbacks to webmentions</h2>
 
@@ -48,7 +52,7 @@
 
     <p>For further details and an example, please refer to the <a href="https://github.com/aaronpk/webmention.io#pingback-to-webmention-service">README</a>.</p>
   </div>
-
+  -->
 
 
   <div class="home-section">
@@ -187,9 +191,10 @@ document.addEventListener('DOMContentLoaded', function() {
   Array.prototype.forEach.call(elements, function(el, i){
     el.addEventListener("blur", function(e){
       if(e.target.value.match(/^(?!https?:).+\..+/)) {
-        e.target.value = "http://"+e.target.value;
+        e.target.value = "https://"+e.target.value;
       }
     });
   });
 });
 </script>
+<script src="/js/fedcm.js"></script>

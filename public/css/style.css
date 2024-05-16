@@ -371,3 +371,13 @@ table.recent-webmentions td {
   max-width: 24px;
   border-radius: 4px;
 }
+
+.hidden {
+  display: none;
+}
+
+#error-message {
+  margin-bottom: 1em;
+  border: 1px #c00 solid;
+  background: #fee;
+}
