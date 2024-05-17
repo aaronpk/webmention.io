@@ -8,11 +8,24 @@
     <p>You can add the following tag to any website to accept webmentions.</p>
 
     <p><pre><code>&lt;link rel="webmention" href="https://webmention.io/<%= @user.username %>/webmention" /&gt;</code></pre></p>
+
+    <p>You can use this account on any number of websites. The webmentions can be queried per website <a href="https://github.com/aaronpk/webmention.io#api">using the API</a>.</p>
   
+  </section>
+
+  <section>
+    <h2>Pingback</h2>
+    
     <p>If you would also like to receive pingbacks, you can use the tag below. Keep in mind that you are likely to receive lots of pingback spam though, so only add this if you're sure you want to support legacy pingbacks.</p>
     <p><pre><code>&lt;link rel="pingback" href="https://webmention.io/<%= @user.username %>/xmlrpc" /&gt;</code></pre></p>
 
-    <p>You can use this account on any number of websites. The webmentions can be queried per website <a href="https://github.com/aaronpk/webmention.io#api">using the API</a>.</p>
+    <form action="/settings/enable_pingback" method="post">
+      <select name="pingback_enabled">
+        <option value="yes" <%= @user.pingback_enabled ? 'selected' : '' %>>Enabled</option>
+        <option value="no" <%= @user.pingback_enabled ? '' : 'selected' %>>Disabled</option>
+      </select>
+      <button type="submit">Save</button>
+    </form>
   </section>
 
   <section>

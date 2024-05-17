@@ -113,6 +113,16 @@ class Controller < Sinatra::Base
 
   # Receive Pingbacks
   post '/:username/xmlrpc' do |username|
+    
+    account = Account.first :username => username
+    
+    if account.nil?
+      rpc_error 404, 0, "Not found"
+    end
+    
+    if account.pingback_enabled == false
+      rpc_error 401, 0, "Inactive account"
+    end
 
     #puts "RECEIVED PINGBACK REQUEST"
     utf8 = request.body.read.force_encoding "UTF-8"

@@ -19,6 +19,8 @@ class Account
   has n, :blocks
 
   property :token, String, :length => 255
+  
+  property :pingback_enabled, Boolean, :default => 0
 
   property :created_at, DateTime
   property :updated_at, DateTime

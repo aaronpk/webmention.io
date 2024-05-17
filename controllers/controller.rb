@@ -80,6 +80,15 @@ class Controller < Sinatra::Base
     redirect "/settings"
   end
 
+  post '/settings/enable_pingback' do
+    require_login
+
+    @user.pingback_enabled = params[:pingback_enabled] == 'yes' ? true : false
+    @user.save
+
+    redirect "/settings"
+  end
+
   get '/delete/?' do
     require_login
 
