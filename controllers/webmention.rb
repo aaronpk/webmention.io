@@ -19,7 +19,7 @@ class Controller < Sinatra::Base
     status = @redis.get "webmention:status:#{token}"
 
     if status
-      json_response 200, JSON.parse(status).symbolize_keys!
+      json_response 200, JSON.parse(status)
     else
       json_response 404, {
         :error => 'not_found',
