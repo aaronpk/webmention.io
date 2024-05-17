@@ -19,6 +19,7 @@ async function signIn() {
       },
     }).catch(e => {
       console.log("Error", e.message);
+      
       document.getElementById("error-message").classList.remove("hidden");
       document.getElementById("error-message").innerText = "FedCM error: "+e.message;
     });
@@ -71,7 +72,7 @@ function getChromeVersion () {
     return raw ? parseInt(raw[2], 10) : false;
 }
 
-if(navigator.credentials && getChromeVersion() == 126) {
+if(navigator.credentials && getChromeVersion() >= 126) {
   signIn();
 }
 
