@@ -1,0 +1,74 @@
+<div class="container-narrow">
+<%= partial :'partials/_topbar' %>
+<div class="page">
+
+  <section>
+    <h2>Sites</h2>
+
+    <% if @user.sites.length > 0 %>
+
+      <table class="table">
+        <tr class="header">
+          <td>Domain</td>
+          <td>Pages</td>
+          <td>Webmentions</td>
+          <td></td>
+        </tr>
+      <% @user.sites.each do |site| %>
+        <tr>
+          
+          <td><%= site.domain %></td>
+          <td><%= site.pages.length %></td>
+          <td><%= site.links.length %></td>
+          <td><a href="#" data-domain=<%= site.domain %>>Get Setup Code</a></td>
+          
+        </tr>
+      <% end %>
+      </table>
+      
+      <br><br><br>
+    
+    <% else %>
+      <p>Add a site, then add the link tag below to any pages on your site that you want to receive webmentions for!</p>
+    <% end %>  
+  
+    </section>
+
+    <section id="setup-code" class="hidden">
+      <h2>Setup</h2>
+  
+      <p>You can add the following tag to your website to accept webmentions.</p>
+  
+      <p><pre><code id="setup-code-snippet"></code></pre></p>
+  
+      <p>The webmentions can be queried per website <a href="https://github.com/aaronpk/webmention.io#api">using the API</a>.</p>
+    
+    </section>
+  
+  
+    <section>
+      <h2>Create a new Site</h2>
+
+      <form action="/settings/sites/new" method="post">
+        <div>Domain: 
+          <input type="text" name="domain" placeholder="example.com">
+          <span style="margin-right: 5px;"></span>
+          <button type="submit" class="button">Create</button>
+        </div>
+      </form>
+      
+    </section>
+
+    <script src="/js/jquery-1.7.1.min.js"></script>
+    <script>
+      $(function(){
+        $("a[data-domain]").click(function(e){
+          e.preventDefault();
+          var template = '<link rel="webmention" href="https://webmention.io/d/%domain%/webmention" />';
+          $("#setup-code-snippet").text(template.replace("%domain%", $(this).data('domain')));
+          $("#setup-code").removeClass("hidden");
+        });
+      });
+    </script>
+</div>
+</div><!-- container -->

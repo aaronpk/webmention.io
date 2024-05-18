@@ -52,6 +52,32 @@ class Controller < Sinatra::Base
     erb :settings
   end
 
+  get '/settings/sites' do
+    require_login
+    
+    # Automatically add the first site based on the domain they logged in with if no site is created yet
+    if @user.sites.length == 0
+      site = Site.new
+      site.account = @user
+      site.domain = @user.domain
+      site.save
+    end
+
+    title "Website Settings"
+    erb :sites
+  end
+  
+  post '/settings/sites/new' do
+    require_login
+    
+    site = Site.new
+    site.account = @user
+    site.domain = params[:domain]
+    site.save
+    
+    redirect "/settings/sites"
+  end
+
   get '/settings/webhooks' do
     require_login
 

@@ -31,7 +31,61 @@ class Controller < Sinatra::Base
   post '/:username/webmention' do |username|
 
     validate_parameters params[:source], params[:target]
+    
+    # First check that the domain of the target exists on this account
+    account = Account.first :domain => username
+    if account.nil?
+      json_response 404, {
+        :error => 'not_found',
+        :error_description => "account #{username} not found"
+      }
+    end
 
+    target_uri = URI.parse(URI.escape(params[:target]))
+    target_domain = target_uri.host
+    
+    # Check that the domain of the target URL is a registered site on this account
+    site = Site.first :account => account, :domain => target_domain
+    
+    if site.nil?
+      json_response 404, {
+        :error => 'invalid_target',
+        :error_description => "target domain not found on this account"
+      }
+    end
+    
+    process_webmention(username, 'account')
+
+  end
+  
+  post '/d/:domain/webmention' do |domain|
+    validate_parameters params[:source], params[:target]
+
+    # First check that the domain of the target exists
+    site = Site.first :domain => domain
+    if site.nil?
+      json_response 404, {
+        :error => 'not_found',
+        :error_description => "site #{domain} not found"
+      }
+    end
+
+    target_uri = URI.parse(URI.escape(params[:target]))
+    target_domain = target_uri.host
+
+    # Check that the target domain of the webmention matches the domain of the endpoint
+    if target_domain != site.domain
+      json_response 400, {
+        :error => 'invalid_target',
+        :error_description => "Target domain (#{target_domain}) does not match the domain of this webmention endpoint (#{domain})"
+      }      
+    end
+
+    process_webmention(site.account.username, 'site')
+
+  end
+  
+  def process_webmention(username, endpoint_type)
     hash = OpenSSL::Digest::MD5.hexdigest("s=#{params[:source]};t=#{params[:target]}")
 
     if @redis.get "webmention:ratelimit:#{hash}"
@@ -54,7 +108,7 @@ class Controller < Sinatra::Base
     puts "#{DateTime.now} WM: source=#{params[:source]} target=#{params[:target]}#{params[:code] ? ' private' : ''} ip=#{request.ip} status=#{status_url}"
 
     begin
-      result = process_mention(username, params[:source], params[:target], 'webmention', token, params[:code], params[:debug])
+      result = process_mention(username, params[:source], params[:target], 'webmention', token, params[:code], params[:debug], endpoint_type)
     rescue => e
       puts "!!!!!!!!!!!!!!!!!!!!!"
       puts "INTERNAL SERVER ERROR"
@@ -109,6 +163,7 @@ class Controller < Sinatra::Base
         :error_description => 'The source URI does not contain a link to the target URI'
       }
     end
+
   end
 
   # Receive Pingbacks
@@ -210,7 +265,7 @@ class Controller < Sinatra::Base
     end
   end
 
-  def process_mention(username, source, target, protocol, token, code, debug=false)
+  def process_mention(username, source, target, protocol, token, code, debug=false, endpoint_type='account')
     WebmentionProcessor.update_status @redis, token, {
       :status => 'pending',
       :source => source,
@@ -221,7 +276,7 @@ class Controller < Sinatra::Base
     }
 
     if debug
-      WebmentionProcessor.new.process_mention username, source, target, protocol, token, code
+      WebmentionProcessor.new.process_mention username, source, target, protocol, token, code, endpoint_type
     else
       WebmentionProcessor.new.async.perform(
         :username => username,
@@ -229,7 +284,8 @@ class Controller < Sinatra::Base
         :target => target,
         :protocol => protocol,
         :token => token,
-        :code => code
+        :code => code,
+        :endpoint_type => endpoint_type
       )
 
       'queued'

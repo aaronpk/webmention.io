@@ -11,7 +11,7 @@ class WebmentionProcessor
   end
 
   def perform(event)
-    process_mention event[:username], event[:source], event[:target], event[:protocol], event[:token], event[:code]
+    process_mention event[:username], event[:source], event[:target], event[:protocol], event[:token], event[:code], event[:endpoint_type]
   end
 
   def error_status(token, source, target, protocol, error, error_description=nil)
@@ -36,7 +36,7 @@ class WebmentionProcessor
   end
 
   # Handles actually verifying source links to target, returning the list of errors based on the webmention errors
-  def process_mention(username, source, target, protocol, token, code=nil)
+  def process_mention(username, source, target, protocol, token, code=nil, endpoint_type='account')
     @redis = Redis.new :host => SiteConfig.redis.host, :port => SiteConfig.redis.port
 
     target_account = Account.first :username => username
@@ -84,17 +84,22 @@ class WebmentionProcessor
       return nil, error
     end
 
-    # Check that the source URL is not in the blocklist
     site = Site.first :account => target_account, :domain => target_domain
-    if !site.nil?
-      bl = Blocklist.first :site => site, :source => source
-      if !bl.nil?
-        error = 'blocked'
-        error_status token, source, target, protocol, error, 'source URL is blocked'
-        return nil, error
-      end
-    end
 
+    if site.nil?
+      error = 'invalid_target'
+      error_status token, source, target, protocol, error, 'target domain not found on this account'
+      return nil, error
+    end
+    
+    # Check that the source URL is not in the blocklist
+    bl = Blocklist.first :site => site, :source => source
+    if !bl.nil?
+      error = 'blocked'
+      error_status token, source, target, protocol, error, 'source URL is blocked'
+      return nil, error
+    end
+    
     source_data = nil
 
     # Private Webmentions
@@ -180,9 +185,6 @@ class WebmentionProcessor
 
 
 
-
-    site = Site.first_or_create :account => target_account, :domain => target_domain
-
     puts "Processing... s=#{source} t=#{target}"
 
 
@@ -207,9 +209,17 @@ class WebmentionProcessor
     # This currently uses the Ruby mf2 parser to parse the target URL
     page = create_page_in_site site, target
 
-    link = Link.first_or_create({:page => page, :href => source}, {:site => site, :account => site.account, :domain => source_uri.host})
+    link = Link.first_or_create({
+      :page => page,
+      :href => source
+    }, {
+      :site => site,
+      :account => site.account, 
+      :domain => source_uri.host,
+    })
 
     link.protocol = protocol
+    link.endpoint_type = endpoint_type
 
     already_registered = link[:verified]
 
@@ -432,7 +442,7 @@ class WebmentionProcessor
       link.published = date.to_time.utc # Convert to UTC (uses ENV timezone)
       # only set the timezone offset if it was provided in the original publish date string
       if published.to_s.match(/[+-]\d{2}:?\d{2}/)
-        link.published_offset = date.utc_offset
+        link.published_offset = date.to_time.utc_offset
       end
       link.published_ts = date.to_time.to_i # store UTC unix timestamp
     end

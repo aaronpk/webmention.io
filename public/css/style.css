@@ -189,14 +189,14 @@ a:focus {
   color: #b55;
 }
 
-.header {
+.site-header {
   background-image: linear-gradient(to bottom, #454545 0%, #2B2B2B 100%);
   border-top-left-radius: 6px;
   border-top-right-radius: 6px;
   padding: 10px;
   color: white;
 }
-.header a {
+.site-header a {
   color: #d2d2d2;
 }
 
@@ -340,6 +340,13 @@ input {
   border: 1px #ddd solid;
 }
 
+.button {
+  border: 1px #003652 solid;
+  border-radius: 3px;
+  background: #08C;
+  padding: 6px 12px;
+  color: white;
+}
 
 /* mention list */
 table.recent-webmentions {
@@ -366,6 +373,20 @@ table.recent-webmentions td {
 }
 
 
+
+table.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+table.table tr.header {
+  font-weight: bold;
+}
+table.table td {
+  border: 1px #ccc solid;
+  padding: 4px;
+}
+
+
 .h-card img {
   max-height: 24px;
   max-width: 24px;
@@ -381,3 +402,4 @@ table.recent-webmentions td {
   border: 1px #c00 solid;
   background: #fee;
 }
+

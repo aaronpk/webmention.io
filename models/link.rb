@@ -38,6 +38,7 @@ class Link
   property :deleted, Boolean, :default => false
 
   property :protocol, String, :length => 30 # webmention or pingback
+  property :endpoint_type, String, :length => 30 # account or site
 
   property :relcanonical, String, :length => 255
 
