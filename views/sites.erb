@@ -39,7 +39,7 @@
   
       <p>You can add the following tag to your website to accept webmentions.</p>
   
-      <p><pre><code id="setup-code-snippet"></code></pre></p>
+      <p><pre><code id="setup-code-snippet">&lt;link rel="webmention" href="https://webmention.io/<%= @user.domain %>/webmention" /&gt;</code></pre></p>
   
       <p>The webmentions can be queried per website <a href="https://github.com/aaronpk/webmention.io#api">using the API</a>.</p>
     
@@ -64,8 +64,8 @@
       $(function(){
         $("a[data-domain]").click(function(e){
           e.preventDefault();
-          var template = '<link rel="webmention" href="https://webmention.io/d/%domain%/webmention" />';
-          $("#setup-code-snippet").text(template.replace("%domain%", $(this).data('domain')));
+          // var template = '<link rel="webmention" href="https://webmention.io/d/%domain%/webmention" />';
+          // $("#setup-code-snippet").text(template.replace("%domain%", $(this).data('domain')));
           $("#setup-code").removeClass("hidden");
         });
       });
