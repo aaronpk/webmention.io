@@ -3,7 +3,8 @@ class Controller < Sinatra::Base
   def stats_keys
     ['success','dns_error','connect_error','timeout','ssl_error','ssl_cert_error',
       'ssl_unsupported_cipher','too_many_redirects','no_content','invalid_content',
-      'no_link_found','unknown_error']
+      'no_link_found','unknown_error','target_not_found','forbidden','blocked','invalid_target',
+      'parse_error','timeout','invalid_source']
   end
 
   get '/stats/:type/data' do
@@ -12,7 +13,7 @@ class Controller < Sinatra::Base
 
     # First remove old data
     stats_keys.each do |key|
-      @redis.zremrangebyscore "webmention.io:stats:#{params[:type]}:#{key}", '-inf', (past - 86400)
+      @redis.zremrangebyscore "webmention.io:stats:#{params[:type]}:#{key}", 0, (past - 86400)
     end
 
     # Count the data for each key
