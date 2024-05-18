@@ -1,24 +1,19 @@
 # Webmention.io
 
-[![Travis build status](https://travis-ci.org/aaronpk/webmention.io.svg)](https://travis-ci.org/aaronpk/webmention.io)
+This project is an implementation of the [Webmention](https://webmention.net) protocol. It allows the webmention receiving service to be run separately from the blogging software or website environment, making it easier to manage and integrate with other services.
 
-This project is an implementation of the [Webmention](https://indieweb.org/webmention) and [Pingback](https://indieweb.org/pingback) protocols. It allows the receiving service to be run separately from the blogging software or website environment, making it easier to manage and integrate with other services.
+Say you have a statically-generated website using Jekyll or something similar, you can add the appropriate `<link>` tag pointing to this service, and now you have Webmentions enabled on your static site!
 
-Say you have a statically-generated website using Jekyll or something similar, you can simply add the appropriate `<link>` tags to this service, and now you have Webmention and Pingback enabled on your static site!
+    <link rel="webmention" href="https://webmention.io/example.com/webmention" />
 
-    <link rel="webmention" href="https://webmention.io/username/webmention" />
-    <link rel="pingback" href="https://webmention.io/username/xmlrpc" />
+The Webmention protocol also supports specifying the endpoint in the headers,
 
-The Webmention and Pingback protocols also support specifying the endpoint in the headers,
-
-    Link: <https://webmention.io/username/webmention>; rel="webmention"
-    X-Pingback: https://webmention.io/username/xmlrpc
+    Link: <https://webmention.io/example.com/webmention>; rel="webmention"
 
 
 ## Features
 
-* Accept Webmentions for any site by adding a simple html tag: `<link rel="webmention" href="https://webmention.io/username/webmention" />`
-* Accept Pingbacks for any site by adding a simple html tag: `<link rel="pingback" href="https://webmention.io/username/xmlrpc" />`
+* Accept Webmentions for any site by adding an html tag: `<link rel="webmention" href="https://webmention.io/example.com/webmention" />`
 * API to get a list of pages linking to your site or a specific page
 * If you want to receive Pingbacks on your site but don't want to deal with XMLRPC, then you can use this service to convert Pingbacks to Webmentions
 
@@ -415,6 +410,6 @@ A: In short no, however you should be able to get the same data from the API, an
 
 ## License
 
-Copyright 2018-2022 by Aaron Parecki.
+Copyright 2018-2024 by Aaron Parecki.
 
 Available under the BSD License. See LICENSE.txt
