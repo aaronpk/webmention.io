@@ -1,11 +1,21 @@
 class Controller < Sinatra::Base
 
   def get_client_id
-    SiteConfig.base_url+"/"
+    SiteConfig.base_url+"/id"
   end
 
   def get_redirect_uri
     "#{SiteConfig.base_url}/auth/callback"
+  end
+  
+  get '/id' do
+    json_response( 200, {
+      client_id: get_client_id,
+      client_name: "webmention.io",
+      client_uri: SiteConfig.base_url,
+      logo_uri: "#{SiteConfig.base_url}/img/webmention-logo-380.png",
+      redirect_uris: [get_redirect_uri],
+    })
   end
 
   get '/auth/start' do
@@ -87,13 +97,14 @@ class Controller < Sinatra::Base
     session[:code_verifier] = SecureRandom.urlsafe_base64 30
     base64_str = Digest::SHA256.base64digest(session[:code_verifier])
     code_challenge = base64_str.tr("+/", "-_").tr("=", "")
-    json_response(200, {:code_challenge => code_challenge})
+    json_response(200, {
+      :code_challenge => code_challenge,
+      :client_id => get_client_id
+    })
   end
-  
+
   post '/auth/fedcm-login' do
     puts request.params.inspect
-
-    # TODO: check for Sec-Fetch-Dest header
 
     # Fetch the IndieAuth metadata
     response = HTTParty.get request.params['metadata_endpoint']
@@ -124,6 +135,8 @@ class Controller < Sinatra::Base
     if response.parsed_response && response.parsed_response['me']
       signed_in_uri = URI.parse response.parsed_response['me']
       
+      # TODO: if the hostname of the 'me' is the same as the hostname of the token endpoint, skip the next validation
+
       # Fetch the user's profile URL and look for this FedCM configURL
       # to confirm that this FedCM server is allowed to make claims about this user
       rels = XRay.rels signed_in_uri.to_s

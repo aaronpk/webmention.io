@@ -11,14 +11,14 @@ async function signIn() {
         providers: [
           {
             configURL: "any",
-            clientId: window.location.origin+"/",
+            clientId: loginChallenge.client_id,
             nonce: loginChallenge.code_challenge, // this is probably going away https://github.com/fedidcg/FedCM/issues/556
           },
         ],
         // mode: "button"
       },
     }).catch(e => {
-      console.log("Error", e.message);
+      console.log("Error", e);
       
       document.getElementById("error-message").classList.remove("hidden");
       document.getElementById("error-message").innerText = "FedCM error: "+e.message;
