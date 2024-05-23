@@ -169,14 +169,22 @@ if($(commentContainerSelector).length > 0 && "WebSocket" in window) {
 
 </div><!-- container -->
 <script>
-// add http:// to URL fields on blur
+// add https:// to URL fields
 // https://aaronparecki.com/2018/06/03/3/
 document.addEventListener('DOMContentLoaded', function() {
+  function addDefaultScheme(target) {
+    if(target.value.match(/^(?!https?:).+\..+/)) {
+      target.value = "https://"+target.value;
+    }
+  }
   var elements = document.querySelectorAll("input[type=url]");
   Array.prototype.forEach.call(elements, function(el, i){
     el.addEventListener("blur", function(e){
-      if(e.target.value.match(/^(?!https?:).+\..+/)) {
-        e.target.value = "https://"+e.target.value;
+      addDefaultScheme(e.target);
+    });
+    el.addEventListener("keydown", function(e){
+      if(e.keyCode == 13) {
+        addDefaultScheme(e.target);
       }
     });
   });
