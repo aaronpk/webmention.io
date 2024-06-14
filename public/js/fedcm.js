@@ -73,7 +73,7 @@ function getChromeVersion () {
     return raw ? parseInt(raw[2], 10) : false;
 }
 
-if(navigator.credentials && getChromeVersion() >= 126) {
+if(navigator.credentials && getChromeVersion() >= 128) {
   signIn();
 }
 
