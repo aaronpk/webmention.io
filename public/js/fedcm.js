@@ -11,6 +11,7 @@ async function signIn() {
         providers: [
           {
             configURL: "any",
+            type: "indieauth",
             clientId: loginChallenge.client_id,
             nonce: loginChallenge.code_challenge, // this is probably going away https://github.com/fedidcg/FedCM/issues/556
           },
@@ -72,7 +73,7 @@ function getChromeVersion () {
     return raw ? parseInt(raw[2], 10) : false;
 }
 
-if(navigator.credentials && getChromeVersion() >= 126) {
+if(navigator.credentials && getChromeVersion() >= 128) {
   signIn();
 }
 
