@@ -11,6 +11,7 @@ async function signIn() {
         providers: [
           {
             configURL: "any",
+            type: "indieauth",
             clientId: loginChallenge.client_id,
             nonce: loginChallenge.code_challenge, // this is probably going away https://github.com/fedidcg/FedCM/issues/556
           },
