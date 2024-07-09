@@ -118,8 +118,6 @@ class Controller < Sinatra::Base
     puts host
     puts "Getting token with code_verifier: #{session[:code_verifier]}"
     
-    clientIDURL = URI.parse SiteConfig.base_url
-
     # Exchange the authorization code for profile info at the token endpoint
     response = HTTParty.post config['token_endpoint'], {
       :body => {

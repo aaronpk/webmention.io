@@ -1,5 +1,5 @@
 async function signIn() {
-  
+
     const loginChallengeResponse = await fetch("/auth/fedcm-start", {
       method: "POST"
     });
@@ -25,6 +25,9 @@ async function signIn() {
     });
     console.log(identityCredential);
     if(identityCredential && identityCredential.token) {
+
+      document.getElementById("web-sign-in").classList.add("hidden");
+      document.getElementById("loading-spinner").classList.remove("hidden");
       
       const {code, metadata_endpoint} = JSON.parse(identityCredential.token);
 
