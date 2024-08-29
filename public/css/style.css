@@ -59,13 +59,12 @@ a:focus {
 
 .container {
   padding: 0 10px;
-  width: 940px;
+  max-width: 940px;
 }
 
 .container {
   margin-right: auto;
   margin-left: auto;
-  *zoom: 1;
 }
 
 .container:before,
