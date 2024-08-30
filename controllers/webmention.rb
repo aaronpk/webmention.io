@@ -33,7 +33,9 @@ class Controller < Sinatra::Base
     validate_parameters params[:source], params[:target]
     
     # First check that the domain of the target exists on this account
-    account = Account.first :domain => username
+    # Special case for the few accounts that existed before all accounts were named the domain name
+    account = Account.first(:conditions => ['domain = ? OR username = ?', username, username])
+
     if account.nil?
       json_response 404, {
         :error => 'not_found',
