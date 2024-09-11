@@ -94,7 +94,7 @@ class Controller < Sinatra::Base
   end
   
   post '/auth/fedcm-start' do
-    session[:code_verifier] = SecureRandom.urlsafe_base64 30
+    session[:code_verifier] = SecureRandom.urlsafe_base64 60
     base64_str = Digest::SHA256.base64digest(session[:code_verifier])
     code_challenge = base64_str.tr("+/", "-_").tr("=", "")
     json_response(200, {
