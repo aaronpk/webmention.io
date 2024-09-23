@@ -13,7 +13,10 @@ async function signIn() {
             configURL: "any",
             type: "indieauth",
             clientId: loginChallenge.client_id,
-            nonce: loginChallenge.code_challenge, // this is probably going away https://github.com/fedidcg/FedCM/issues/556
+            params: {
+              code_challenge: loginChallenge.code_challenge,
+              code_challenge_method: "S256"
+            }
           },
         ],
         // mode: "button"
@@ -21,11 +24,14 @@ async function signIn() {
     }).catch(e => {
       console.log("Error", e);
       
-      document.getElementById("error-message").classList.remove("hidden");
-      document.getElementById("error-message").innerText = "FedCM error: "+e.message;
+      if(e.message != "Error retrieving a token.") {
+        document.getElementById("error-message").classList.remove("hidden");
+        document.getElementById("error-message").innerText = "FedCM error: "+e.message;
+      }
     });
-    console.log(identityCredential);
+
     if(identityCredential && identityCredential.token) {
+      console.log(identityCredential);
 
       document.getElementById("web-sign-in").classList.add("hidden");
       document.getElementById("loading-spinner").classList.remove("hidden");
