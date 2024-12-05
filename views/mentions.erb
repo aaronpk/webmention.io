@@ -20,7 +20,7 @@
             <a href="<%= link.author_url %>" class="name u-url p-name"><%== link.author_name %></a>
             <a href="<%= link.author_url %>" class="url"><%= link.author_url %></a>
           <% elsif !link.author_name.blank? %>
-            <span class="name p-name"><?== link.author_name %></span>
+            <span class="name p-name"><%== link.author_name %></span>
           <% end %>
         </div>
       <% end %>
