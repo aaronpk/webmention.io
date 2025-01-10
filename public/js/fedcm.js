@@ -16,15 +16,16 @@ async function signIn() {
             params: {
               code_challenge: loginChallenge.code_challenge,
               code_challenge_method: "S256"
-            }
+            },
           },
         ],
-        // mode: "button"
+        // mode: "passive"
       },
+      mediation: 'required',
     }).catch(e => {
       console.log("Error", e);
       
-      if(e.message != "Error retrieving a token.") {
+      if(e.message != "Provider 1 information is incomplete.") {
         document.getElementById("error-message").classList.remove("hidden");
         document.getElementById("error-message").innerText = "FedCM error: "+e.message;
       }
