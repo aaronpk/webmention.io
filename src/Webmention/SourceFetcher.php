@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Webmention\Webmention;
 
+use p3k\XRay;
 use Throwable;
+use Webmention\Format\Url;
 
 /**
  * Fetches and parses pages with XRay, which the Ruby app called as a hosted
@@ -33,10 +35,20 @@ final class SourceFetcher
             $opts['token'] = $accessToken;
         }
 
+        $http       = $this->http->http(self::TIMEOUT);
+        $xray       = new XRay(['timeout' => self::TIMEOUT]);
+        $xray->http = $http;
+
         try {
-            $result = $this->http->xray(self::TIMEOUT)->parse($url, $opts);
+            $result = $xray->parse($url, $opts);
         } catch (Throwable) {
-            return ['error' => 'parse_error', 'error_description' => 'There was an error parsing the source URL'];
+            $result = ['error' => 'parse_error', 'error_description' => 'There was an error parsing the source URL'];
+        }
+
+        // A deleted post answers 410 Gone. XRay doesn't treat that as an error,
+        // and throws when the response body is empty.
+        if ($http->firstStatus() === 410) {
+            return ['error' => 'gone', 'error_description' => 'The URL returned HTTP 410 Gone'];
         }
 
         if (!empty($result['error'])) {
@@ -83,6 +95,11 @@ final class SourceFetcher
         }
 
         $endpoint = \Mf2\resolveUrl($source, $endpoint);
+
+        // The endpoint comes from a stranger's headers.
+        if (!Url::isHttp($endpoint)) {
+            return ['error' => 'invalid_token_endpoint', 'error_description' => 'The token endpoint must be an http or https URL'];
+        }
 
         try {
             $response = $http->post($endpoint, http_build_query([

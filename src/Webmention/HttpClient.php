@@ -4,23 +4,25 @@ declare(strict_types=1);
 
 namespace Webmention\Webmention;
 
-use p3k\HTTP;
 use p3k\HTTP\Transport;
-use p3k\XRay;
 
 /**
- * Makes every outgoing HTTP client, so they share a user agent and tests can
- * swap the transport for one that never touches the network.
+ * Makes every outgoing HTTP client. They share a user agent and one transport:
+ * SafeTransport in production, a fake one in tests.
  */
 final class HttpClient
 {
     /** XRay's own browser-like user agent; some sites serve bots different markup. */
     private const BASE_USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.132 Safari/537.36 p3k/XRay';
 
+    private readonly Transport $transport;
+
     public function __construct(
         private readonly string $baseUrl,
-        private readonly ?Transport $transport = null,
+        ?Transport $transport = null,
+        bool $allowPrivateNetwork = false,
     ) {
+        $this->transport = $transport ?? new SafeTransport($allowPrivateNetwork);
     }
 
     public function userAgent(): string
@@ -28,35 +30,12 @@ final class HttpClient
         return self::BASE_USER_AGENT . ' webmention.io (+' . $this->baseUrl . ')';
     }
 
-    public function http(int $timeout = 20): HTTP
+    public function http(int $timeout = 20): PinnedHttp
     {
-        $http = $this->transport === null
-            ? new HTTP($this->userAgent())
-            // XRay's fetcher swaps in a Curl transport for every request, which
-            // would bypass an injected one, so only the constructor's call counts.
-            : new class($this->userAgent(), $this->transport) extends HTTP {
-                private bool $pinned = false;
-
-                public function set_transport(Transport $transport)
-                {
-                    if (!$this->pinned) {
-                        $this->pinned = true;
-                        parent::set_transport($transport);
-                    }
-                }
-            };
-
+        $http = new PinnedHttp($this->userAgent(), $this->transport);
         $http->set_timeout($timeout);
 
         return $http;
-    }
-
-    public function xray(int $timeout): XRay
-    {
-        $xray       = new XRay(['timeout' => $timeout]);
-        $xray->http = $this->http($timeout);
-
-        return $xray;
     }
 
     /**

@@ -78,7 +78,10 @@ final class Bootstrap
 
         $c->set(StatusStore::class, static fn (Container $c): StatusStore => new StatusStore($c->get(Redis::class)));
         $c->set(Queue::class, static fn (Container $c): Queue => new Queue($c->get(Redis::class)));
-        $c->set(HttpClient::class, static fn (): HttpClient => new HttpClient($config->baseUrl()));
+        $c->set(HttpClient::class, static fn (): HttpClient => new HttpClient(
+            $config->baseUrl(),
+            allowPrivateNetwork: $config->get('ALLOW_PRIVATE_NETWORK') === '1',
+        ));
         $c->set(SourceFetcher::class, static fn (Container $c): SourceFetcher => new SourceFetcher($c->get(HttpClient::class)));
         $c->set(AvatarArchiver::class, static fn (Container $c): AvatarArchiver => new AvatarArchiver(
             $config,
@@ -137,6 +140,7 @@ final class Bootstrap
             $c->get(Template::class),
             $c->get(Session::class),
             $c->get(AccountRepository::class),
+            $c->get(HttpClient::class),
             $config,
         ));
 

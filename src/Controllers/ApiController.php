@@ -111,7 +111,7 @@ final class ApiController extends Controller
             },
             'descending'   => $sortDir === null || $sortDir === 'down',
             'limit'        => max(0, $limit),
-            'offset'       => max(0, (int) $request->input('page')) * max(0, $limit),
+            'offset'       => self::offset((int) $request->input('page'), $limit),
         ];
 
         // Kept from the old app, which set this for matching URLs containing emoji.
@@ -190,6 +190,15 @@ final class ApiController extends Controller
         }
 
         return $types;
+    }
+
+    /** The row offset for a page, without overflowing on an absurd page number. */
+    public static function offset(int $page, int $limit): int
+    {
+        $page  = max(0, $page);
+        $limit = max(0, $limit);
+
+        return $limit > 0 && $page > intdiv(PHP_INT_MAX, $limit) ? PHP_INT_MAX : $page * $limit;
     }
 
     /** A `since` timestamp in any parseable format, as a UTC DATETIME string. */

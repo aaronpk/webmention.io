@@ -31,7 +31,7 @@ final class Processor
      * remove a previously received mention; a timeout or a DNS failure while
      * re-checking leaves it alone.
      */
-    public const REMOVAL_ERRORS = ['no_link_found', 'not_found'];
+    public const REMOVAL_ERRORS = ['no_link_found', 'not_found', 'gone'];
 
     private const RSVP_VALUES = ['yes', 'no', 'maybe', 'interested'];
 

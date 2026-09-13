@@ -221,6 +221,32 @@ final class WebmentionFlowTest extends IntegrationTestCase
         self::assertTrue($payload['post']['wm-private']);
     }
 
+    public function testSourceThatIsGoneDeletesTheMention(): void
+    {
+        $this->request('POST', '/target.example.com/webmention', post: ['source' => self::SOURCE, 'target' => self::TARGET, 'debug' => '1']);
+
+        $this->http->respond('GET', self::SOURCE, 410, '', ['Content-Type' => 'text/html']);
+        $this->redis->flushDb();
+
+        $this->request('POST', '/target.example.com/webmention', post: ['source' => self::SOURCE, 'target' => self::TARGET, 'debug' => '1']);
+
+        self::assertSame([], $this->service(LinkRepository::class)->recentForAccount($this->account->id, 10));
+        self::assertTrue(json_decode((string) $this->http->posts(self::HOOK)[1]['body'], true)['deleted']);
+    }
+
+    public function testTokenEndpointThatIsNotHttpIsNeverRequested(): void
+    {
+        $this->http->respond('HEAD', self::SOURCE, 200, '', ['Link' => '<gopher://127.0.0.1:6379/_SET%20webmention:session:x%20y>; rel="token_endpoint"']);
+
+        $response = $this->request('POST', '/target.example.com/webmention', post: ['source' => self::SOURCE, 'target' => self::TARGET, 'code' => 'abc', 'debug' => '1']);
+
+        self::assertSame('invalid_token_endpoint', self::json($response)['error']);
+        foreach ($this->http->requests as $request) {
+            self::assertStringStartsWith('http', $request['url']);
+            self::assertStringNotContainsString('6379', $request['url']);
+        }
+    }
+
     public function testStatusPageForBrowsersAndUnknownTokens(): void
     {
         self::assertSame('{"error":"not_found"}', $this->request('GET', '/target.example.com/webmention/nope')->body);

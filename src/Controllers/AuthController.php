@@ -11,6 +11,7 @@ use Webmention\Http\Response;
 use Webmention\Http\Session;
 use Webmention\Storage\AccountRepository;
 use Webmention\View\Template;
+use Webmention\Webmention\HttpClient;
 
 /**
  * Sign in with IndieAuth. The user's own authorization server is discovered
@@ -22,6 +23,7 @@ final class AuthController extends Controller
         Template $view,
         private readonly Session $session,
         private readonly AccountRepository $accounts,
+        private readonly HttpClient $http,
         private readonly Config $config,
     ) {
         parent::__construct($view);
@@ -110,6 +112,8 @@ final class AuthController extends Controller
     {
         Client::$clientID    = $this->config->baseUrl() . '/id';
         Client::$redirectURL = $this->config->baseUrl() . '/auth/callback';
+        // Discovery fetches the URL someone typed in, so it goes through the safe transport too.
+        Client::$http = $this->http->http(10);
     }
 
     /** @param array<string, mixed> $error */
