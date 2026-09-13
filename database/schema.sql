@@ -120,6 +120,7 @@ CREATE TABLE `sites` (
   `callback_secret` varchar(50) DEFAULT NULL,
   `archive_avatars` tinyint(1) DEFAULT 1,
   PRIMARY KEY (`id`),
+  UNIQUE KEY `account_domain` (`account_id`,`domain`),
   KEY `index_sites_account` (`account_id`),
   KEY `domain` (`domain`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

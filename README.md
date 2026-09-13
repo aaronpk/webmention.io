@@ -343,7 +343,7 @@ Signing in requires an `https://` profile URL. The domain signed in with becomes
 
 ### Migrations
 
-Schema changes live in `database/migrations/` and are applied by hand. `database/schema.sql` is the full current schema.
+Schema changes live in `database/migrations/` and are applied by hand, in date order. Most are `.sql` files for `mysql`; a `.php` file is a data migration run with `php`, and its header says whether something must run before or after it. `database/schema.sql` is the full current schema.
 
 
 ## License

@@ -216,6 +216,26 @@ final class DashboardTest extends IntegrationTestCase
         );
     }
 
+    public function testASiteIsNeverCreatedTwiceForTheSameAccount(): void
+    {
+        $sites = $this->service(SiteRepository::class);
+
+        self::assertSame($this->aliceSite->id, $sites->findOrCreate($this->alice->id, 'alice.example')->id);
+
+        $new = $sites->findOrCreate($this->alice->id, 'new.alice.example');
+        self::assertSame($new->id, $sites->findOrCreate($this->alice->id, 'new.alice.example')->id);
+        self::assertCount(1, $this->db->all('SELECT id FROM sites WHERE account_id = ? AND domain = ?', [$this->alice->id, 'new.alice.example']));
+
+        if ($this->db->all('SHOW INDEX FROM sites WHERE Key_name = "account_domain"') === []) {
+            self::markTestSkipped('Apply database/migrations/2026-09-14-sites-unique-domain.sql to the test database.');
+        }
+
+        // The database itself refuses a second row, which is what findOrCreate() relies on under concurrency.
+        $this->expectException(\PDOException::class);
+        $this->expectExceptionCode('23000');
+        $sites->create($this->alice->id, 'alice.example');
+    }
+
     public function testAccountNamesForProfileUrls(): void
     {
         self::assertSame('aaronparecki.com', AuthController::domainFor('https://aaronparecki.com/'));

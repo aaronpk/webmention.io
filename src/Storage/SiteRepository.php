@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Webmention\Storage;
 
+use PDOException;
 use Webmention\Model\Site;
 
 final class SiteRepository
@@ -51,6 +52,31 @@ final class SiteRepository
             Site::fromRow(...),
             $this->db->all('SELECT * FROM sites WHERE account_id = ? ORDER BY id', [$accountId]),
         );
+    }
+
+    /**
+     * The account's site for a domain, created if it does not exist.
+     *
+     * Two requests can both find nothing and both insert; the unique index on
+     * (account_id, domain) refuses the second, which then reads the first.
+     * Use this rather than create() for anything a user can trigger.
+     */
+    public function findOrCreate(int $accountId, string $domain): Site
+    {
+        $site = $this->findByAccountAndDomain($accountId, $domain);
+        if ($site !== null) {
+            return $site;
+        }
+
+        try {
+            return $this->create($accountId, $domain);
+        } catch (PDOException $e) {
+            if ((string) $e->getCode() !== '23000') {
+                throw $e;
+            }
+
+            return $this->findByAccountAndDomain($accountId, $domain) ?? throw $e;
+        }
     }
 
     public function create(int $accountId, string $domain): Site

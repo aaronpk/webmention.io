@@ -90,7 +90,7 @@ final class SettingsController extends Controller
 
         // New accounts start with the domain they signed in with.
         if ($sites === [] && ($domain = self::normalizeDomain((string) $user->domain)) !== null) {
-            $sites = [$this->sites->create($user->id, $domain)];
+            $sites = [$this->sites->findOrCreate($user->id, $domain)];
         }
 
         $rows = [];
@@ -138,7 +138,7 @@ final class SettingsController extends Controller
             ));
         }
 
-        $this->sites->create($user->id, $domain);
+        $this->sites->findOrCreate($user->id, $domain);
 
         return Response::seeOther('/settings/sites');
     }
