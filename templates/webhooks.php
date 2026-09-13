@@ -49,7 +49,7 @@
     </div>
 <?php } ?>
 
-<section class="card" style="margin-top: 1.5rem">
+<section class="card spaced">
     <h2>Payload</h2>
     <p>The web hook payload looks like this:</p>
     <pre><code>{

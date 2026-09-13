@@ -244,7 +244,8 @@ button,
 
 button:hover, .button:hover { filter: brightness(1.08); }
 
-button.secondary {
+button.secondary,
+.button.secondary {
     color: var(--ink);
     background: var(--surface);
     border-color: var(--line);
@@ -270,7 +271,12 @@ button.icon:hover { color: var(--danger); background: var(--danger-soft); filter
 .inline-field {
     display: flex;
     gap: .5rem;
+    align-items: flex-start;
 }
+
+.inline-field .grow { flex: 1; min-width: 0; margin: 0; }
+
+.button.small { padding: .2rem .6rem; font-size: .875rem; }
 
 .stack { display: grid; gap: .9rem; }
 
@@ -382,6 +388,7 @@ table.data td {
 
 table.data th { font-size: .8rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
 table.data td.num { font-variant-numeric: tabular-nums; }
+table.data td.actions { text-align: right; }
 
 .grid-2 {
     display: grid;
@@ -390,3 +397,5 @@ table.data td.num { font-variant-numeric: tabular-nums; }
 }
 
 .grid-2 .card { margin-bottom: 0; }
+
+.card.spaced { margin-top: 1.5rem; }

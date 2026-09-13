@@ -16,7 +16,7 @@
                     <?php foreach ($domains as $domain) { ?>
                         <tr>
                             <td><?= $domain ?></td>
-                            <td style="text-align: right">
+                            <td class="actions">
                                 <form action="/unblock" method="post">
                                     <input type="hidden" name="domain" value="<?= $domain ?>">
                                     <input type="hidden" name="csrf" value="<?= $csrf ?>">
