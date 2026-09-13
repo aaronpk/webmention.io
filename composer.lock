@@ -575,16 +575,16 @@
         },
         {
             "name": "p3k/xray",
-            "version": "v2.0.0",
+            "version": "v2.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aaronpk/XRay.git",
-                "reference": "46b7a084316a65367d4478fd4917ef947d7742c8"
+                "reference": "8e671c12a30d3b7e2163f60b3a9dc8342e56e67f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aaronpk/XRay/zipball/46b7a084316a65367d4478fd4917ef947d7742c8",
-                "reference": "46b7a084316a65367d4478fd4917ef947d7742c8",
+                "url": "https://api.github.com/repos/aaronpk/XRay/zipball/8e671c12a30d3b7e2163f60b3a9dc8342e56e67f",
+                "reference": "8e671c12a30d3b7e2163f60b3a9dc8342e56e67f",
                 "shasum": ""
             },
             "require": {
@@ -620,9 +620,9 @@
             "homepage": "https://github.com/aaronpk/XRay",
             "support": {
                 "issues": "https://github.com/aaronpk/XRay/issues",
-                "source": "https://github.com/aaronpk/XRay/tree/v2.0.0"
+                "source": "https://github.com/aaronpk/XRay/tree/v2.0.1"
             },
-            "time": "2026-09-13T21:24:32+00:00"
+            "time": "2026-09-13T21:55:29+00:00"
         }
     ],
     "packages-dev": [
