@@ -9,6 +9,7 @@ use Webmention\Http\JsonResponder;
 use Webmention\Http\Request;
 use Webmention\Http\Response;
 use Webmention\Http\Session;
+use Webmention\Kernel;
 use Webmention\Storage\AccountRepository;
 use Webmention\View\Template;
 
@@ -43,11 +44,16 @@ final class HomeController extends Controller
             ? $this->currentUser($request)
             : null;
 
-        return $this->page('home', 'Webmention.io', [
+        $response = $this->page('home', 'Webmention.io', [
             'base_url'  => $this->config->baseUrl(),
             'signed_in' => $user !== null,
             'error'     => $request->query('error'),
         ], $user === null ? null : $this->nav($user, 'home'));
+
+        // The sign-in form goes to /auth/start, which redirects to the user's own
+        // authorization server. Browsers apply form-action to every hop of that
+        // redirect, and the server could be on any origin.
+        return $response->withHeader('content-security-policy', Kernel::csp("'self' https: http:"));
     }
 
     /**

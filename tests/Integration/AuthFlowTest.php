@@ -113,6 +113,17 @@ final class AuthFlowTest extends IntegrationTestCase
         self::assertStringContainsString('Could not find your authorization endpoint', $response->body);
     }
 
+    public function testSignInFormMayRedirectToAnyAuthorizationServer(): void
+    {
+        $home = (string) $this->request('GET', '/')->header('content-security-policy');
+        self::assertStringContainsString("form-action 'self' https: http:;", $home);
+
+        // Every other page's forms stay on this site.
+        $this->signIn($this->createAccount('grace.example'));
+        $settings = (string) $this->request('GET', '/settings')->header('content-security-policy');
+        self::assertStringContainsString("form-action 'self';", $settings);
+    }
+
     public function testEmptySignInGoesHome(): void
     {
         self::assertSame('/', $this->request('GET', '/auth/start', ['me' => ' '])->header('location'));

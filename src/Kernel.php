@@ -18,12 +18,15 @@ use Webmention\View\Template;
 final class Kernel
 {
     /**
-     * The default policy for HTML pages. Controllers that need something
-     * different (the embeddable mentions feed) set their own header, and it is
-     * left alone.
+     * The policy for HTML pages. Controllers that need something different
+     * (the embeddable mentions feed, the sign-in form) set their own header,
+     * and it is left alone.
      */
-    public const DEFAULT_CSP = "default-src 'none'; script-src 'self'; style-src 'self'; img-src * data:; "
-        . "form-action 'self'; frame-ancestors 'none'; base-uri 'none'";
+    public static function csp(string $formAction = "'self'"): string
+    {
+        return "default-src 'none'; script-src 'self'; style-src 'self'; img-src * data:; "
+            . "form-action $formAction; frame-ancestors 'none'; base-uri 'none'";
+    }
 
     public function __construct(
         private readonly Container $container,
@@ -85,7 +88,7 @@ final class Kernel
 
         if (str_starts_with((string) $response->header('content-type'), 'text/html')) {
             if (!$response->hasHeader('content-security-policy')) {
-                $response = $response->withHeader('content-security-policy', self::DEFAULT_CSP);
+                $response = $response->withHeader('content-security-policy', self::csp());
             }
             if (!$response->hasHeader('referrer-policy')) {
                 $response = $response->withHeader('referrer-policy', 'strict-origin-when-cross-origin');
