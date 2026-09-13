@@ -1,0 +1,87 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Verifies queued webmentions. Run as many copies as you like; each pops one
+ * job at a time from Redis.
+ *
+ *   bin/worker [--max-jobs=1000]
+ *
+ * Exits after --max-jobs jobs (default 1000) or on SIGTERM/SIGINT once the
+ * current job finishes, so a supervisor such as systemd should restart it.
+ * Logs go to stderr.
+ */
+
+use Webmention\Bootstrap;
+use Webmention\Logging\Log;
+use Webmention\Webmention\Processor;
+use Webmention\Webmention\Queue;
+use Webmention\Webmention\StatusStore;
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+date_default_timezone_set('UTC');
+
+$maxJobs = 1000;
+foreach (array_slice($argv, 1) as $arg) {
+    if (preg_match('/^--max-jobs=(\d+)$/', $arg, $m) === 1) {
+        $maxJobs = (int) $m[1];
+    }
+}
+
+$stop = false;
+if (function_exists('pcntl_async_signals')) {
+    pcntl_async_signals(true);
+    pcntl_signal(SIGTERM, static function () use (&$stop): void { $stop = true; });
+    pcntl_signal(SIGINT, static function () use (&$stop): void { $stop = true; });
+}
+
+$config = Bootstrap::config();
+
+$build = static function () use ($config) {
+    $container = Bootstrap::container($config);
+    $container->set(Log::class, static fn (): Log => new Log(null));
+
+    return $container;
+};
+
+$container = $build();
+$log       = $container->get(Log::class);
+$log->info('Worker started');
+
+$done = 0;
+while (!$stop && $done < $maxJobs) {
+    try {
+        $job = $container->get(Queue::class)->pop(5);
+    } catch (Throwable $e) {
+        $log->exception($e, 'Reading the queue');
+        sleep(2);
+        $container = $build();
+        continue;
+    }
+
+    if ($job === null) {
+        continue;
+    }
+
+    try {
+        $result = $container->get(Processor::class)->process($job);
+        $log->info("Job {$job->token}: $result");
+    } catch (Throwable $e) {
+        $log->exception($e, "Job {$job->token} ({$job->source} -> {$job->target})");
+
+        try {
+            $container->get(StatusStore::class)->error($job->token, $job->source, $job->target, 'internal_error', 'An internal error occurred while processing this webmention');
+        } catch (Throwable) {
+        }
+
+        // A dropped database or Redis connection is the usual cause; start fresh.
+        $container = $build();
+    }
+
+    $done++;
+}
+
+$log->info("Worker stopping after $done jobs");
