@@ -6,6 +6,10 @@ namespace Webmention\Storage;
 
 /**
  * Filters for listing verified, non-deleted links in the API.
+ *
+ * Private webmentions (received with an authorization code) are only listed
+ * when includePrivate is set, which the API does for the owning account's
+ * token and never for a public target query.
  */
 final class LinkSearch
 {
@@ -24,6 +28,7 @@ final class LinkSearch
         public readonly bool $descending = true,
         public readonly int $limit = 20,
         public readonly int $offset = 0,
+        public readonly bool $includePrivate = false,
     ) {
     }
 }

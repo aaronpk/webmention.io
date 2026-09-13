@@ -87,7 +87,8 @@ while (!$stop && $done < $maxJobs) {
 
     try {
         $result = $process($job);
-        $log->info("Job {$job->token}: $result");
+        [$ignored, $last] = ErrorHandler::drain();
+        $log->info("Job {$job->token}: $result" . ($ignored > 0 ? " ($ignored parser warnings, last: $last)" : ''));
     } catch (Throwable $e) {
         $log->exception($e, "Job {$job->token} ({$job->source} -> {$job->target})");
 

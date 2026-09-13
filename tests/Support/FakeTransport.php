@@ -12,6 +12,9 @@ use p3k\HTTP\Transport;
  * GET and HEAD for http://{host}/{path} serve tests/fixtures/{host}/{path}.html
  * ("/" serves index.html). Anything else is a 404 unless a response was
  * registered with respond(). Every request is recorded.
+ *
+ * Like SafeTransport, a registered 3xx with a Location header is followed
+ * for GET and HEAD (never for POST or PUT), and the final URL is reported.
  */
 final class FakeTransport implements Transport
 {
@@ -77,7 +80,7 @@ final class FakeTransport implements Transport
     }
 
     /** @param list<string> $headers */
-    private function handle(string $method, string $url, ?string $body, array $headers): array
+    private function handle(string $method, string $url, ?string $body, array $headers, int $hops = 0): array
     {
         $this->requests[] = ['method' => $method, 'url' => $url, 'body' => $body, 'headers' => $headers];
 
@@ -85,6 +88,12 @@ final class FakeTransport implements Transport
             ?? ($method === 'HEAD' ? ($this->responses["GET $url"] ?? null) : null);
 
         if ($registered !== null) {
+            $location = $registered['headers']['Location'] ?? $registered['headers']['location'] ?? null;
+            if ($location !== null && $registered['code'] >= 300 && $registered['code'] < 400
+                && in_array($method, ['GET', 'HEAD'], true) && $hops < 8) {
+                return $this->handle($method, \Mf2\resolveUrl($url, $location), $body, $headers, $hops + 1);
+            }
+
             return $this->build($url, $registered['code'], $registered['body'], $registered['headers'], $registered['error']);
         }
 

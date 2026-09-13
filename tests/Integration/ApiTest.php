@@ -32,6 +32,7 @@ final class ApiTest extends IntegrationTestCase
         $this->createLink($this->site, self::TARGET, 'https://e.example/5', ['type' => null, 'created_at' => '2020-01-05 00:00:00']);
         $this->createLink($this->site, self::TARGET, 'https://deleted.example/6', ['deleted' => 1]);
         $this->createLink($this->site, self::TARGET, 'https://unverified.example/7', ['verified' => 0]);
+        $this->createLink($this->site, self::TARGET, 'https://private.example/9', ['type' => 'reply', 'is_private' => 1, 'content' => '<p>Just between us</p>', 'created_at' => '2019-12-01 00:00:00']);
         $this->createLink($this->site, 'https://example.com/other', 'https://f.example/8', [
             'type'        => 'reply',
             'author_name' => '<script>alert(1)</script>',
@@ -81,16 +82,63 @@ final class ApiTest extends IntegrationTestCase
     public function testTokenAndDomain(): void
     {
         $all = self::json($this->request('GET', '/api/mentions.jf2', ['token' => $this->token]));
-        self::assertCount(6, $all['children']);
+        self::assertCount(7, $all['children']);
 
         $domain = self::json($this->request('GET', '/api/mentions.jf2', ['token' => $this->token, 'domain' => 'example.com']));
-        self::assertCount(6, $domain['children']);
+        self::assertCount(7, $domain['children']);
+
+        $bearer = self::json($this->request('GET', '/api/mentions.jf2', headers: ['authorization' => 'Bearer ' . $this->token]));
+        self::assertCount(7, $bearer['children']);
 
         $unknown = self::json($this->request('GET', '/api/mentions.jf2', ['token' => $this->token, 'domain' => 'nope.example']));
         self::assertSame([], $unknown['children']);
 
         self::assertSame(401, $this->request('GET', '/api/mentions.jf2', ['token' => 'wrong'])->status);
         self::assertSame(400, $this->request('GET', '/api/mentions.jf2')->status);
+    }
+
+    public function testPrivateWebmentionsAreOnlyShownToTheirOwner(): void
+    {
+        $public = self::json($this->request('GET', '/api/mentions.jf2', ['target' => self::TARGET]));
+        self::assertNotContains('https://private.example/9', array_column($public['children'], 'wm-source'));
+        self::assertStringNotContainsString('Just between us', $this->request('GET', '/api/mentions.jf2', ['target' => self::TARGET, 'per-page' => '100'])->body);
+        self::assertStringNotContainsString('Just between us', $this->request('GET', '/api/mentions.html', ['target' => self::TARGET])->body);
+        self::assertStringNotContainsString('private.example', $this->request('GET', '/api/mentions.atom', ['target' => self::TARGET])->body);
+        self::assertSame('{"count":5,"type":{"like":1,"mention":1,"rsvp-no":1,"rsvp-yes":1}}', $this->request('GET', '/api/count', ['target' => self::TARGET])->body);
+
+        $owner = self::json($this->request('GET', '/api/mentions.jf2', ['token' => $this->token, 'target' => self::TARGET]));
+        // A target query is public even with a token; the account's own listing includes it.
+        self::assertNotContains('https://private.example/9', array_column($owner['children'], 'wm-source'));
+        $mine = self::json($this->request('GET', '/api/mentions.jf2', ['token' => $this->token]));
+        self::assertContains('https://private.example/9', array_column($mine['children'], 'wm-source'));
+        self::assertTrue(array_values(array_filter($mine['children'], static fn (array $c): bool => $c['wm-source'] === 'https://private.example/9'))[0]['wm-private']);
+    }
+
+    public function testPageSizeIsCapped(): void
+    {
+        self::assertSame(200, $this->request('GET', '/api/mentions', ['target' => self::TARGET, 'per-page' => '100000000'])->status);
+
+        // Page 1 of an over-large page size starts at the cap, not at the absurd offset.
+        $second = self::json($this->request('GET', '/api/mentions', ['token' => $this->token, 'per-page' => '100000000', 'page' => '1']));
+        self::assertSame([], $second['links']);
+        self::assertSame(1000, \Webmention\Controllers\ApiController::MAX_PER_PAGE);
+    }
+
+    public function testOverLongAndExcessTargetsAreIgnored(): void
+    {
+        $long = 'https://example.com/' . str_repeat('a', 600);
+        self::assertSame(400, $this->request('GET', '/api/count', ['target' => $long])->status);
+
+        $many = array_fill(0, 60, 'https://nope.example/');
+        $many[59] = self::TARGET;
+        self::assertSame('{"count":0,"type":{}}', $this->request('GET', '/api/count', ['target' => $many])->body);
+    }
+
+    public function testFeedsAreNotCacheable(): void
+    {
+        self::assertSame('no-store', $this->request('GET', '/api/mentions.atom', ['token' => $this->token])->header('cache-control'));
+        self::assertSame('no-store', $this->request('GET', '/api/mentions.html', ['token' => $this->token])->header('cache-control'));
+        self::assertStringContainsString("form-action 'none'", (string) $this->request('GET', '/api/mentions.html', ['token' => $this->token])->header('content-security-policy'));
     }
 
     public function testJsonp(): void

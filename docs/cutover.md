@@ -18,6 +18,12 @@ Both apps use the same database schema and the same Redis keys for webmention st
   * `sort-by=rsvp` sorts every result, not just one page.
   * Re-sending a webmention whose source now answers 410 Gone, or no longer links, deletes it. A timeout or other fetch error no longer does.
   * Sources, token endpoints and web hook URLs on private or loopback addresses are refused (`forbidden_address`).
+* **Sign-in requires an https profile URL**, starts from the form on the home page (a `GET /auth/start?me=` link now lands on that form), and signing out is a button rather than a link.
+* **Adding a site requires proof.** A new domain is accepted only if its home page already advertises this account's webmention endpoint. The site created automatically from the sign-in domain is exempt; existing sites are untouched.
+* **Private webmentions are no longer returned by public target queries** (`/api/mentions?target=` and `/api/count`). They are still included when the owning account queries with its token.
+* **New limits.** Source and target URLs longer than 512 bytes are refused (they never fit the database anyway). `per-page` is capped at 1000, `target[]` at 50 values. Webmentions are rate limited per client address and per source host as well as per (source, target) pair, `?debug` more tightly, and a full queue answers 503 with `Retry-After`. Sources on non-web ports, or that redirect to a blocked domain, are refused. Responses over 2 MB are not read.
+* **Web hooks carry `X-Webmention-Signature: sha256=<HMAC of the body, keyed with the callback secret>`** in addition to the secret in the body. The payload is unchanged.
+* **The API accepts `Authorization: Bearer <token>`** as an alternative to `?token=`.
 * **Newly stored content has slightly different whitespace.** The bundled XRay (1.15) puts a newline between block elements in `content.html` and a blank line between paragraphs in `content.text`, where the hosted service (1.4.25) didn't. Everything else it extracts matched the hosted service on 142 recent real webmentions. Stored mentions are unchanged.
 
 
@@ -38,7 +44,21 @@ Both apps use the same database schema and the same Redis keys for webmention st
 
    Use the same `REDIS_DB` the Ruby app uses (its config.yml has no db, so `0`). Otherwise status URLs handed out just before the switch won't resolve.
 
-3. **Add the indexes.** Both migrations are additive and can run while the Ruby app is live; `LOCK=NONE` keeps `links` writable. On a copy of production (2M links) each took under 15 seconds.
+   Then check the settings and permissions, since the file holds the database and CA3DB credentials:
+
+   ```bash
+   chown deploy:www-data .env && chmod 0640 .env
+   chmod 0750 logs
+   grep -E '^(APP_DEBUG|TRUST_PROXY|ALLOW_PRIVATE_NETWORK|BASE_URL)=' .env
+   ```
+
+   `APP_DEBUG` and `ALLOW_PRIVATE_NETWORK` must be `0` or absent (the checked-out development `.env` has `APP_DEBUG=1` and a LAN `BASE_URL`), `BASE_URL` must be `https://webmention.io`, and `TRUST_PROXY` must be `1` only if nginx is itself behind a proxy that sets `X-Forwarded-For`. The worker's environment must not carry `http_proxy`/`https_proxy` (the systemd unit clears them; check the shell you test from).
+
+   The database user only needs `SELECT, INSERT, UPDATE, DELETE` on the application database; nothing runs DDL. Redis must listen on localhost only (`bind 127.0.0.1 ::1` in redis.conf), or set a password and put it in the Redis URL the app uses.
+
+   Run `composer audit` to check the locked dependencies against published advisories.
+
+3. **Add the indexes.** Done on production on 2026-09-13. (Both migrations are additive and ran while the Ruby app was live; `LOCK=NONE` keeps `links` writable.)
 
    ```bash
    mysql webmention < database/migrations/2026-09-13-indexes.sql
@@ -110,5 +130,6 @@ The indexes can stay; the Ruby app's queries benefit from them too.
 
 ## Afterwards
 
+* **Fix GitHub sanitisation in XRay and bump `p3k/xray`.** XRay's GitHub format renders issue and comment bodies with cebe/markdown and never runs them through its HTMLPurifier step, so a GitHub comment used as a source stores raw HTML in `links.content`, which every API format then serves. The fix belongs in `p3k\XRay\Formats\GitHub::parse` (pass the rendered markdown through `Format::sanitizeHTML()`); once released, `composer update p3k/xray` here. Rows stored through the hosted XRay may already carry such content; a one-off re-sanitising pass over `links.content` is worth running after the library fix.
 * The `debugs` table, `links.notification_id` and the `accounts.pingback_enabled`, `tiktokbot_*` and `xmpp_*` columns are no longer used. They can be dropped whenever convenient; nothing needs them gone.
 * `bin/worker` exits after 1000 jobs and systemd starts a fresh one, which keeps memory and connections from going stale.

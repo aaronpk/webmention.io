@@ -20,6 +20,7 @@ use Webmention\View\Template;
 use Webmention\Webmention\Job;
 use Webmention\Webmention\Processor;
 use Webmention\Webmention\Queue;
+use Webmention\Webmention\RateLimiter;
 use Webmention\Webmention\StatusStore;
 
 /**
@@ -27,6 +28,26 @@ use Webmention\Webmention\StatusStore;
  */
 final class WebmentionController extends Controller
 {
+    /** URLs longer than this would be cut by the 512-byte href columns and never match again. */
+    public const MAX_URL_BYTES = 512;
+
+    /** A private webmention's authorization code is a short opaque string. */
+    private const MAX_CODE_BYTES = 1024;
+
+    /**
+     * Per minute. Bridgy sends bursts of hundreds from a few addresses, so the
+     * per-client limit is loose; the per-pair lock below it stops retries.
+     * Synchronous processing (?debug) holds a web worker for the whole fetch,
+     * so it gets a small allowance of its own.
+     */
+    private const PER_IP_LIMIT      = 300;
+    private const PER_SOURCE_LIMIT  = 120;
+    private const DEBUG_LIMIT       = 10;
+    private const LIMIT_WINDOW      = 60;
+
+    /** Above this many waiting jobs, new webmentions are asked to come back later. */
+    private const MAX_QUEUE_LENGTH = 10000;
+
     /** Error descriptions returned when processing synchronously with `debug`. */
     private const DEBUG_ERRORS = [
         'source_not_found'     => 'The source URI does not exist',
@@ -45,6 +66,7 @@ final class WebmentionController extends Controller
         private readonly Queue $queue,
         private readonly Processor $processor,
         private readonly Redis $redis,
+        private readonly RateLimiter $limiter,
         private readonly Log $log,
         private readonly Config $config,
     ) {
@@ -153,6 +175,10 @@ final class WebmentionController extends Controller
                 $details = 'invalid protocol';
             }
 
+            if ($details === null && strlen($url) > self::MAX_URL_BYTES) {
+                $details = 'url too long';
+            }
+
             if ($details !== null) {
                 return $this->json->respond($request, 400, [
                     'error'             => 'invalid_request',
@@ -160,6 +186,13 @@ final class WebmentionController extends Controller
                     'error_details'     => $details,
                 ]);
             }
+        }
+
+        if (strlen((string) $request->input('code')) > self::MAX_CODE_BYTES) {
+            return $this->json->respond($request, 400, [
+                'error'             => 'invalid_request',
+                'error_description' => 'code was invalid',
+            ]);
         }
 
         return null;
@@ -170,12 +203,30 @@ final class WebmentionController extends Controller
         $source = (string) $request->input('source');
         $target = (string) $request->input('target');
 
+        if (!$this->limiter->allow('ip', $request->ip, self::PER_IP_LIMIT, self::LIMIT_WINDOW)) {
+            return $this->tooMany($request, 'Too many webmentions from your address; try again in a minute');
+        }
+
+        if (!$this->limiter->allow('source', (string) Url::host($source), self::PER_SOURCE_LIMIT, self::LIMIT_WINDOW)) {
+            return $this->tooMany($request, 'Too many webmentions from this source domain; try again in a minute');
+        }
+
         $rateKey = 'webmention:ratelimit:' . md5("s=$source;t=$target");
         if (!$this->redis->set($rateKey, '1', ['nx', 'ex' => 30])) {
-            return $this->json->respond($request, 429, [
-                'error'             => 'rate_limit_exceeded',
-                'error_description' => 'Only one request per source and target combination is allowed every 30 seconds',
-            ]);
+            return $this->tooMany($request, 'Only one request per source and target combination is allowed every 30 seconds');
+        }
+
+        if ($request->has('debug') && !$this->limiter->allow('debug', $request->ip, self::DEBUG_LIMIT, self::LIMIT_WINDOW)) {
+            return $this->tooMany($request, 'Too many synchronous (debug) requests; leave out debug and poll the status URL instead');
+        }
+
+        if (!$request->has('debug') && $this->queue->length() >= self::MAX_QUEUE_LENGTH) {
+            $this->log->warning('Queue full; refusing a webmention from ' . $request->ip);
+
+            return $this->json->respond($request, 503, [
+                'error'             => 'service_unavailable',
+                'error_description' => 'The service is busy; please retry in a minute',
+            ], ['retry-after' => '60']);
         }
 
         $token     = rtrim(strtr(base64_encode(random_bytes(15)), '+/', '-_'), '=');
@@ -232,6 +283,14 @@ final class WebmentionController extends Controller
         ], ['location' => $statusUrl]);
     }
 
+    private function tooMany(Request $request, string $description): Response
+    {
+        return $this->json->respond($request, 429, [
+            'error'             => 'rate_limit_exceeded',
+            'error_description' => $description,
+        ], ['retry-after' => '60']);
+    }
+
     private function processNow(Request $request, Job $job): Response
     {
         try {
@@ -241,7 +300,7 @@ final class WebmentionController extends Controller
 
             return $this->json->respond($request, 500, [
                 'error'             => 'internal_server_error',
-                'error_description' => $e->getMessage(),
+                'error_description' => 'An internal error occurred while processing this webmention',
             ]);
         }
 

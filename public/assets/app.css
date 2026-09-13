@@ -278,6 +278,18 @@ button.icon:hover { color: var(--danger); background: var(--danger-soft); filter
 
 .button.small { padding: .2rem .6rem; font-size: .875rem; }
 
+form.inline { display: inline; margin: 0; }
+button.link {
+    background: none;
+    border: 0;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+}
+button.link:hover { filter: none; color: var(--accent, inherit); }
+
 .stack { display: grid; gap: .9rem; }
 
 .field { display: grid; gap: .3rem; }

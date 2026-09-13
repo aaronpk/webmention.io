@@ -23,7 +23,8 @@ final class SourceFetcher
     }
 
     /**
-     * @return array{data?: array<string, mixed>, error?: string, error_description?: string|null}
+     * @return array{data?: array<string, mixed>, final_url?: string, error?: string, error_description?: string|null}
+     *         final_url is where the fetch ended up after redirects.
      */
     public function parse(string $url, ?string $target = null, ?string $accessToken = null): array
     {
@@ -59,7 +60,7 @@ final class SourceFetcher
         }
 
         if (isset($result['data']) && is_array($result['data'])) {
-            return ['data' => $result['data']];
+            return ['data' => $result['data'], 'final_url' => $http->firstUrl() ?? $url];
         }
 
         return ['error' => 'invalid_source', 'error_description' => 'Error retrieving source. No result returned from XRay.'];

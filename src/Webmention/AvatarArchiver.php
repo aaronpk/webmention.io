@@ -29,6 +29,12 @@ final class AvatarArchiver
             return $originalUrl;
         }
 
+        // CA3DB fetches whatever URL it is given, so it only gets ones this app
+        // would fetch itself.
+        if ($this->http->blockedReason($originalUrl) !== null) {
+            return $originalUrl;
+        }
+
         $response = $this->http->postJson($endpoint, [
             'key_id'     => $this->config->get('CA3DB_KEY_ID'),
             'secret_key' => $this->config->get('CA3DB_SECRET_KEY'),

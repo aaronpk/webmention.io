@@ -15,6 +15,8 @@ use Webmention\Storage\AccountRepository;
 use Webmention\Storage\BlockRepository;
 use Webmention\Storage\SiteRepository;
 use Webmention\View\Template;
+use Webmention\Webmention\HttpClient;
+use Webmention\Webmention\SiteVerifier;
 
 /**
  * Account settings: API token, sites, webhooks, blocked domains.
@@ -29,6 +31,8 @@ final class SettingsController extends Controller
         private readonly AccountRepository $accounts,
         private readonly SiteRepository $sites,
         private readonly BlockRepository $blocks,
+        private readonly SiteVerifier $verifier,
+        private readonly HttpClient $http,
         private readonly Config $config,
     ) {
         parent::__construct($view);
@@ -120,9 +124,21 @@ final class SettingsController extends Controller
             return Response::seeOther('/settings/sites?error=' . rawurlencode('Enter a domain name, like example.com'));
         }
 
-        if ($this->sites->findByAccountAndDomain($user->id, $domain) === null) {
-            $this->sites->create($user->id, $domain);
+        if ($this->sites->findByAccountAndDomain($user->id, $domain) !== null) {
+            return Response::seeOther('/settings/sites');
         }
+
+        // The domain has to name this account's endpoint before it can be added.
+        $problem = $this->verifier->verify($user, $domain);
+        if ($problem !== null) {
+            $tag = '<link rel="webmention" href="' . $this->verifier->endpointFor($user) . '">';
+
+            return Response::seeOther('/settings/sites?error=' . rawurlencode(
+                "$problem Add $tag to the home page of $domain, then try again.",
+            ));
+        }
+
+        $this->sites->create($user->id, $domain);
 
         return Response::seeOther('/settings/sites');
     }
@@ -168,6 +184,9 @@ final class SettingsController extends Controller
         $url = trim((string) $request->post('callback_url'));
         if ($url !== '' && !Url::isHttp($url)) {
             throw HttpException::badRequest('The callback URL must be an http or https URL.');
+        }
+        if ($url !== '' && ($why = $this->http->blockedReason($url)) !== null) {
+            throw HttpException::badRequest("That callback URL can't be reached from here: $why");
         }
 
         $this->sites->updateWebhook(

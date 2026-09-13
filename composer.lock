@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "eee6d2c293fcb74f5659c8f3553f7d0e",
+    "content-hash": "3b47cba6c9856bf70f46876ac657e2c8",
     "packages": [
         {
             "name": "cebe/markdown",
@@ -515,16 +515,16 @@
         },
         {
             "name": "p3k/picofeed",
-            "version": "v0.1.40",
+            "version": "v0.1.41",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aaronpk/picofeed.git",
-                "reference": "356fd66d48779193b10ac28532cb4a4e11bb801c"
+                "reference": "781a10cac4a7477be83ece542d3d7cad60e1b0e6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aaronpk/picofeed/zipball/356fd66d48779193b10ac28532cb4a4e11bb801c",
-                "reference": "356fd66d48779193b10ac28532cb4a4e11bb801c",
+                "url": "https://api.github.com/repos/aaronpk/picofeed/zipball/781a10cac4a7477be83ece542d3d7cad60e1b0e6",
+                "reference": "781a10cac4a7477be83ece542d3d7cad60e1b0e6",
                 "shasum": ""
             },
             "require": {
@@ -569,84 +569,38 @@
             "homepage": "https://github.com/aaronpk/picoFeed",
             "support": {
                 "issues": "https://github.com/aaronpk/picofeed/issues",
-                "source": "https://github.com/aaronpk/picofeed/tree/v0.1.40"
+                "source": "https://github.com/aaronpk/picofeed/tree/v0.1.41"
             },
-            "time": "2020-04-25T17:48:36+00:00"
-        },
-        {
-            "name": "p3k/timezone",
-            "version": "0.1.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/aaronpk/p3k-timezone.git",
-                "reference": "68d3490d896f98cf0727dc937f0bb6b045050c83"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/aaronpk/p3k-timezone/zipball/68d3490d896f98cf0727dc937f0bb6b045050c83",
-                "reference": "68d3490d896f98cf0727dc937f0bb6b045050c83",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=5.4.0"
-            },
-            "type": "library",
-            "autoload": {
-                "files": [
-                    "src/p3k/Timezone.php"
-                ]
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "Apache-2.0"
-            ],
-            "authors": [
-                {
-                    "name": "Aaron Parecki",
-                    "homepage": "https://aaronparecki.com"
-                }
-            ],
-            "description": "Find the timezone of a given location",
-            "homepage": "https://github.com/aaronpk/p3k-timezone",
-            "keywords": [
-                "date",
-                "p3k",
-                "timezone"
-            ],
-            "support": {
-                "issues": "https://github.com/aaronpk/p3k-timezone/issues",
-                "source": "https://github.com/aaronpk/p3k-timezone/tree/0.1.0"
-            },
-            "time": "2017-01-12T17:30:08+00:00"
+            "time": "2023-10-30T15:53:21+00:00"
         },
         {
             "name": "p3k/xray",
-            "version": "v1.15.1",
+            "version": "v2.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aaronpk/XRay.git",
-                "reference": "a4cda273d34c56317197511d0f4799f5f00465e9"
+                "reference": "46b7a084316a65367d4478fd4917ef947d7742c8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aaronpk/XRay/zipball/a4cda273d34c56317197511d0f4799f5f00465e9",
-                "reference": "a4cda273d34c56317197511d0f4799f5f00465e9",
+                "url": "https://api.github.com/repos/aaronpk/XRay/zipball/46b7a084316a65367d4478fd4917ef947d7742c8",
+                "reference": "46b7a084316a65367d4478fd4917ef947d7742c8",
                 "shasum": ""
             },
             "require": {
                 "cebe/markdown": "^1.1.0",
-                "ezyang/htmlpurifier": "^4.10",
+                "ezyang/htmlpurifier": "^4.17",
                 "indieweb/link-rel-parser": "^0.1.0",
                 "masterminds/html5": "^2.3",
                 "mf2/mf2": "^0.4||^0.5",
-                "p3k/http": "^0.1.0",
-                "p3k/picofeed": "^0.1.0",
-                "p3k/timezone": "^0.1.0"
+                "p3k/http": "^0.1.13",
+                "p3k/picofeed": "0.1.41",
+                "php": "^8.0"
             },
             "require-dev": {
-                "league/plates": "^3.0",
-                "league/route": "^1.0",
-                "phpunit/phpunit": "^8.0.0|^9.0.0"
+                "league/plates": "^3.5",
+                "phpunit/phpunit": "^9.6",
+                "symfony/http-foundation": "^5.4 || ^6.0 || ^7.0"
             },
             "type": "library",
             "autoload": {
@@ -666,9 +620,9 @@
             "homepage": "https://github.com/aaronpk/XRay",
             "support": {
                 "issues": "https://github.com/aaronpk/XRay/issues",
-                "source": "https://github.com/aaronpk/XRay/tree/v1.15.1"
+                "source": "https://github.com/aaronpk/XRay/tree/v2.0.0"
             },
-            "time": "2024-08-31T16:21:43+00:00"
+            "time": "2026-09-13T21:24:32+00:00"
         }
     ],
     "packages-dev": [

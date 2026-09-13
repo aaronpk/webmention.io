@@ -136,6 +136,7 @@ final class DashboardTest extends IntegrationTestCase
     public function testAddSiteNormalizesTheDomain(): void
     {
         $csrf = $this->signIn($this->alice);
+        $this->advertise('blog.alice.example', 'https://webmention.io/alice.example/webmention');
 
         $this->request('POST', '/settings/sites/new', post: ['domain' => 'HTTPS://Blog.Alice.Example/about', 'csrf' => $csrf]);
         $this->request('POST', '/settings/sites/new', post: ['domain' => 'blog.alice.example', 'csrf' => $csrf]);
@@ -143,6 +144,76 @@ final class DashboardTest extends IntegrationTestCase
 
         $domains = array_map(static fn (Site $s): ?string => $s->domain, $this->service(SiteRepository::class)->listForAccount($this->alice->id));
         self::assertSame(['alice.example', 'blog.alice.example'], $domains);
+    }
+
+    public function testASiteMustAdvertiseTheAccountsEndpointBeforeItCanBeAdded(): void
+    {
+        $csrf = $this->signIn($this->mallory);
+
+        // Nothing there, someone else's endpoint, an unreachable host: all refused.
+        $this->http->respond('GET', 'https://victim.example/', 200, '<html><body>Hi</body></html>', ['Content-Type' => 'text/html']);
+        $this->http->respond('GET', 'http://victim.example/', 200, '<html><body>Hi</body></html>', ['Content-Type' => 'text/html']);
+        $this->advertise('alice.example', 'https://webmention.io/alice.example/webmention');
+        $this->http->respond('GET', 'https://down.example/', 0, '', [], 'timeout');
+        $this->http->respond('GET', 'http://down.example/', 0, '', [], 'timeout');
+
+        foreach (['victim.example' => 'does not have a webmention endpoint', 'alice.example' => 'different webmention endpoint', 'down.example' => 'Could not fetch'] as $domain => $why) {
+            $response = $this->request('POST', '/settings/sites/new', post: ['domain' => $domain, 'csrf' => $csrf]);
+            self::assertSame(303, $response->status);
+            self::assertStringContainsString(rawurlencode($why), (string) $response->header('location'), $domain);
+            self::assertStringContainsString(rawurlencode('href="https://webmention.io/mallory.example/webmention"'), (string) $response->header('location'));
+        }
+
+        $domains = array_map(static fn (Site $s): ?string => $s->domain, $this->service(SiteRepository::class)->listForAccount($this->mallory->id));
+        self::assertSame(['mallory.example'], $domains);
+    }
+
+    public function testASiteIsAcceptedWithALinkHeaderOrTagOrPerDomainEndpoint(): void
+    {
+        $csrf = $this->signIn($this->mallory);
+
+        // A Link header, on the http site after https fails.
+        $this->http->respond('GET', 'https://header.example/', 0, '', [], 'ssl_error');
+        $this->http->respond('GET', 'http://header.example/', 200, '<html></html>', [
+            'Content-Type' => 'text/html',
+            'Link'         => '</mallory.example/webmention>; rel="webmention"',
+        ]);
+        // Trailing slash and upper case in the tag don't matter; nor does a relative URL.
+        $this->http->respond('GET', 'https://tag.example/', 200, '<html><head><link rel="webmention" href="HTTPS://Webmention.IO/mallory.example/webmention/"></head></html>', ['Content-Type' => 'text/html']);
+        $this->http->respond('GET', 'https://perdomain.example/', 200, '<html><body><a rel="webmention" href="https://webmention.io/d/perdomain.example/webmention">wm</a></body></html>', ['Content-Type' => 'text/html']);
+
+        // The Link header value above is relative to the page, so it resolves to header.example, not here.
+        $this->request('POST', '/settings/sites/new', post: ['domain' => 'header.example', 'csrf' => $csrf]);
+        $this->request('POST', '/settings/sites/new', post: ['domain' => 'tag.example', 'csrf' => $csrf]);
+        $this->request('POST', '/settings/sites/new', post: ['domain' => 'perdomain.example', 'csrf' => $csrf]);
+
+        $domains = array_map(static fn (Site $s): ?string => $s->domain, $this->service(SiteRepository::class)->listForAccount($this->mallory->id));
+        self::assertSame(['mallory.example', 'tag.example', 'perdomain.example'], $domains);
+    }
+
+    public function testACallbackUrlThatCanNeverBeReachedIsRefused(): void
+    {
+        $csrf = $this->signIn($this->alice);
+
+        $response = $this->request('POST', '/webhook/configure', post: [
+            'site_id'      => (string) $this->aliceSite->id,
+            'callback_url' => 'ftp://alice.example/hook',
+            'csrf'         => $csrf,
+        ]);
+
+        self::assertSame(400, $response->status);
+        self::assertSame('https://alice.example/hook', $this->service(SiteRepository::class)->find($this->aliceSite->id)?->callbackUrl);
+    }
+
+    private function advertise(string $domain, string $endpoint): void
+    {
+        $this->http->respond(
+            'GET',
+            "https://$domain/",
+            200,
+            '<html><head><link rel="webmention" href="' . $endpoint . '"></head><body>Hi</body></html>',
+            ['Content-Type' => 'text/html'],
+        );
     }
 
     public function testAccountNamesForProfileUrls(): void

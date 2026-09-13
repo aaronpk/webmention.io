@@ -66,7 +66,7 @@ final class Router
         $this->routes[] = [
             'methods' => $methods,
             'pattern' => $pattern,
-            'regex'   => '#^' . $regex . '$#',
+            'regex'   => '#^' . $regex . '\z#',
             'params'  => $params,
             'handler' => $handler,
         ];

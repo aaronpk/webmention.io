@@ -30,7 +30,8 @@ final class Job
             token:        (string) ($data['token'] ?? ''),
             code:         isset($data['code']) && is_string($data['code']) && $data['code'] !== '' ? $data['code'] : null,
             endpointType: ($data['endpoint_type'] ?? '') === 'site' ? 'site' : 'account',
-            protocol:     (string) ($data['protocol'] ?? 'webmention'),
+            // Only ever "webmention" now; nothing else may reach the database from the queue.
+            protocol:     'webmention',
         );
     }
 

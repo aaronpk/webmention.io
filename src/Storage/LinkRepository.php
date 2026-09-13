@@ -101,7 +101,7 @@ final class LinkRepository
     /**
      * @param list<int> $pageIds
      */
-    public function countForPages(array $pageIds): int
+    public function countForPages(array $pageIds, bool $includePrivate = false): int
     {
         if ($pageIds === []) {
             return 0;
@@ -109,7 +109,7 @@ final class LinkRepository
 
         return (int) $this->db->value(
             'SELECT COUNT(*) FROM links WHERE page_id IN (' . Database::placeholders($pageIds) . ')
-                AND verified = 1 AND deleted = 0',
+                AND verified = 1 AND deleted = 0' . ($includePrivate ? '' : ' AND is_private = 0'),
             $pageIds,
         );
     }
@@ -118,7 +118,7 @@ final class LinkRepository
      * @param  list<int>          $pageIds
      * @return array<string, int> type => count, NULL types omitted
      */
-    public function typeCountsForPages(array $pageIds): array
+    public function typeCountsForPages(array $pageIds, bool $includePrivate = false): array
     {
         if ($pageIds === []) {
             return [];
@@ -126,7 +126,7 @@ final class LinkRepository
 
         $rows = $this->db->all(
             'SELECT type, COUNT(1) AS num FROM links WHERE page_id IN (' . Database::placeholders($pageIds) . ')
-                AND deleted = 0 AND verified = 1 GROUP BY type',
+                AND deleted = 0 AND verified = 1' . ($includePrivate ? '' : ' AND is_private = 0') . ' GROUP BY type',
             $pageIds,
         );
 
@@ -146,6 +146,9 @@ final class LinkRepository
         $where  = ['links.verified = 1', 'links.deleted = 0'];
         $params = [];
 
+        if (!$search->includePrivate) {
+            $where[] = 'links.is_private = 0';
+        }
         if ($search->accountId !== null) {
             $where[]  = 'links.account_id = ?';
             $params[] = $search->accountId;

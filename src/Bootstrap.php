@@ -25,6 +25,8 @@ use Webmention\Webmention\AvatarArchiver;
 use Webmention\Webmention\HttpClient;
 use Webmention\Webmention\Processor;
 use Webmention\Webmention\Queue;
+use Webmention\Webmention\RateLimiter;
+use Webmention\Webmention\SiteVerifier;
 use Webmention\Webmention\SourceFetcher;
 use Webmention\Webmention\StatusStore;
 use Webmention\Webmention\WebHooks;
@@ -78,11 +80,13 @@ final class Bootstrap
 
         $c->set(StatusStore::class, static fn (Container $c): StatusStore => new StatusStore($c->get(Redis::class)));
         $c->set(Queue::class, static fn (Container $c): Queue => new Queue($c->get(Redis::class)));
+        $c->set(RateLimiter::class, static fn (Container $c): RateLimiter => new RateLimiter($c->get(Redis::class), $c->get(Log::class)));
         $c->set(HttpClient::class, static fn (): HttpClient => new HttpClient(
             $config->baseUrl(),
             allowPrivateNetwork: $config->get('ALLOW_PRIVATE_NETWORK') === '1',
         ));
         $c->set(SourceFetcher::class, static fn (Container $c): SourceFetcher => new SourceFetcher($c->get(HttpClient::class)));
+        $c->set(SiteVerifier::class, static fn (Container $c): SiteVerifier => new SiteVerifier($c->get(HttpClient::class), $config));
         $c->set(AvatarArchiver::class, static fn (Container $c): AvatarArchiver => new AvatarArchiver(
             $config,
             $c->get(HttpClient::class),
@@ -132,6 +136,7 @@ final class Bootstrap
             $c->get(Queue::class),
             $c->get(Processor::class),
             $c->get(Redis::class),
+            $c->get(RateLimiter::class),
             $c->get(Log::class),
             $config,
         ));
@@ -141,6 +146,7 @@ final class Bootstrap
             $c->get(Session::class),
             $c->get(AccountRepository::class),
             $c->get(HttpClient::class),
+            $c->get(RateLimiter::class),
             $config,
         ));
 
@@ -160,6 +166,8 @@ final class Bootstrap
             $c->get(AccountRepository::class),
             $c->get(SiteRepository::class),
             $c->get(BlockRepository::class),
+            $c->get(SiteVerifier::class),
+            $c->get(HttpClient::class),
             $config,
         ));
 
@@ -173,9 +181,12 @@ final class Bootstrap
         $r->get('/', [HomeController::class, 'index']);
         $r->get('/id', [HomeController::class, 'clientMetadata']);
 
-        $r->get('/auth/start', [AuthController::class, 'start']);
+        // Starting a sign-in and signing out change the session, so both are POSTs.
+        $r->get('/auth/start', [AuthController::class, 'startForm']);
+        $r->post('/auth/start', [AuthController::class, 'start']);
         $r->get('/auth/callback', [AuthController::class, 'callback']);
-        $r->get('/logout', [AuthController::class, 'logout']);
+        $r->get('/logout', [HomeController::class, 'index']);
+        $r->post('/logout', [AuthController::class, 'logout']);
 
         // Literal /api routes first, so {kind} never swallows count.
         $r->get('/api/count', [ApiController::class, 'count']);

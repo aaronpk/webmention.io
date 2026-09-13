@@ -39,7 +39,7 @@ final class SessionCookieTest extends IntegrationTestCase
     public function testSigningInStartsAHardenedSessionStoredInRedis(): void
     {
         // Discovery fails for a .invalid host, but the session has started by then.
-        [$status, $headers] = $this->get('/auth/start?me=' . rawurlencode('https://user.invalid/'));
+        [$status, $headers] = $this->post('/auth/start', 'me=' . rawurlencode('https://user.invalid/'));
 
         self::assertSame(400, $status);
 
@@ -74,7 +74,29 @@ final class SessionCookieTest extends IntegrationTestCase
     /** @return array{int, list<string>} */
     private function get(string $path): array
     {
-        $context = stream_context_create(['http' => ['ignore_errors' => true, 'follow_location' => 0, 'timeout' => 10]]);
+        return $this->send($path, ['ignore_errors' => true, 'follow_location' => 0, 'timeout' => 10]);
+    }
+
+    /** @return array{int, list<string>} A form post as a browser would send it from this site. */
+    private function post(string $path, string $body): array
+    {
+        return $this->send($path, [
+            'method'          => 'POST',
+            'header'          => "Content-Type: application/x-www-form-urlencoded\r\nSec-Fetch-Site: same-origin",
+            'content'         => $body,
+            'ignore_errors'   => true,
+            'follow_location' => 0,
+            'timeout'         => 10,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed> $options
+     * @return array{int, list<string>}
+     */
+    private function send(string $path, array $options): array
+    {
+        $context = stream_context_create(['http' => $options]);
         @file_get_contents($this->base . $path, false, $context);
 
         $headers = $http_response_header ?? [];

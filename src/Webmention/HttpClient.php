@@ -25,6 +25,16 @@ final class HttpClient
         $this->transport = $transport ?? new SafeTransport($allowPrivateNetwork);
     }
 
+    /**
+     * Why a URL may not be requested by this app, or null if it may. Used
+     * before handing a stranger's URL to another service, and to tell a user
+     * their callback URL can never be reached.
+     */
+    public function blockedReason(string $url): ?string
+    {
+        return $this->transport instanceof SafeTransport ? $this->transport->blockedReason($url) : null;
+    }
+
     public function userAgent(): string
     {
         return self::BASE_USER_AGENT . ' webmention.io (+' . $this->baseUrl . ')';
@@ -47,9 +57,13 @@ final class HttpClient
      */
     public function postJson(string $url, array|object $data, array $headers = [], string $contentType = 'application/json', int $timeout = 20): array
     {
-        $body = json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) ?: '{}';
+        return $this->http($timeout)->post($url, self::encodeJson($data), ['Content-Type: ' . $contentType, ...$headers]);
+    }
 
-        return $this->http($timeout)->post($url, $body, ['Content-Type: ' . $contentType, ...$headers]);
+    /** @param array<string, mixed>|object $data */
+    public static function encodeJson(array|object $data): string
+    {
+        return json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) ?: '{}';
     }
 
     /** @param array<string, mixed> $response */

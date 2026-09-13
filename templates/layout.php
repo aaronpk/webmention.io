@@ -38,7 +38,10 @@ $links = [
                 </nav>
                 <div class="account">
                     <span class="muted"><?= $nav['domain'] ?></span>
-                    <a href="/logout">Sign out</a>
+                    <form action="/logout" method="post" class="inline">
+                        <input type="hidden" name="csrf" value="<?= $nav['csrf'] ?>">
+                        <button type="submit" class="link">Sign out</button>
+                    </form>
                 </div>
             <?php } ?>
         </div>

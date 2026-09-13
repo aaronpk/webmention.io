@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Webmention\Tests\Integration;
 
 use IndieAuth\Client;
+use Webmention\Controllers\AuthController;
 use Webmention\Storage\AccountRepository;
 use Webmention\Tests\Support\IntegrationTestCase;
 use Webmention\Webmention\HttpClient;
@@ -17,6 +18,9 @@ use Webmention\Webmention\HttpClient;
  */
 final class AuthFlowTest extends IntegrationTestCase
 {
+    /** What a browser sends when the form on this site is submitted. */
+    private const SAME_ORIGIN = ['sec-fetch-site' => 'same-origin'];
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -107,10 +111,57 @@ final class AuthFlowTest extends IntegrationTestCase
     {
         $this->http->respond('GET', 'https://nobody.example/', 200, '<html><body>No IndieAuth here</body></html>', ['Content-Type' => 'text/html']);
 
-        $response = $this->request('GET', '/auth/start', ['me' => 'https://nobody.example/']);
+        $response = $this->request('POST', '/auth/start', post: ['me' => 'https://nobody.example/'], headers: self::SAME_ORIGIN);
 
         self::assertSame(400, $response->status);
         self::assertStringContainsString('Could not find your authorization endpoint', $response->body);
+    }
+
+    public function testSignInCannotBeStartedFromAnotherSite(): void
+    {
+        $this->fakeProfile('mallory.example');
+
+        // A form on another site, or a bare request with no browser headers at all.
+        foreach ([['sec-fetch-site' => 'cross-site'], ['origin' => 'https://evil.example'], ['referer' => 'https://evil.example/page'], []] as $headers) {
+            $response = $this->request('POST', '/auth/start', post: ['me' => 'https://mallory.example/'], headers: $headers);
+            self::assertSame(403, $response->status, json_encode($headers));
+        }
+        self::assertSame([], $this->http->requests, 'Nothing should have been fetched');
+
+        // Older browsers send Origin or Referer instead of Sec-Fetch-Site.
+        self::assertSame(302, $this->request('POST', '/auth/start', post: ['me' => 'https://mallory.example/'], headers: ['origin' => 'https://webmention.io'])->status);
+        self::assertSame(302, $this->request('POST', '/auth/start', post: ['me' => 'https://mallory.example/'], headers: ['referer' => 'https://webmention.io/'])->status);
+    }
+
+    public function testOldSignInLinksLandOnTheHomePage(): void
+    {
+        $response = $this->request('GET', '/auth/start', ['me' => 'https://alice.example/']);
+
+        self::assertSame(302, $response->status);
+        self::assertSame('/?me=' . rawurlencode('https://alice.example/'), $response->header('location'));
+        self::assertSame([], $this->http->requests);
+
+        self::assertStringContainsString('value="https://alice.example/"', $this->request('GET', '/', ['me' => 'https://alice.example/'])->body);
+    }
+
+    public function testProfileUrlsMustBeHttpsWithoutPortOrUserinfo(): void
+    {
+        foreach (['http://alice.example/', 'https://alice.example:8443/', 'https://user@alice.example/', 'https://alice.example/#me', 'not a url', 'https://localhost/'] as $me) {
+            $response = $this->request('POST', '/auth/start', post: ['me' => $me], headers: self::SAME_ORIGIN);
+            self::assertSame(400, $response->status, $me);
+        }
+        self::assertSame([], $this->http->requests, 'Nothing should have been fetched');
+    }
+
+    public function testProfileUrlsAreNormalisedBeforeDiscovery(): void
+    {
+        self::assertSame('https://alice.example/', AuthController::normalizeMe('alice.example'));
+        self::assertSame('https://alice.example/', AuthController::normalizeMe(' HTTPS://Alice.Example/ '));
+        self::assertSame('https://alice.example/~me/', AuthController::normalizeMe('https://alice.example/~me/'));
+        if (function_exists('idn_to_ascii')) {
+            self::assertSame('https://xn--80ak6aa92e.example/', AuthController::normalizeMe('https://аррӏе.example/'));
+        }
+        self::assertIsArray(AuthController::normalizeMe('http://alice.example/'));
     }
 
     public function testSignInFormMayRedirectToAnyAuthorizationServer(): void
@@ -126,14 +177,32 @@ final class AuthFlowTest extends IntegrationTestCase
 
     public function testEmptySignInGoesHome(): void
     {
+        self::assertSame('/', $this->request('POST', '/auth/start', post: ['me' => ' '], headers: self::SAME_ORIGIN)->header('location'));
         self::assertSame('/', $this->request('GET', '/auth/start', ['me' => ' '])->header('location'));
     }
 
-    public function testLogout(): void
+    public function testTooManySignInAttemptsAreRefused(): void
     {
-        $this->signIn($this->createAccount('frank.example'));
+        $this->fakeProfile('heidi.example');
 
-        $response = $this->request('GET', '/logout');
+        for ($i = 0; $i < 10; $i++) {
+            self::assertSame(302, $this->request('POST', '/auth/start', post: ['me' => 'https://heidi.example/'], headers: self::SAME_ORIGIN)->status);
+        }
+
+        self::assertSame(429, $this->request('POST', '/auth/start', post: ['me' => 'https://heidi.example/'], headers: self::SAME_ORIGIN)->status);
+    }
+
+    public function testLogoutIsAPostWithTheCsrfToken(): void
+    {
+        $csrf = $this->signIn($this->createAccount('frank.example'));
+
+        // A link or a forged form can't sign the user out.
+        $this->request('GET', '/logout');
+        self::assertArrayHasKey('user_id', $_SESSION);
+        self::assertSame(403, $this->request('POST', '/logout')->status);
+        self::assertArrayHasKey('user_id', $_SESSION);
+
+        $response = $this->request('POST', '/logout', post: ['csrf' => $csrf]);
 
         self::assertSame('/', $response->header('location'));
         self::assertArrayNotHasKey('user_id', $_SESSION);
@@ -152,7 +221,7 @@ final class AuthFlowTest extends IntegrationTestCase
 
     private function startSignIn(string $me): string
     {
-        $response = $this->request('GET', '/auth/start', ['me' => $me]);
+        $response = $this->request('POST', '/auth/start', post: ['me' => $me], headers: self::SAME_ORIGIN);
         self::assertSame(302, $response->status, $response->body);
 
         return (string) $response->header('location');

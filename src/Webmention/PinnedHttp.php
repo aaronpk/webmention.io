@@ -14,14 +14,17 @@ use p3k\HTTP\Transport;
  * would bypass SafeTransport (and the fake transport in tests), so only the
  * constructor's call to set_transport() counts.
  *
- * It also remembers the status of the first GET, which is the page XRay was
- * asked to parse. XRay doesn't report the status for every outcome.
+ * It also remembers the status and final URL (after redirects) of the first
+ * GET, which is the page XRay was asked to parse. XRay doesn't report either
+ * for every outcome.
  */
 final class PinnedHttp extends HTTP
 {
     private bool $pinned = false;
 
     private ?int $firstStatus = null;
+
+    private ?string $firstUrl = null;
 
     public function set_transport(Transport $transport)
     {
@@ -36,6 +39,7 @@ final class PinnedHttp extends HTTP
         $response = parent::get($url, $headers);
 
         $this->firstStatus ??= (int) ($response['code'] ?? 0);
+        $this->firstUrl    ??= is_string($response['url'] ?? null) ? $response['url'] : (string) $url;
 
         return $response;
     }
@@ -43,5 +47,11 @@ final class PinnedHttp extends HTTP
     public function firstStatus(): ?int
     {
         return $this->firstStatus;
+    }
+
+    /** Where the first GET ended up, after any redirects. */
+    public function firstUrl(): ?string
+    {
+        return $this->firstUrl;
     }
 }

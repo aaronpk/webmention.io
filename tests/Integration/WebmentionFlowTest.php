@@ -98,6 +98,63 @@ final class WebmentionFlowTest extends IntegrationTestCase
         self::assertSame(['secret', 'source', 'target', 'private', 'post'], array_keys($payload));
         self::assertSame('s3cret', $payload['secret']);
         self::assertSame(self::TARGET, $payload['post']['like-of']);
+        self::assertContains('X-Webmention-Signature: sha256=' . hash_hmac('sha256', (string) $hooks[0]['body'], 's3cret'), $hooks[0]['headers']);
+    }
+
+    public function testOverLongUrlsAreRefused(): void
+    {
+        $long = 'http://source.example.org/' . str_repeat('a', 600);
+
+        $response = $this->request('POST', '/target.example.com/webmention', post: ['source' => $long, 'target' => self::TARGET]);
+
+        self::assertSame(400, $response->status);
+        self::assertSame('url too long', self::json($response)['error_details']);
+        self::assertSame(400, $this->request('POST', '/target.example.com/webmention', post: ['source' => self::SOURCE, 'target' => self::TARGET, 'code' => str_repeat('c', 2000)])->status);
+    }
+
+    public function testSynchronousProcessingIsRateLimitedPerClient(): void
+    {
+        for ($i = 0; $i < 10; $i++) {
+            $response = $this->request('POST', '/target.example.com/webmention', post: ['source' => 'http://source.example.org/nothing', 'target' => self::TARGET . "?n=$i", 'debug' => '1']);
+            self::assertSame(400, $response->status, "request $i: {$response->body}");
+        }
+
+        $response = $this->request('POST', '/target.example.com/webmention', post: ['source' => 'http://source.example.org/nothing', 'target' => self::TARGET . '?n=10', 'debug' => '1']);
+
+        self::assertSame(429, $response->status);
+        self::assertSame('rate_limit_exceeded', self::json($response)['error']);
+        self::assertSame('60', $response->header('retry-after'));
+
+        // Queued requests are counted separately and still accepted.
+        self::assertSame(201, $this->request('POST', '/target.example.com/webmention', post: ['source' => 'http://source.example.org/nothing', 'target' => self::TARGET . '?n=11'])->status);
+    }
+
+    public function testAFullQueueAsksSendersToComeBackLater(): void
+    {
+        $pipe = $this->redis->multi(\Redis::PIPELINE);
+        for ($i = 0; $i < 10000; $i++) {
+            $pipe->lPush(Queue::KEY, '{}');
+        }
+        $pipe->exec();
+
+        $response = $this->request('POST', '/target.example.com/webmention', post: ['source' => self::SOURCE, 'target' => self::TARGET]);
+
+        self::assertSame(503, $response->status);
+        self::assertSame('60', $response->header('retry-after'));
+        self::assertSame(10000, $this->service(Queue::class)->length());
+    }
+
+    public function testASourceThatRedirectsToABlockedDomainIsRefused(): void
+    {
+        $this->db->insert('blocks', ['account_id' => $this->account->id, 'domain' => 'spam.example']);
+        $this->http->respond('GET', 'http://mirror.example/post', 302, '', ['Location' => 'http://spam.example/post']);
+        $this->http->respond('GET', 'http://spam.example/post', 200, (string) file_get_contents(__DIR__ . '/../fixtures/source.example.org/like-of.html'), ['Content-Type' => 'text/html']);
+
+        $response = $this->request('POST', '/target.example.com/webmention', post: ['source' => 'http://mirror.example/post', 'target' => self::TARGET, 'debug' => '1']);
+
+        self::assertSame('blocked', self::json($response)['error']);
+        self::assertSame('source redirects to a blocked URL', self::json($response)['error_description']);
+        self::assertSame([], $this->service(LinkRepository::class)->recentForAccount($this->account->id, 10));
     }
 
     public function testRateLimitsRepeatedRequests(): void
@@ -199,6 +256,20 @@ final class WebmentionFlowTest extends IntegrationTestCase
 
         self::assertSame('blocked', self::json($response)['error']);
         self::assertSame('source domain is blocked', self::json($response)['error_description']);
+    }
+
+    public function testInternalErrorsAreNotDescribedToTheSender(): void
+    {
+        $this->db->pdo()->exec('RENAME TABLE pages TO pages_hidden');
+        try {
+            $response = $this->request('POST', '/target.example.com/webmention', post: ['source' => self::SOURCE, 'target' => self::TARGET, 'debug' => '1']);
+        } finally {
+            $this->db->pdo()->exec('RENAME TABLE pages_hidden TO pages');
+        }
+
+        self::assertSame(500, $response->status);
+        self::assertStringNotContainsString('SQLSTATE', $response->body);
+        self::assertStringNotContainsString('pages_hidden', $response->body);
     }
 
     public function testPrivateWebmentionExchangesTheCodeForAToken(): void

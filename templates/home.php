@@ -3,6 +3,7 @@
  * @var string      $base_url
  * @var bool        $signed_in
  * @var string|null $error
+ * @var string      $me     A website address to prefill.
  */
 ?>
 <section class="hero">
@@ -19,10 +20,10 @@
         <?php if ($signed_in) { ?>
             <p><a class="button" href="/dashboard">Go to your dashboard</a></p>
         <?php } else { ?>
-            <form class="sign-in" action="/auth/start" method="get">
+            <form class="sign-in" action="/auth/start" method="post">
                 <label for="me">Sign in with your website</label>
                 <div class="inline-field">
-                    <input type="url" id="me" name="me" placeholder="https://example.com" required autocomplete="url">
+                    <input type="url" id="me" name="me" value="<?= $me ?>" placeholder="https://example.com" required autocomplete="url">
                     <button type="submit">Sign in</button>
                 </div>
             </form>

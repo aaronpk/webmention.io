@@ -48,6 +48,7 @@ final class HomeController extends Controller
             'base_url'  => $this->config->baseUrl(),
             'signed_in' => $user !== null,
             'error'     => $request->query('error'),
+            'me'        => trim((string) $request->query('me')),
         ], $user === null ? null : $this->nav($user, 'home'));
 
         // The sign-in form goes to /auth/start, which redirects to the user's own

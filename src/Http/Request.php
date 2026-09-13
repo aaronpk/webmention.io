@@ -141,6 +141,33 @@ final class Request
         return $this->headers[strtolower($name)] ?? null;
     }
 
+    /**
+     * Whether a browser sent this request from a page on this site, for forms
+     * that must not be submittable from elsewhere but have no session yet.
+     * Modern browsers say so in Sec-Fetch-Site; older ones are judged by the
+     * Origin (or Referer) header. A request naming neither is refused.
+     */
+    public function fromSameOrigin(string $baseUrl): bool
+    {
+        $site = strtolower((string) $this->header('sec-fetch-site'));
+        if ($site !== '') {
+            return in_array($site, ['same-origin', 'none'], true);
+        }
+
+        $sent = $this->header('origin') ?? $this->header('referer');
+        if ($sent === null || $sent === '') {
+            return false;
+        }
+
+        $expected = parse_url($baseUrl);
+        $actual   = parse_url($sent);
+
+        return is_array($expected) && is_array($actual)
+            && strtolower((string) ($actual['scheme'] ?? '')) === strtolower((string) ($expected['scheme'] ?? ''))
+            && strtolower((string) ($actual['host'] ?? '')) === strtolower((string) ($expected['host'] ?? ''))
+            && ($actual['port'] ?? null) === ($expected['port'] ?? null);
+    }
+
     /** The old app switched JSON responses to an HTML page for browsers. */
     public function acceptsHtml(): bool
     {

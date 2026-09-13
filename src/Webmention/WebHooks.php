@@ -13,6 +13,10 @@ use Webmention\Model\Site;
 /**
  * Notifies a site's callback URL. The payloads are part of the public API and
  * must not change shape.
+ *
+ * Besides the secret in the body, every delivery carries an HMAC of the body
+ * in X-Webmention-Signature ("sha256=<hex>", keyed with the same secret), so
+ * a receiver can check authenticity without comparing the secret itself.
  */
 final class WebHooks
 {
@@ -55,8 +59,15 @@ final class WebHooks
     /** @param array<string, mixed> $payload */
     private function send(Site $site, array $payload): void
     {
-        $url      = (string) $site->callbackUrl;
-        $response = $this->http->postJson($url, $payload);
+        $url     = (string) $site->callbackUrl;
+        $body    = HttpClient::encodeJson($payload);
+        $headers = ['Content-Type: application/json'];
+
+        if (!Url::blank($site->callbackSecret)) {
+            $headers[] = 'X-Webmention-Signature: sha256=' . hash_hmac('sha256', $body, (string) $site->callbackSecret);
+        }
+
+        $response = $this->http->http()->post($url, $body, $headers);
 
         if (HttpClient::succeeded($response)) {
             $this->log->info("Webhook sent to $url");

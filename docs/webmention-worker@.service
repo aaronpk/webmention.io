@@ -4,6 +4,10 @@
 #
 # The worker exits after a batch of jobs or on SIGTERM (after finishing the
 # current job), and systemd starts a fresh one.
+#
+# The worker fetches and parses pages chosen by strangers, so it runs with a
+# memory limit and as little of the system as it needs: no writable filesystem
+# outside its own log, no home directories, no devices, no new privileges.
 
 [Unit]
 Description=webmention.io queue worker %i
@@ -14,11 +18,31 @@ Wants=network-online.target
 Type=simple
 User=www-data
 WorkingDirectory=/web/sites/webmention.io
-ExecStart=/usr/bin/php bin/worker --max-jobs=1000
+ExecStart=/usr/bin/php -d memory_limit=256M bin/worker --max-jobs=1000
 Restart=always
 RestartSec=1
 KillSignal=SIGTERM
 TimeoutStopSec=60
+
+# Must not carry a proxy: the transport pins the address it checked, and a
+# proxy would resolve names itself.
+UnsetEnvironment=http_proxy https_proxy all_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY
+
+MemoryMax=512M
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+# The worker logs to stderr (the journal); nothing under the site needs to be writable.
+# Add ReadWritePaths= here if LOG_FILE points somewhere inside it.
 
 [Install]
 WantedBy=multi-user.target

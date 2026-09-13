@@ -44,6 +44,9 @@
 
 <section class="card">
     <h2>Add a site</h2>
+    <p>To add another domain, first put the tag above on that domain's home page, so it names
+        this account's endpoint. That is how the site proves it is yours; without it, anyone could add
+        your domain to their account.</p>
     <?php if ($error !== null) { ?>
         <p class="alert"><?= $error ?></p>
     <?php } ?>

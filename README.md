@@ -116,7 +116,14 @@ You can also find all links to your domain:
 GET https://webmention.io/api/mentions.jf2?domain=indiewebcamp.com&token=xxxxx
 ```
 
-(You will see your account's token when you sign in.)
+(You will see your account's token when you sign in.) The token can also be sent as a header, which keeps it out of URLs and access logs:
+
+```
+GET https://webmention.io/api/mentions.jf2?domain=indiewebcamp.com
+Authorization: Bearer xxxxx
+```
+
+[Private Webmentions](https://indieweb.org/Private-Webmention) are only included in these token-authenticated listings. Queries by `target` are public and never return them.
 
 You can optionally add a `since` parameter to return new webmentions as of a certain date. This is useful to poll for new webmentions you haven't seen yet.
 
@@ -155,7 +162,7 @@ Basic paging is supported by using the `per-page` and `page` parameters. For exa
 * `?per-page=20&page=0` first page of 20 results
 * `?per-page=20&page=1` second page of 20 results
 
-The default number of results per page is 20.
+The default number of results per page is 20, and the most is 1000. A query may name up to 50 `target[]` URLs.
 
 
 ### Finding New Mentions
@@ -234,10 +241,12 @@ Location: https://webmention.io/example.com/webmention/9Hn2g4SNIVi1XDeWqj0Z
 
 The `location` URL returns the processing status for three days. Include a `code` parameter to send a [Private Webmention](https://indieweb.org/Private-Webmention).
 
+Source and target URLs may be at most 512 bytes. Requests are rate limited per (source, target) pair (one every 30 seconds), per client address and per source host; a `429` carries `Retry-After`. If the queue is full the endpoint answers `503` and the webmention should be re-sent later. Adding `debug=1` verifies the webmention synchronously and returns the result in the response; that path is limited to a few requests per minute per client.
+
 
 ## Web Hooks
 
-If a site has a callback URL, every verified webmention is POSTed to it as JSON:
+If a site has a callback URL, every verified webmention is POSTed to it as JSON. When the site has a callback secret, the request also carries `X-Webmention-Signature: sha256=<hex>`, the HMAC-SHA256 of the request body keyed with that secret, so the receiver can verify the delivery without comparing the secret in the body:
 
 ```
 {
@@ -322,7 +331,15 @@ composer test
 
 ### Outgoing requests
 
-Every outgoing request (fetching sources, private webmention tokens, web hooks, Aperture, avatar archiving, IndieAuth discovery) goes through `SafeTransport`. It only allows http and https to public IP addresses, and checks every redirect. To send webmentions from a local test site, set `ALLOW_PRIVATE_NETWORK=1` in `.env`; never in production.
+Every outgoing request (fetching sources, private webmention tokens, web hooks, Aperture, avatar archiving, IndieAuth discovery, site verification) goes through `SafeTransport`. It only allows http and https, on web ports, to public IP addresses that are not this machine's own; it pins the address it checked for the connection, re-checks every redirect, never follows a redirect for a POST, drops `Authorization` and `Cookie` when a redirect leaves the origin, reads at most 2 MB of any response, and gives the whole redirect chain one time budget. To send webmentions from a local test site, set `ALLOW_PRIVATE_NETWORK=1` in `.env`; never in production.
+
+### Accounts and sites
+
+Signing in requires an `https://` profile URL. The domain signed in with becomes the account's first site. Any further domain must advertise one of the account's endpoints (`/{username}/webmention` or `/d/{domain}/webmention`) on its home page, in a `Link` header or a `<link rel="webmention">`, before it can be added; that is what stops anyone from adding someone else's domain and feeding mentions into its public results. The `sites.public_access` column from the old schema is not enforced (it never was).
+
+### Security notes for the spec
+
+`docs/spec-feedback.md` collects the points from the security review that concern the Webmention spec itself rather than this implementation.
 
 ### Migrations
 

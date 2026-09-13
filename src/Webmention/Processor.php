@@ -35,6 +35,16 @@ final class Processor
 
     private const RSVP_VALUES = ['yes', 'no', 'maybe', 'interested'];
 
+    /**
+     * Column sizes. The connection runs without strict mode (the legacy data
+     * needs it), so anything longer would be cut silently by MySQL, possibly
+     * in the middle of a tag or a multibyte character.
+     */
+    private const BLOB_BYTES = 65535;
+    private const URL_BYTES  = 256;
+    private const PHOTO_BYTES = 512;
+    private const CANONICAL_BYTES = 255;
+
     public function __construct(
         private readonly AccountRepository $accounts,
         private readonly SiteRepository $sites,
@@ -118,6 +128,17 @@ final class Processor
             }
 
             return $fail($parsed['error'], $parsed['error_description'] ?? null);
+        }
+
+        // Redirects are followed while fetching, so the page that was actually
+        // read may live somewhere the account has blocked.
+        $finalUrl = $parsed['final_url'] ?? $source;
+        if ($finalUrl !== $source) {
+            $finalDomain = Url::host($finalUrl);
+            if (($finalDomain !== null && $this->blocks->isDomainBlocked($account->id, $finalDomain))
+                || $this->blocks->isSourceBlocked($site->id, $finalUrl)) {
+                return $fail('blocked', 'source redirects to a blocked URL');
+            }
         }
 
         $entry = $parsed['data'] ?? [];
@@ -266,6 +287,10 @@ final class Processor
                 }
             }
 
+            $fields['author_name']  = (string) self::fit($fields['author_name'], self::BLOB_BYTES);
+            $fields['author_url']   = self::fitUrl($fields['author_url'], self::URL_BYTES) ?? '';
+            $fields['author_photo'] = self::fitUrl($fields['author_photo'], self::PHOTO_BYTES) ?? '';
+
             if ($site->archiveAvatars && $fields['author_photo'] !== '') {
                 $fields['author_photo'] = $this->avatars->archive($fields['author_photo']);
             }
@@ -286,19 +311,19 @@ final class Processor
         $url = $string($entry['url'] ?? null);
 
         $fields = [
-            'url'  => Url::blank($url) ? $url : Url::absolutize($url, $source),
-            'name' => $string($entry['name'] ?? null),
+            'url'  => self::fitUrl(Url::blank($url) ? $url : Url::absolutize($url, $source), self::URL_BYTES),
+            'name' => self::fit($string($entry['name'] ?? null), self::BLOB_BYTES),
         ];
 
         if (isset($entry['summary'])) {
-            $fields['summary'] = $string($entry['summary']);
+            $fields['summary'] = self::fit($string($entry['summary']), self::BLOB_BYTES);
         }
 
         if (isset($entry['content']) && is_array($entry['content'])) {
             if (isset($entry['content']['html'])) {
-                $fields['content'] = $string($entry['content']['html']);
+                $fields['content'] = self::fitHtml($string($entry['content']['html']), self::BLOB_BYTES);
             }
-            $fields['content_text'] = $string($entry['content']['text'] ?? null);
+            $fields['content_text'] = self::fit($string($entry['content']['text'] ?? null), self::BLOB_BYTES);
         }
 
         foreach (['photo', 'video', 'audio'] as $media) {
@@ -335,11 +360,44 @@ final class Processor
         if (is_array($canonical)) {
             $canonical = $canonical[0] ?? null;
         }
-        if (is_string($canonical) && $canonical !== '') {
+        if (is_string($canonical) && ($canonical = self::fitUrl($canonical, self::CANONICAL_BYTES)) !== null) {
             $fields['relcanonical'] = $canonical;
         }
 
         return $fields;
+    }
+
+    /** Cut to a column's size without splitting a multibyte character. */
+    public static function fit(?string $value, int $bytes): ?string
+    {
+        if ($value === null || strlen($value) <= $bytes) {
+            return $value;
+        }
+
+        return mb_strcut($value, 0, $bytes, 'UTF-8');
+    }
+
+    /** A URL cut short is a different URL, so an over-long one is dropped instead. */
+    public static function fitUrl(?string $url, int $bytes): ?string
+    {
+        return $url === null || strlen($url) > $bytes ? null : $url;
+    }
+
+    /** Cut HTML at a tag boundary, so the stored fragment never ends inside a tag. */
+    public static function fitHtml(?string $html, int $bytes): ?string
+    {
+        if ($html === null || strlen($html) <= $bytes) {
+            return $html;
+        }
+
+        $cut  = (string) mb_strcut($html, 0, $bytes, 'UTF-8');
+        $open = strrpos($cut, '<');
+
+        if ($open !== false && strrpos($cut, '>') < $open) {
+            $cut = substr($cut, 0, $open);
+        }
+
+        return $cut;
     }
 
     /**

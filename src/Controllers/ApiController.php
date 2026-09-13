@@ -34,7 +34,13 @@ use Webmention\View\Template;
 final class ApiController extends Controller
 {
     /** Lets the HTML feed be embedded and styled, but never run script. */
-    private const FEED_CSP = "default-src 'none'; img-src * data:; media-src *; style-src 'self' 'unsafe-inline'; base-uri 'none'";
+    private const FEED_CSP = "default-src 'none'; img-src * data:; media-src *; style-src 'self' 'unsafe-inline'; form-action 'none'; base-uri 'none'";
+
+    /** The largest page the API will assemble. */
+    public const MAX_PER_PAGE = 1000;
+
+    /** How many target URLs one query may name. */
+    public const MAX_TARGETS = 50;
 
     public function __construct(
         Template $view,
@@ -52,7 +58,7 @@ final class ApiController extends Controller
     /** @param array<string, string> $params */
     public function count(Request $request, array $params): Response
     {
-        $targets = $request->inputList('target');
+        $targets = self::targets($request);
 
         if ($targets === []) {
             return $this->json->respond($request, 400, [
@@ -77,13 +83,13 @@ final class ApiController extends Controller
     /** @param array<string, string> $params */
     public function mentions(Request $request, array $params): Response
     {
-        if (preg_match('/^(links|mentions)(?:\.(json|atom|jf2|html))?$/', $params['kind'] ?? '', $m) !== 1) {
+        if (preg_match('/^(links|mentions)(?:\.(json|atom|jf2|html))?\z/', $params['kind'] ?? '', $m) !== 1) {
             throw HttpException::notFound();
         }
         $format = $m[2] ?? 'json';
 
-        $token   = $request->input('token') ?? $request->input('access_token') ?? '';
-        $targets = $request->inputList('target');
+        $token   = $request->input('token') ?? $request->input('access_token') ?? self::bearerToken($request) ?? '';
+        $targets = self::targets($request);
 
         if ($targets === [] && $token === '') {
             return $this->json->respond($request, 400, [
@@ -110,8 +116,8 @@ final class ApiController extends Controller
                 default                        => 'created',
             },
             'descending'   => $sortDir === null || $sortDir === 'down',
-            'limit'        => max(0, $limit),
-            'offset'       => self::offset((int) $request->input('page'), $limit),
+            'limit'        => min(max(0, $limit), self::MAX_PER_PAGE),
+            'offset'       => self::offset((int) $request->input('page'), min(max(0, $limit), self::MAX_PER_PAGE)),
         ];
 
         // Kept from the old app, which set this for matching URLs containing emoji.
@@ -138,7 +144,8 @@ final class ApiController extends Controller
                 $siteId = $site->id;
             }
 
-            $links = $this->links->search(new LinkSearch(...[...$filters, 'accountId' => $account->id, 'siteId' => $siteId]));
+            // The owner may see the private webmentions sent to their own sites.
+            $links = $this->links->search(new LinkSearch(...[...$filters, 'accountId' => $account->id, 'siteId' => $siteId, 'includePrivate' => true]));
         } else {
             // A single target with no scheme (e.g. "//example.com/post") matches either scheme.
             if (!is_array($request->post['target'] ?? $request->query['target'] ?? null)
@@ -157,14 +164,16 @@ final class ApiController extends Controller
     {
         return match ($format) {
             'jf2'  => $this->json->respond($request, 200, Jf2Format::feed($links)),
+            // Feeds fetched with a token must not be kept by a shared cache.
             'atom' => Response::make(200, AtomFormat::feed($links, $this->config->baseUrl()), [
                 'content-type'                => 'application/atom+xml;charset=UTF-8',
                 'access-control-allow-origin' => '*',
+                'cache-control'               => 'no-store',
             ]),
             'html' => Response::html($this->view->render('mentions', [
                 'account' => $account?->username,
                 'links'   => array_map(self::feedEntry(...), $links),
-            ]))->withHeader('content-security-policy', self::FEED_CSP),
+            ]))->withHeader('content-security-policy', self::FEED_CSP)->withHeader('cache-control', 'no-store'),
             default => $this->json->respond($request, 200, JsonFormat::links($links)),
         };
     }
@@ -190,6 +199,30 @@ final class ApiController extends Controller
         }
 
         return $types;
+    }
+
+    /**
+     * Target URLs from the query, without any too long to have been stored
+     * (see WebmentionController::MAX_URL_BYTES) and at most MAX_TARGETS of them.
+     *
+     * @return list<string>
+     */
+    private static function targets(Request $request): array
+    {
+        $targets = array_values(array_filter(
+            $request->inputList('target'),
+            static fn (string $target): bool => strlen($target) <= WebmentionController::MAX_URL_BYTES,
+        ));
+
+        return array_slice($targets, 0, self::MAX_TARGETS);
+    }
+
+    /** The token from an `Authorization: Bearer` header, so it can stay out of URLs and access logs. */
+    public static function bearerToken(Request $request): ?string
+    {
+        $header = (string) $request->header('authorization');
+
+        return preg_match('/^Bearer\s+(\S+)\s*\z/i', $header, $m) === 1 ? $m[1] : null;
     }
 
     /** The row offset for a page, without overflowing on an absurd page number. */
