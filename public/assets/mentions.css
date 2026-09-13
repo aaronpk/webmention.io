@@ -1,0 +1,46 @@
+:root {
+    --ink: #15171c;
+    --muted: #5f6571;
+    --line: #dde1e8;
+    --accent: #3056d3;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --ink: #e8e9ed;
+        --muted: #9ba1ac;
+        --line: #2c3038;
+        --accent: #8aa4f8;
+    }
+    body { background: #121418; }
+}
+
+body {
+    margin: 0;
+    color: var(--ink);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+a { color: var(--accent); }
+
+.mentions { max-width: 42rem; margin: 0 auto; padding: 1.5rem 1rem; }
+.mentions > h1 { font-size: 1.4rem; }
+
+.mention { padding: 1.25rem 0; border-bottom: 1px solid var(--line); }
+.mention:last-child { border-bottom: 0; }
+
+.mention .context { font-size: .85rem; color: var(--muted); overflow-wrap: anywhere; }
+.mention .context a { color: var(--muted); }
+
+.mention .author { display: flex; align-items: center; gap: .5rem; margin: .5rem 0; flex-wrap: wrap; }
+.mention .author .photo { width: 2rem; height: 2rem; border-radius: 50%; object-fit: cover; }
+.mention .author .name { font-weight: 600; text-decoration: none; color: var(--ink); }
+.mention .author .url { font-size: .85rem; color: var(--muted); }
+
+.mention h1 { font-size: 1.1rem; margin: .5rem 0; }
+.mention .e-content { overflow-wrap: anywhere; }
+.mention .e-content img { max-width: 100%; height: auto; }
+.mention .e-content.plaintext { white-space: pre-wrap; }
+
+.mention .metaline { font-size: .85rem; margin-top: .5rem; }
+.mention .metaline a { color: var(--muted); }
