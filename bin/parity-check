@@ -6,18 +6,23 @@ declare(strict_types=1);
 /**
  * Compares the JSON API of two deployments, e.g. the live Ruby app and this one.
  *
- *   bin/parity-check [--old=https://webmention.io] [--new=http://127.0.0.1:8080] TARGET_URL...
+ *   bin/parity-check [--old=https://webmention.io] [--new=http://127.0.0.1:8080]
+ *                    [--delay=MS] [--targets-file=FILE] [TARGET_URL...]
  *
  * For each target, requests the count and the oldest mentions in each JSON
  * format from both, and reports any difference in the decoded responses.
  * Oldest-first keeps results stable when the old deployment has received
  * newer mentions than the new one's database copy.
  *
+ * --delay waits between requests to the old deployment, to go easy on it.
+ * --targets-file reads one target URL per line.
+ *
  * Exits non-zero if anything differs.
  */
 
 $old     = 'https://webmention.io';
 $new     = 'http://127.0.0.1:8080';
+$delay   = 0;
 $targets = [];
 
 foreach (array_slice($argv, 1) as $arg) {
@@ -25,18 +30,23 @@ foreach (array_slice($argv, 1) as $arg) {
         $old = rtrim(substr($arg, 6), '/');
     } elseif (str_starts_with($arg, '--new=')) {
         $new = rtrim(substr($arg, 6), '/');
+    } elseif (str_starts_with($arg, '--delay=')) {
+        $delay = (int) substr($arg, 8);
+    } elseif (str_starts_with($arg, '--targets-file=')) {
+        $lines   = preg_split('/\R/', (string) file_get_contents(substr($arg, 15))) ?: [];
+        $targets = [...$targets, ...array_filter($lines, static fn (string $l): bool => trim($l) !== '')];
     } else {
         $targets[] = $arg;
     }
 }
 
 if ($targets === []) {
-    fwrite(STDERR, "Usage: bin/parity-check [--old=URL] [--new=URL] TARGET_URL...\n");
+    fwrite(STDERR, "Usage: bin/parity-check [--old=URL] [--new=URL] [--delay=MS] [--targets-file=FILE] [TARGET_URL...]\n");
     exit(2);
 }
 
 $fetch = static function (string $url): array {
-    $context = stream_context_create(['http' => ['ignore_errors' => true, 'timeout' => 30]]);
+    $context = stream_context_create(['http' => ['ignore_errors' => true, 'timeout' => 60]]);
     $body    = @file_get_contents($url, false, $context);
     $status  = isset($http_response_header[0]) && preg_match('/\s(\d{3})\s?/', $http_response_header[0], $m) ? (int) $m[1] : 0;
 
@@ -59,7 +69,7 @@ $flatten = static function (mixed $value, string $path = '') use (&$flatten): ar
 $failures = 0;
 
 foreach ($targets as $target) {
-    $t = rawurlencode($target);
+    $t = rawurlencode(rtrim($target, "\r\n"));
 
     $paths = [
         "/api/count?target=$t",
@@ -72,6 +82,10 @@ foreach ($targets as $target) {
     foreach ($paths as $path) {
         [$oldStatus, $oldData] = $fetch($old . $path);
         [$newStatus, $newData] = $fetch($new . $path);
+
+        if ($delay > 0) {
+            usleep($delay * 1000);
+        }
 
         if ($oldStatus === $newStatus && $oldData === $newData) {
             echo "same  $path\n";
