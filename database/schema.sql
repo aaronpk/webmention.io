@@ -87,7 +87,9 @@ CREATE TABLE `links` (
   KEY `account_domain` (`account_id`,`domain`),
   KEY `created_at` (`created_at`),
   KEY `date_endpoint_type` (`created_at`,`endpoint_type`),
-  KEY `domain` (`domain`)
+  KEY `domain` (`domain`),
+  KEY `page_verified_created` (`page_id`,`verified`,`deleted`,`created_at`),
+  KEY `page_verified_type` (`page_id`,`verified`,`deleted`,`type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `pages` (
