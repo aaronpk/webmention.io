@@ -194,6 +194,16 @@ The `debug` param processes synchronously and maps results to the 200/400 bodies
 8. **RSVP values are stored unvalidated.** Live data contains `rsvp-marty mcguire`. The fix only accepts yes/no/maybe/interested and otherwise treats the post as a reply/mention. Existing rows are untouched.
 9. **`/settings/sites/new` accepts garbage.** The fix normalizes the domain (lowercase, strip scheme and path) and rejects empty or duplicate entries.
 
+Found during implementation and the overnight review (2026-09-14):
+
+10. **Server-side request forgery.** Fetches used to happen on the hosted XRay service; now they run next to Redis and the database. A private webmention's token endpoint comes from the source's headers, so a `gopher://` URL could send commands to Redis, where sessions live. Sources could also point at internal addresses. The fix sends every outgoing request through `SafeTransport`: http/https only, public addresses only, each redirect checked, resolved address pinned.
+11. **Accounts whose username isn't their domain lost webmentions.** The controller accepted `/{domain}/webmention`, but the worker looked the account up again by username only (`target_not_found`). Jobs now carry the account id.
+12. **A private webmention's web hook said `post.wm-private: false`**, because Ruby set `is_private` after sending the hook.
+13. **A deleted post (HTTP 410) didn't remove the mention.** XRay treats 410 as a success and throws on an empty body. The status is now checked directly.
+14. **Emoji were stored as `????`** in names, content and author names. The new connection stores them intact.
+15. **A huge `page` value overflowed the offset and returned a 500.**
+16. **Listing or counting a very busy page's mentions took ~9s** (http://tantek.com/ has 172k). Covering indexes on `links` bring it under 40ms (`database/migrations/2026-09-14-links-by-page.sql`).
+
 ## UI
 
 - Single modern stylesheet: CSS custom properties, dark mode, responsive nav, no jQuery.

@@ -16,6 +16,9 @@ Both apps use the same database schema and the same Redis keys for webmention st
   * Emoji in names and content are stored correctly instead of as `????`.
   * Relative author URLs with a fragment (`about#me`) keep the `#` instead of `%23`.
   * `sort-by=rsvp` sorts every result, not just one page.
+  * Re-sending a webmention whose source now answers 410 Gone, or no longer links, deletes it. A timeout or other fetch error no longer does.
+  * Sources, token endpoints and web hook URLs on private or loopback addresses are refused (`forbidden_address`).
+* **Newly stored content has slightly different whitespace.** The bundled XRay (1.15) puts a newline between block elements in `content.html` and a blank line between paragraphs in `content.text`, where the hosted service (1.4.25) didn't. Everything else it extracts matched the hosted service on 142 recent real webmentions. Stored mentions are unchanged.
 
 
 ## Before the day

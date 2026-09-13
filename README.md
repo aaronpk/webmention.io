@@ -318,6 +318,12 @@ composer test
 
 `bin/parity-check TARGET_URL...` compares the API of two deployments (by default the live site and a local server) and reports any differences.
 
+`tools/replay-check LINK_ID...` re-verifies stored webmentions with the current processor, without writing anything, and reports which stored fields would come out differently. Add `--compare-xray=https://xray.p3k.io/parse` to separate parser differences from pages that changed since they were received.
+
+### Outgoing requests
+
+Every outgoing request (fetching sources, private webmention tokens, web hooks, Aperture, avatar archiving, IndieAuth discovery) goes through `SafeTransport`. It only allows http and https to public IP addresses, and checks every redirect. To send webmentions from a local test site, set `ALLOW_PRIVATE_NETWORK=1` in `.env`; never in production.
+
 ### Migrations
 
 Schema changes live in `database/migrations/` and are applied by hand. `database/schema.sql` is the full current schema.
