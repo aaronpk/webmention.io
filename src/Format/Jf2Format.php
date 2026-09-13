@@ -20,6 +20,14 @@ final class Jf2Format
      */
     private const CONTENT_DEPRECATION_DATE = '2018-02-26 17:00:00';
 
+    /**
+     * The stored types that relation() maps to a named property. Every other
+     * value (`link`, NULL, `invite`, `post`, malformed `rsvp-…`) is shown as
+     * `mention-of`, and the API's `wm-property=mention-of` filter must select
+     * exactly that set (see LinkSearch::$includeUnlabelled).
+     */
+    public const LABELLED_TYPES = ['like', 'repost', 'reply', 'bookmark', 'rsvp-yes', 'rsvp-no', 'rsvp-maybe', 'rsvp-interested'];
+
     /** @param list<Link> $links */
     public static function feed(array $links): array
     {
@@ -117,7 +125,7 @@ final class Jf2Format
         return $jf2;
     }
 
-    /** The jf2 property linking a post of this type to its target. */
+    /** The jf2 property linking a post of this type to its target. Keep in step with LABELLED_TYPES. */
     public static function relation(?string $type): string
     {
         return match ($type) {

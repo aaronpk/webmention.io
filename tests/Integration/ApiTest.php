@@ -30,6 +30,8 @@ final class ApiTest extends IntegrationTestCase
         $this->createLink($this->site, self::TARGET, 'https://c.example/3', ['type' => 'rsvp-yes', 'created_at' => '2020-01-03 00:00:00']);
         $this->createLink($this->site, self::TARGET, 'https://d.example/4', ['type' => 'link', 'created_at' => '2020-01-04 00:00:00']);
         $this->createLink($this->site, self::TARGET, 'https://e.example/5', ['type' => null, 'created_at' => '2020-01-05 00:00:00']);
+        $this->createLink($this->site, self::TARGET, 'https://invite.example/10', ['type' => 'invite', 'created_at' => '2020-01-06 00:00:00']);
+        $this->createLink($this->site, self::TARGET, 'https://post.example/11', ['type' => 'post', 'created_at' => '2020-01-07 00:00:00']);
         $this->createLink($this->site, self::TARGET, 'https://deleted.example/6', ['deleted' => 1]);
         $this->createLink($this->site, self::TARGET, 'https://unverified.example/7', ['verified' => 0]);
         $this->createLink($this->site, self::TARGET, 'https://private.example/9', ['type' => 'reply', 'is_private' => 1, 'content' => '<p>Just between us</p>', 'created_at' => '2019-12-01 00:00:00']);
@@ -46,7 +48,8 @@ final class ApiTest extends IntegrationTestCase
     {
         $response = $this->request('GET', '/api/count', ['target' => self::TARGET]);
 
-        self::assertSame('{"count":5,"type":{"like":1,"mention":1,"rsvp-no":1,"rsvp-yes":1}}', $response->body);
+        // Seven verified public links; the breakdown adds up to the total, with untyped rows counted as mentions.
+        self::assertSame('{"count":7,"type":{"invite":1,"like":1,"mention":2,"post":1,"rsvp-no":1,"rsvp-yes":1}}', $response->body);
         self::assertSame('application/json;charset=UTF-8', $response->header('content-type'));
     }
 
@@ -61,7 +64,7 @@ final class ApiTest extends IntegrationTestCase
 
         self::assertSame('feed', $jf2['type']);
         self::assertSame(
-            ['https://e.example/5', 'https://d.example/4', 'https://c.example/3', 'https://b.example/2', 'https://a.example/1'],
+            ['https://post.example/11', 'https://invite.example/10', 'https://e.example/5', 'https://d.example/4', 'https://c.example/3', 'https://b.example/2', 'https://a.example/1'],
             array_column($jf2['children'], 'wm-source'),
         );
     }
@@ -71,24 +74,43 @@ final class ApiTest extends IntegrationTestCase
         $sources = fn (array $query): array => array_column(self::json($this->request('GET', '/api/mentions', $query))['links'], 'source');
 
         self::assertSame(['https://c.example/3', 'https://b.example/2'], $sources(['target' => self::TARGET, 'wm-property' => 'rsvp']));
-        self::assertSame(['https://a.example/1', 'https://d.example/4'], $sources(['target' => self::TARGET, 'wm-property' => ['mention-of', 'like-of'], 'sort-dir' => 'up']));
+        self::assertSame(['https://a.example/1', 'https://d.example/4', 'https://e.example/5', 'https://invite.example/10', 'https://post.example/11'], $sources(['target' => self::TARGET, 'wm-property' => ['mention-of', 'like-of'], 'sort-dir' => 'up']));
         self::assertSame(['https://a.example/1', 'https://b.example/2'], $sources(['target' => self::TARGET, 'sort-dir' => 'up', 'per-page' => '2']));
         self::assertSame(['https://c.example/3', 'https://d.example/4'], $sources(['target' => self::TARGET, 'sort-dir' => 'up', 'per-page' => '2', 'page' => '1']));
-        self::assertSame(['https://e.example/5'], $sources(['target' => self::TARGET, 'since' => '2020-01-04T12:00:00+00:00']));
+        self::assertSame(['https://post.example/11', 'https://invite.example/10', 'https://e.example/5'], $sources(['target' => self::TARGET, 'since' => '2020-01-04T12:00:00+00:00']));
         self::assertSame(['https://c.example/3', 'https://b.example/2'], array_slice($sources(['target' => self::TARGET, 'sort-by' => 'rsvp']), 0, 2));
         self::assertSame(['https://a.example/1', 'https://b.example/2'], $sources(['target' => self::TARGET, 'sort-dir' => 'up', 'perPage' => '2', 'page' => '-3']));
+    }
+
+    public function testMentionOfMatchesEverythingShownAsAMention(): void
+    {
+        // Issue 206: rows with no type (and other unlabelled types) are shown as
+        // mention-of, so the mention-of filter has to find them.
+        $jf2 = self::json($this->request('GET', '/api/mentions.jf2', ['target' => self::TARGET, 'wm-property' => 'mention-of', 'sort-dir' => 'up']));
+
+        self::assertSame(
+            ['https://d.example/4', 'https://e.example/5', 'https://invite.example/10', 'https://post.example/11'],
+            array_column($jf2['children'], 'wm-source'),
+        );
+        self::assertSame(['mention-of'], array_unique(array_column($jf2['children'], 'wm-property')));
+
+        // The other filters are unchanged, in both formats.
+        $like = self::json($this->request('GET', '/api/mentions', ['target' => self::TARGET, 'wm-property' => 'like-of']));
+        self::assertSame(['https://a.example/1'], array_column($like['links'], 'source'));
+        $rsvp = self::json($this->request('GET', '/api/mentions', ['target' => self::TARGET, 'wm-property' => 'rsvp', 'sort-dir' => 'up']));
+        self::assertSame(['https://b.example/2', 'https://c.example/3'], array_column($rsvp['links'], 'source'));
     }
 
     public function testTokenAndDomain(): void
     {
         $all = self::json($this->request('GET', '/api/mentions.jf2', ['token' => $this->token]));
-        self::assertCount(7, $all['children']);
+        self::assertCount(9, $all['children']);
 
         $domain = self::json($this->request('GET', '/api/mentions.jf2', ['token' => $this->token, 'domain' => 'example.com']));
-        self::assertCount(7, $domain['children']);
+        self::assertCount(9, $domain['children']);
 
         $bearer = self::json($this->request('GET', '/api/mentions.jf2', headers: ['authorization' => 'Bearer ' . $this->token]));
-        self::assertCount(7, $bearer['children']);
+        self::assertCount(9, $bearer['children']);
 
         $unknown = self::json($this->request('GET', '/api/mentions.jf2', ['token' => $this->token, 'domain' => 'nope.example']));
         self::assertSame([], $unknown['children']);
@@ -104,7 +126,7 @@ final class ApiTest extends IntegrationTestCase
         self::assertStringNotContainsString('Just between us', $this->request('GET', '/api/mentions.jf2', ['target' => self::TARGET, 'per-page' => '100'])->body);
         self::assertStringNotContainsString('Just between us', $this->request('GET', '/api/mentions.html', ['target' => self::TARGET])->body);
         self::assertStringNotContainsString('private.example', $this->request('GET', '/api/mentions.atom', ['target' => self::TARGET])->body);
-        self::assertSame('{"count":5,"type":{"like":1,"mention":1,"rsvp-no":1,"rsvp-yes":1}}', $this->request('GET', '/api/count', ['target' => self::TARGET])->body);
+        self::assertSame('{"count":7,"type":{"invite":1,"like":1,"mention":2,"post":1,"rsvp-no":1,"rsvp-yes":1}}', $this->request('GET', '/api/count', ['target' => self::TARGET])->body);
 
         $owner = self::json($this->request('GET', '/api/mentions.jf2', ['token' => $this->token, 'target' => self::TARGET]));
         // A target query is public even with a token; the account's own listing includes it.

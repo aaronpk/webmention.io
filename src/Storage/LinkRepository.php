@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Webmention\Storage;
 
+use Webmention\Format\Jf2Format;
 use Webmention\Model\Link;
 
 final class LinkRepository
@@ -116,7 +117,7 @@ final class LinkRepository
 
     /**
      * @param  list<int>          $pageIds
-     * @return array<string, int> type => count, NULL types omitted
+     * @return array<string, int> type => count; rows with no type are counted under ''
      */
     public function typeCountsForPages(array $pageIds, bool $includePrivate = false): array
     {
@@ -132,9 +133,7 @@ final class LinkRepository
 
         $counts = [];
         foreach ($rows as $row) {
-            if ($row['type'] !== null) {
-                $counts[(string) $row['type']] = (int) $row['num'];
-            }
+            $counts[(string) ($row['type'] ?? '')] = (int) $row['num'];
         }
 
         return $counts;
@@ -164,9 +163,18 @@ final class LinkRepository
             $where[] = 'links.page_id IN (' . Database::placeholders($search->pageIds) . ')';
             array_push($params, ...$search->pageIds);
         }
-        if ($search->types !== []) {
-            $where[] = 'links.type IN (' . Database::placeholders($search->types) . ')';
-            array_push($params, ...$search->types);
+        if ($search->types !== [] || $search->includeUnlabelled) {
+            $typeClauses = [];
+            if ($search->types !== []) {
+                $typeClauses[] = 'links.type IN (' . Database::placeholders($search->types) . ')';
+                array_push($params, ...$search->types);
+            }
+            if ($search->includeUnlabelled) {
+                $typeClauses[] = 'links.type IS NULL';
+                $typeClauses[] = 'links.type NOT IN (' . Database::placeholders(Jf2Format::LABELLED_TYPES) . ')';
+                array_push($params, ...Jf2Format::LABELLED_TYPES);
+            }
+            $where[] = '(' . implode(' OR ', $typeClauses) . ')';
         }
         if ($search->createdAfter !== null) {
             $where[]  = 'links.created_at > ?';

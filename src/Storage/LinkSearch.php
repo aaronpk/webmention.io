@@ -14,8 +14,10 @@ namespace Webmention\Storage;
 final class LinkSearch
 {
     /**
-     * @param list<int>|null $pageIds Null means "not filtered by page".
-     * @param list<string>   $types   Empty means any type.
+     * @param list<int>|null $pageIds           Null means "not filtered by page".
+     * @param list<string>   $types             Empty means any type (unless includeUnlabelled).
+     * @param bool           $includeUnlabelled Also match rows whose type is NULL or not one of
+     *                                          Jf2Format::LABELLED_TYPES: everything shown as mention-of.
      */
     public function __construct(
         public readonly ?int $accountId = null,
@@ -29,6 +31,7 @@ final class LinkSearch
         public readonly int $limit = 20,
         public readonly int $offset = 0,
         public readonly bool $includePrivate = false,
+        public readonly bool $includeUnlabelled = false,
     ) {
     }
 }

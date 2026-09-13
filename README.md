@@ -99,6 +99,8 @@ The full list of recognized properties is below:
 * mention-of
 * rsvp
 
+`mention-of` matches every mention that is not one of the other kinds, including older mentions that were stored without a type. `rsvp` matches all RSVP values.
+
 
 ### Find links to multiple pages
 

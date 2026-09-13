@@ -69,9 +69,19 @@ final class ApiController extends Controller
 
         $pageIds = $this->pages->idsForHrefs($targets);
 
-        $types = new stdClass();
+        // Raw types are passed through, as they always were, except that plain
+        // links and rows with no recorded type both count as "mention", so the
+        // breakdown adds up to the total.
+        $counts = [];
         foreach ($this->links->typeCountsForPages($pageIds) as $type => $num) {
-            $types->{$type === 'link' ? 'mention' : $type} = $num;
+            $key = $type === 'link' || $type === '' ? 'mention' : (string) $type;
+            $counts[$key] = ($counts[$key] ?? 0) + $num;
+        }
+        ksort($counts);
+
+        $types = new stdClass();
+        foreach ($counts as $key => $num) {
+            $types->{$key} = $num;
         }
 
         return $this->json->respond($request, 200, [
@@ -107,8 +117,12 @@ final class ApiController extends Controller
 
         $sortDir = $request->input('sort-dir');
 
+        $properties = $request->inputList('wm-property');
+
         $filters = [
-            'types'        => self::typesForProperties($request->inputList('wm-property')),
+            'types'        => self::typesForProperties($properties),
+            // mention-of is everything the output does not label otherwise (see Jf2Format::LABELLED_TYPES).
+            'includeUnlabelled' => in_array('mention-of', $properties, true),
             'createdAfter' => self::parseSince($request->input('since')),
             'idAfter'      => $request->has('since_id') ? (int) $request->input('since_id') : null,
             'sortBy'       => match ($request->input('sort-by')) {
