@@ -1,0 +1,24 @@
+# Queue worker for webmention.io. Run several:
+#
+#   systemctl enable --now webmention-worker@1 webmention-worker@2 webmention-worker@3
+#
+# The worker exits after a batch of jobs or on SIGTERM (after finishing the
+# current job), and systemd starts a fresh one.
+
+[Unit]
+Description=webmention.io queue worker %i
+After=network-online.target redis-server.service mariadb.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/web/sites/webmention.io
+ExecStart=/usr/bin/php bin/worker --max-jobs=1000
+Restart=always
+RestartSec=1
+KillSignal=SIGTERM
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target

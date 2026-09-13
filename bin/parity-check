@@ -1,0 +1,102 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Compares the JSON API of two deployments, e.g. the live Ruby app and this one.
+ *
+ *   bin/parity-check [--old=https://webmention.io] [--new=http://127.0.0.1:8080] TARGET_URL...
+ *
+ * For each target, requests the count and the oldest mentions in each JSON
+ * format from both, and reports any difference in the decoded responses.
+ * Oldest-first keeps results stable when the old deployment has received
+ * newer mentions than the new one's database copy.
+ *
+ * Exits non-zero if anything differs.
+ */
+
+$old     = 'https://webmention.io';
+$new     = 'http://127.0.0.1:8080';
+$targets = [];
+
+foreach (array_slice($argv, 1) as $arg) {
+    if (str_starts_with($arg, '--old=')) {
+        $old = rtrim(substr($arg, 6), '/');
+    } elseif (str_starts_with($arg, '--new=')) {
+        $new = rtrim(substr($arg, 6), '/');
+    } else {
+        $targets[] = $arg;
+    }
+}
+
+if ($targets === []) {
+    fwrite(STDERR, "Usage: bin/parity-check [--old=URL] [--new=URL] TARGET_URL...\n");
+    exit(2);
+}
+
+$fetch = static function (string $url): array {
+    $context = stream_context_create(['http' => ['ignore_errors' => true, 'timeout' => 30]]);
+    $body    = @file_get_contents($url, false, $context);
+    $status  = isset($http_response_header[0]) && preg_match('/\s(\d{3})\s?/', $http_response_header[0], $m) ? (int) $m[1] : 0;
+
+    return [$status, $body === false ? null : json_decode($body, true)];
+};
+
+$flatten = static function (mixed $value, string $path = '') use (&$flatten): array {
+    if (!is_array($value)) {
+        return [$path === '' ? '/' : $path => $value];
+    }
+
+    $out = [];
+    foreach ($value as $key => $item) {
+        $out += $flatten($item, "$path/$key");
+    }
+
+    return $out;
+};
+
+$failures = 0;
+
+foreach ($targets as $target) {
+    $t = rawurlencode($target);
+
+    $paths = [
+        "/api/count?target=$t",
+        "/api/mentions?target=$t&sort-dir=up&per-page=50",
+        "/api/mentions.jf2?target=$t&sort-dir=up&per-page=50",
+        "/api/mentions.jf2?target=$t&sort-dir=up&per-page=10&wm-property[]=in-reply-to&wm-property[]=like-of",
+        "/api/mentions.jf2?target=$t&sort-by=published&sort-dir=up&per-page=10",
+    ];
+
+    foreach ($paths as $path) {
+        [$oldStatus, $oldData] = $fetch($old . $path);
+        [$newStatus, $newData] = $fetch($new . $path);
+
+        if ($oldStatus === $newStatus && $oldData === $newData) {
+            echo "same  $path\n";
+            continue;
+        }
+
+        if ($oldStatus >= 500 && $newStatus === 200) {
+            echo "fixed $path (old: HTTP $oldStatus)\n";
+            continue;
+        }
+
+        $failures++;
+        echo "DIFF  $path (old: HTTP $oldStatus, new: HTTP $newStatus)\n";
+
+        $a = $flatten($oldData);
+        $b = $flatten($newData);
+        $shown = 0;
+        foreach (array_unique([...array_keys($a), ...array_keys($b)]) as $key) {
+            $x = array_key_exists($key, $a) ? json_encode($a[$key], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : '(missing)';
+            $y = array_key_exists($key, $b) ? json_encode($b[$key], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : '(missing)';
+            if ($x !== $y && $shown++ < 10) {
+                echo "      $key\n        old: " . mb_strimwidth((string) $x, 0, 140, '…') . "\n        new: " . mb_strimwidth((string) $y, 0, 140, '…') . "\n";
+            }
+        }
+    }
+}
+
+exit($failures === 0 ? 0 : 1);
