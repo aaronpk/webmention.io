@@ -46,15 +46,25 @@ final class Bootstrap
         return Config::load(self::root() . '/.env');
     }
 
+    /**
+     * The log file for one process. LOG_DIR holds one file per process, so the
+     * web app and each worker can be followed separately: web.log, worker.log,
+     * worker-1.log, ...
+     */
+    public static function logFile(Config $config, string $process): string
+    {
+        $dir = rtrim($config->get('LOG_DIR') ?? self::root() . '/logs', '/');
+
+        return $dir . '/' . $process . '.log';
+    }
+
     public static function container(Config $config): Container
     {
         $c = new Container();
 
         $c->set(Config::class, static fn (): Config => $config);
 
-        $c->set(Log::class, static fn (): Log => new Log(
-            $config->get('LOG_FILE', self::root() . '/logs/webmention.log'),
-        ));
+        $c->set(Log::class, static fn (): Log => new Log(self::logFile($config, 'web')));
 
         $c->set(Database::class, static fn (): Database => Database::connect($config));
 

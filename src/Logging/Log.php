@@ -7,11 +7,12 @@ namespace Webmention\Logging;
 use Throwable;
 
 /**
- * Appends lines to a log file, or to stderr when no file is configured (the
- * worker runs under systemd, where stderr lands in the journal).
+ * Appends lines to a log file, or to stderr when no file is configured.
  *
- * If the file cannot be written, output falls back to error_log() rather than
- * being dropped.
+ * Every process gets its own file under LOG_DIR: the web app writes web.log,
+ * and each worker writes worker-{name}.log (see Bootstrap::logFile()). If the
+ * file cannot be written, output falls back to error_log() rather than being
+ * dropped.
  */
 final class Log
 {

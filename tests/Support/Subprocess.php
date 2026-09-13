@@ -49,8 +49,14 @@ final class Subprocess
         return [
             ...Config::parse((string) file_get_contents(Bootstrap::root() . '/.env.testing')),
             'CA3DB_API_ENDPOINT' => '',
-            'LOG_FILE'           => sys_get_temp_dir() . '/webmention-test.log',
+            'LOG_DIR'            => self::logDir(),
         ];
+    }
+
+    /** Where subprocesses log; one file per process, as in production. */
+    public static function logDir(): string
+    {
+        return sys_get_temp_dir() . '/webmention-test-logs';
     }
 
     public function pid(): int

@@ -18,7 +18,7 @@ Wants=network-online.target
 Type=simple
 User=www-data
 WorkingDirectory=/web/sites/webmention.io
-ExecStart=/usr/bin/php -d memory_limit=256M bin/worker --max-jobs=1000
+ExecStart=/usr/bin/php -d memory_limit=256M bin/worker --max-jobs=1000 --name=%i
 Restart=always
 RestartSec=1
 KillSignal=SIGTERM
@@ -41,8 +41,9 @@ RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 RestrictNamespaces=yes
 LockPersonality=yes
 CapabilityBoundingSet=
-# The worker logs to stderr (the journal); nothing under the site needs to be writable.
-# Add ReadWritePaths= here if LOG_FILE points somewhere inside it.
+# The only thing the worker writes is its log, LOG_DIR/worker-%i.log. Keep
+# this in step with LOG_DIR in .env.
+ReadWritePaths=/web/sites/webmention.io/logs
 
 [Install]
 WantedBy=multi-user.target

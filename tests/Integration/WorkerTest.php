@@ -19,9 +19,27 @@ final class WorkerTest extends IntegrationTestCase
 {
     private ?Subprocess $worker = null;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        @unlink(self::logFile());
+    }
+
     protected function tearDown(): void
     {
         $this->worker?->stop();
+    }
+
+    /** Workers started without --name log here, one line per job. */
+    private static function logFile(): string
+    {
+        return Subprocess::logDir() . '/worker.log';
+    }
+
+    private function workerLog(): string
+    {
+        return (string) @file_get_contents(self::logFile()) . ($this->worker !== null ? $this->worker->output() : '');
     }
 
     public function testProcessesQueuedJobsAndStopsAfterMaxJobs(): void
@@ -34,7 +52,7 @@ final class WorkerTest extends IntegrationTestCase
         self::assertSame('target_not_found', $this->waitForStatus('one'));
         self::assertSame('target_not_found', $this->waitForStatus('two'));
         self::assertTrue($this->worker->waitForExit(5), 'Worker did not exit after --max-jobs');
-        self::assertStringContainsString('Worker stopping after 2 jobs', $this->worker->output());
+        self::assertStringContainsString('Worker stopping after 2 jobs', $this->workerLog());
     }
 
     public function testSkipsUnreadableQueueEntries(): void
@@ -69,7 +87,7 @@ final class WorkerTest extends IntegrationTestCase
         $this->push('second', accountId: $account->id, target: 'http://not-on-account.example/post');
 
         self::assertSame('invalid_target', $this->waitForStatus('second'));
-        self::assertStringContainsString('reconnecting and retrying second', $this->worker->output());
+        self::assertStringContainsString('reconnecting and retrying second', $this->workerLog());
     }
 
     public function testReconnectsWhenRedisDropsTheConnection(): void
@@ -96,7 +114,7 @@ final class WorkerTest extends IntegrationTestCase
         $this->worker->signal(SIGTERM);
 
         self::assertTrue($this->worker->waitForExit(8), 'Worker did not stop on SIGTERM');
-        self::assertStringContainsString('Worker stopping after 0 jobs', $this->worker->output());
+        self::assertStringContainsString('Worker stopping after 0 jobs', $this->workerLog());
     }
 
     private function push(string $token, int $accountId, string $target = 'http://target.example.com/entry'): void
@@ -114,7 +132,7 @@ final class WorkerTest extends IntegrationTestCase
         return Subprocess::waitFor(
             fn (): ?string => $this->service(StatusStore::class)->get($token)->status ?? null,
             $seconds,
-            "status for job $token" . ($this->worker !== null ? "\nWorker output:\n" . $this->worker->output() : ''),
+            "status for job $token\nWorker log:\n" . $this->workerLog(),
         );
     }
 }

@@ -7,11 +7,12 @@ declare(strict_types=1);
  * Verifies queued webmentions. Run as many copies as you like; each pops one
  * job at a time from Redis.
  *
- *   bin/worker [--max-jobs=1000]
+ *   bin/worker [--max-jobs=1000] [--name=1]
  *
  * Exits after --max-jobs jobs (default 1000) or on SIGTERM/SIGINT once the
  * current job finishes, so a supervisor such as systemd should restart it.
- * Logs go to stderr.
+ * Logs go to LOG_DIR/worker-{name}.log (worker.log with no name); the
+ * systemd unit passes its instance name.
  */
 
 use Webmention\Bootstrap;
@@ -28,9 +29,12 @@ date_default_timezone_set('UTC');
 ErrorHandler::ignoreVendorNoise();
 
 $maxJobs = 1000;
+$name    = '';
 foreach (array_slice($argv, 1) as $arg) {
     if (preg_match('/^--max-jobs=(\d+)$/', $arg, $m) === 1) {
         $maxJobs = (int) $m[1];
+    } elseif (preg_match('/^--name=([A-Za-z0-9._-]{1,40})$/', $arg, $m) === 1) {
+        $name = $m[1];
     }
 }
 
@@ -43,9 +47,11 @@ if (function_exists('pcntl_async_signals')) {
 
 $config = Bootstrap::config();
 
-$build = static function () use ($config) {
+$logFile = Bootstrap::logFile($config, $name === '' ? 'worker' : "worker-$name");
+
+$build = static function () use ($config, $logFile) {
     $container = Bootstrap::container($config);
-    $container->set(Log::class, static fn (): Log => new Log(null));
+    $container->set(Log::class, static fn (): Log => new Log($logFile));
 
     return $container;
 };

@@ -48,7 +48,7 @@ Both apps use the same database schema and the same Redis keys for webmention st
 
    ```bash
    chown deploy:www-data .env && chmod 0640 .env
-   chmod 0750 logs
+   chown www-data:www-data logs && chmod 0750 logs   # LOG_DIR; the unit's ReadWritePaths must match
    grep -E '^(APP_DEBUG|TRUST_PROXY|ALLOW_PRIVATE_NETWORK|BASE_URL)=' .env
    ```
 
@@ -103,8 +103,9 @@ Both apps use the same database schema and the same Redis keys for webmention st
 4. **Watch it:**
 
    ```bash
-   tail -f logs/webmention.log               # web app errors
-   journalctl -fu 'webmention-worker@*'      # webmention processing
+   tail -f logs/web.log                      # web app: accepted webmentions, rate limits, errors
+   tail -f logs/worker-*.log                 # one file per worker: verification results
+   journalctl -fu 'webmention-worker@*'      # only start-up failures land here
    redis-cli llen webmention:queue           # should hover near 0
    ```
 
