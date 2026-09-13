@@ -10,6 +10,11 @@ use Webmention\Logging\Log;
 /**
  * Copies author photos to our own storage (via the CA3DB service), so
  * mentions keep their avatar after the author changes or deletes it.
+ *
+ * The stored URL is the archive's public address with CA3DB_S3_URL replaced
+ * by CA3DB_AVATAR_URL, which defaults to BASE_URL/avatar. A deployment on
+ * another hostname that shares the production database sets it to the
+ * production value, so the rows it writes look the same as everyone else's.
  */
 final class AvatarArchiver
 {
@@ -53,10 +58,15 @@ final class AvatarArchiver
         }
 
         $s3Url = $this->config->get('CA3DB_S3_URL', '') ?? '';
-        $archiveUrl = $s3Url !== '' && str_starts_with($data['url'], $s3Url)
-            ? $this->config->baseUrl() . '/avatar' . substr($data['url'], strlen($s3Url))
-            : $data['url'];
 
-        return $archiveUrl;
+        return $s3Url !== '' && str_starts_with($data['url'], $s3Url)
+            ? $this->avatarUrlPrefix() . '/' . ltrim(substr($data['url'], strlen($s3Url)), '/')
+            : $data['url'];
+    }
+
+    /** What replaces CA3DB_S3_URL in stored avatar URLs, without a trailing slash. */
+    public function avatarUrlPrefix(): string
+    {
+        return rtrim($this->config->get('CA3DB_AVATAR_URL') ?? $this->config->baseUrl() . '/avatar', '/');
     }
 }

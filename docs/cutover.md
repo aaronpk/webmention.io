@@ -77,6 +77,8 @@ Both apps use the same database schema and the same Redis keys for webmention st
 
 6. **Check the avatar URLs.** Stored photos are `https://webmention.io/avatar/…`, and the API rewrites them to `https://avatars.webmention.io/…`. The new app serves nothing under `/avatar/`. If nginx or the CDN on the production host currently handles `/avatar/`, keep that `location` block in the new server config.
 
+   A test deployment on another hostname (say `v2.webmention.io`) that shares the production database must set `CA3DB_AVATAR_URL=https://webmention.io/avatar`. Otherwise the avatars it archives are stored under its own hostname, which the API never rewrites and which stops resolving when that hostname goes away.
+
 
 ## The switch
 
