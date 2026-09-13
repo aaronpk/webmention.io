@@ -1,0 +1,6 @@
+/vendor/
+/logs/
+/.phpunit.cache/
+.env
+.env.testing
+.DS_Store
