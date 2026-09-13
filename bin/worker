@@ -15,7 +15,9 @@ declare(strict_types=1);
  */
 
 use Webmention\Bootstrap;
+use Webmention\Logging\ErrorHandler;
 use Webmention\Logging\Log;
+use Webmention\Webmention\Job;
 use Webmention\Webmention\Processor;
 use Webmention\Webmention\Queue;
 use Webmention\Webmention\StatusStore;
@@ -23,6 +25,7 @@ use Webmention\Webmention\StatusStore;
 require dirname(__DIR__) . '/vendor/autoload.php';
 
 date_default_timezone_set('UTC');
+ErrorHandler::ignoreVendorNoise();
 
 $maxJobs = 1000;
 foreach (array_slice($argv, 1) as $arg) {
@@ -51,6 +54,22 @@ $container = $build();
 $log       = $container->get(Log::class);
 $log->info('Worker started');
 
+/**
+ * Database and Redis connections go stale in a long-running process (MySQL's
+ * wait_timeout, a Redis restart). A job that fails that way is retried once
+ * on fresh connections rather than lost.
+ */
+$process = static function (Job $job) use (&$container, $build, $log): string {
+    try {
+        return $container->get(Processor::class)->process($job);
+    } catch (PDOException | RedisException $e) {
+        $log->warning("Connection lost ({$e->getMessage()}); reconnecting and retrying {$job->token}");
+        $container = $build();
+
+        return $container->get(Processor::class)->process($job);
+    }
+};
+
 $done = 0;
 while (!$stop && $done < $maxJobs) {
     try {
@@ -67,7 +86,7 @@ while (!$stop && $done < $maxJobs) {
     }
 
     try {
-        $result = $container->get(Processor::class)->process($job);
+        $result = $process($job);
         $log->info("Job {$job->token}: $result");
     } catch (Throwable $e) {
         $log->exception($e, "Job {$job->token} ({$job->source} -> {$job->target})");
@@ -77,7 +96,6 @@ while (!$stop && $done < $maxJobs) {
         } catch (Throwable) {
         }
 
-        // A dropped database or Redis connection is the usual cause; start fresh.
         $container = $build();
     }
 

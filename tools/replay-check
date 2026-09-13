@@ -1,0 +1,186 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Re-verifies webmentions the Ruby app stored, using the new processor, and
+ * reports where the fields it would store differ.
+ *
+ *   tools/replay-check [--ids-file=FILE] [--out=FILE] [--delay=MS]
+ *                      [--compare-xray=https://xray.p3k.io/parse] [LINK_ID...]
+ *
+ * Read-only: nothing is written to the database, and no web hooks, Aperture
+ * posts or avatar archiving happen. It does fetch each source URL once.
+ *
+ * Differences against stored rows mix two causes: the source page changed
+ * since it was received, and the XRay library parsing differently from the
+ * hosted service. --compare-xray also parses each source with the hosted
+ * service and reports library-vs-hosted differences separately.
+ *
+ * Writes one JSON object per link to --out (default stdout):
+ *   {"id":…, "source":…, "target":…, "error":"no_link_found"}
+ *   {"id":…, "source":…, "target":…, "diffs":{…}, "xray_diffs":{…}}
+ */
+
+use Webmention\Bootstrap;
+use Webmention\Logging\ErrorHandler;
+use Webmention\Logging\Log;
+use Webmention\Model\Site;
+use Webmention\Storage\Database;
+use Webmention\Storage\SiteRepository;
+use Webmention\Webmention\HttpClient;
+use Webmention\Webmention\Processor;
+use Webmention\Webmention\SourceFetcher;
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+date_default_timezone_set('UTC');
+ErrorHandler::ignoreVendorNoise();
+
+$ids     = [];
+$out     = 'php://stdout';
+$delay   = 0;
+$compare = null;
+
+foreach (array_slice($argv, 1) as $arg) {
+    if (str_starts_with($arg, '--ids-file=')) {
+        $ids = [...$ids, ...array_map('intval', preg_split('/\s+/', trim((string) file_get_contents(substr($arg, 11)))) ?: [])];
+    } elseif (str_starts_with($arg, '--out=')) {
+        $out = substr($arg, 6);
+    } elseif (str_starts_with($arg, '--delay=')) {
+        $delay = (int) substr($arg, 8);
+    } elseif (str_starts_with($arg, '--compare-xray=')) {
+        $compare = substr($arg, 15);
+    } elseif (ctype_digit($arg)) {
+        $ids[] = (int) $arg;
+    }
+}
+
+$ids = array_values(array_filter(array_unique($ids)));
+if ($ids === []) {
+    fwrite(STDERR, "Usage: tools/replay-check [--ids-file=FILE] [--out=FILE] [--delay=MS] [--compare-xray=URL] [LINK_ID...]\n");
+    exit(2);
+}
+
+// Avatar archiving off: author_photo is always the original URL.
+$container = Bootstrap::container(Bootstrap::config()->with(['CA3DB_API_ENDPOINT' => '']));
+$container->set(Log::class, static fn (): Log => new Log('/dev/null'));
+
+$db        = $container->get(Database::class);
+$sites     = $container->get(SiteRepository::class);
+$fetcher   = $container->get(SourceFetcher::class);
+$processor = $container->get(Processor::class);
+$http      = $container->get(HttpClient::class);
+
+$handle = fopen($out, 'a') ?: throw new RuntimeException("Can't write to $out");
+
+$clip = static fn (mixed $v): mixed => is_string($v) && strlen($v) > 300 ? mb_strcut($v, 0, 300) . '…' : $v;
+
+/** @return array<string, mixed> The columns the processor would store. */
+$extract = static function (array $entry, Site $site, string $source, string $target) use ($processor): array {
+    $fields = [
+        ...$processor->authorFields($entry, $site),
+        ...$processor->mf2Fields($entry, $source),
+        ...Processor::typeFields($entry, $target),
+    ];
+
+    return [
+        'type'             => $fields['type'],
+        'is_direct'        => $fields['is_direct'] ?? 1,
+        'author_name'      => $fields['author_name'],
+        'author_url'       => $fields['author_url'],
+        'author_photo'     => $fields['author_photo'],
+        'name'             => $fields['name'] ?? null,
+        'url'              => $fields['url'] ?? null,
+        'summary'          => $fields['summary'] ?? null,
+        'content'          => $fields['content'] ?? null,
+        'content_text'     => $fields['content_text'] ?? null,
+        'published'        => $fields['published'] ?? null,
+        'published_offset' => $fields['published_offset'] ?? null,
+        'published_ts'     => $fields['published_ts'] ?? null,
+        'syndication'      => $fields['syndication'] ?? null,
+        'photo'            => $fields['photo'] ?? null,
+        'video'            => $fields['video'] ?? null,
+        'audio'            => $fields['audio'] ?? null,
+        'swarm_coins'      => $fields['swarm_coins'] ?? null,
+        'relcanonical'     => $fields['relcanonical'] ?? null,
+    ];
+};
+
+/** @return array<string, array{a: mixed, b: mixed}> */
+$diff = static function (array $a, array $b, bool $archivedPhotos, string $aName, string $bName) use ($clip): array {
+    $diffs = [];
+    foreach ($a as $column => $x) {
+        $y = $b[$column] ?? null;
+
+        // An archived avatar has a different URL by design; only compare whether there is one.
+        if ($column === 'author_photo' && $archivedPhotos) {
+            $x = (string) $x === '' ? '' : '(photo)';
+            $y = (string) $y === '' ? '' : '(photo)';
+        }
+
+        $same = (is_int($x) || is_int($y))
+            ? ($x === null ? $y === null : ($y !== null && (string) $x === (string) $y))
+            : $x === $y;
+
+        if (!$same) {
+            $diffs[$column] = [$aName => $clip($x), $bName => $clip($y)];
+        }
+    }
+
+    return $diffs;
+};
+
+foreach ($ids as $n => $id) {
+    $row = $db->one(
+        'SELECT links.*, pages.href AS page_href FROM links JOIN pages ON pages.id = links.page_id WHERE links.id = ?',
+        [$id],
+    );
+    $site = $row === null ? null : $sites->find((int) $row['site_id']);
+
+    if ($row === null || $site === null) {
+        continue;
+    }
+
+    $source = (string) $row['href'];
+    $target = (string) $row['page_href'];
+    $result = ['id' => $id, 'source' => $source, 'target' => $target, 'stored_type' => $row['type']];
+
+    $started = microtime(true);
+    $parsed  = $fetcher->parse($source, $target);
+    $result['seconds'] = round(microtime(true) - $started, 2);
+
+    try {
+        if (isset($parsed['error'])) {
+            $result['error'] = $parsed['error'];
+        } else {
+            $new = $extract($parsed['data'] ?? [], $site, $source, $target);
+            $result['diffs'] = $diff(array_intersect_key($row, $new), $new, $site->archiveAvatars, 'stored', 'new');
+        }
+
+        if ($compare !== null) {
+            $response = $http->http(30)->post($compare, http_build_query([
+                'url' => $source, 'target' => $target, 'timeout' => 12, 'accept' => 'html',
+            ]), ['Content-Type: application/x-www-form-urlencoded']);
+            $hosted = json_decode((string) ($response['body'] ?? ''), true);
+
+            if (!is_array($hosted)) {
+                $result['hosted_error'] = $response['error'] ?: 'HTTP ' . $response['code'];
+            } elseif (!empty($hosted['error'])) {
+                $result['hosted_error'] = $hosted['error'];
+            } elseif (!isset($parsed['error'])) {
+                $result['xray_diffs'] = $diff($extract($hosted['data'] ?? [], $site, $source, $target), $new, false, 'hosted', 'library');
+            }
+        }
+    } catch (Throwable $e) {
+        $result['error']     = 'exception';
+        $result['exception'] = $e::class . ': ' . $e->getMessage();
+    }
+
+    fwrite($handle, json_encode($result, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) . "\n");
+
+    if ($delay > 0 && $n < count($ids) - 1) {
+        usleep($delay * 1000);
+    }
+}

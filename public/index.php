@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Webmention\Bootstrap;
 use Webmention\Http\Request;
+use Webmention\Logging\ErrorHandler;
 
 // When running under `php -S` with this file as the router script, let the
 // built-in server handle real files (CSS, JS, images) itself.
@@ -25,6 +26,7 @@ if (!is_file($autoload)) {
 require $autoload;
 
 date_default_timezone_set('UTC');
+ErrorHandler::ignoreVendorNoise();
 
 $config    = Bootstrap::config();
 $container = Bootstrap::container($config);
