@@ -98,5 +98,6 @@
 
 <section class="doc" id="more">
     <h2><a href="#more">More API docs</a></h2>
-    <p>Filtering, sorting, paging, Atom feeds and more are described in <a href="https://github.com/aaronpk/webmention.io#api">the project's README</a>.</p>
+    <p>Filtering, sorting, paging, Atom feeds and more are described in <a href="https://github.com/aaronpk/webmention.io#api">the project's README</a>.
+        To test your code against every kind of mention at once, use the <a href="/api/example/mentions.jf2?target=https://example.com/post">example feed</a>, which returns made-up data in every shape the real API produces.</p>
 </section>

@@ -10,6 +10,7 @@ use Exception;
 use stdClass;
 use Webmention\Config;
 use Webmention\Format\AtomFormat;
+use Webmention\Format\ExampleMentions;
 use Webmention\Format\JsonFormat;
 use Webmention\Format\Jf2Format;
 use Webmention\Format\Url;
@@ -190,6 +191,74 @@ final class ApiController extends Controller
             ]))->withHeader('content-security-policy', self::FEED_CSP)->withHeader('cache-control', 'no-store'),
             default => $this->json->respond($request, 200, JsonFormat::links($links)),
         };
+    }
+
+    /**
+     * Sample data for client developers (issue 77): every shape the jf2 feed
+     * can take, as fake sites and made-up people. Accepts the same target,
+     * wm-property, sort-dir, per-page and page parameters as the real feed,
+     * plus seed to get the same names twice.
+     *
+     * @param array<string, string> $params
+     */
+    public function exampleMentions(Request $request, array $params): Response
+    {
+        $links = $this->exampleLinks($request);
+
+        $properties = $request->inputList('wm-property');
+        if ($properties !== []) {
+            $links = array_values(array_filter($links, static fn (Link $l): bool => in_array(Jf2Format::relation($l->type), $properties, true)));
+        }
+
+        // Newest first, as the real feed's default.
+        usort($links, static fn (Link $a, Link $b): int => strcmp((string) $b->createdAt, (string) $a->createdAt) ?: $b->id <=> $a->id);
+        if ($request->input('sort-dir') === 'up') {
+            $links = array_reverse($links);
+        }
+
+        $limit = 20;
+        if ($request->has('perPage')) {
+            $limit = (int) $request->input('perPage');
+        } elseif ($request->has('per-page')) {
+            $limit = (int) $request->input('per-page');
+        }
+        $limit = min(max(0, $limit), self::MAX_PER_PAGE);
+        $links = array_slice($links, self::offset((int) $request->input('page'), $limit), $limit);
+
+        return $this->json->respond($request, 200, Jf2Format::feed($links));
+    }
+
+    /** The count endpoint's answer for the sample data. @param array<string, string> $params */
+    public function exampleCount(Request $request, array $params): Response
+    {
+        $links  = $this->exampleLinks($request);
+        $counts = [];
+        foreach ($links as $link) {
+            $key          = $link->type === 'link' || $link->type === null ? 'mention' : $link->type;
+            $counts[$key] = ($counts[$key] ?? 0) + 1;
+        }
+        ksort($counts);
+
+        $types = new stdClass();
+        foreach ($counts as $key => $num) {
+            $types->{$key} = $num;
+        }
+
+        return $this->json->respond($request, 200, ['count' => count($links), 'type' => $types]);
+    }
+
+    /** @return list<Link> */
+    private function exampleLinks(Request $request): array
+    {
+        $target = (string) $request->input('target');
+        if (self::safeUrl($target) === null || strlen($target) > WebmentionController::MAX_URL_BYTES) {
+            $target = 'https://example.com/post';
+        }
+
+        $seed = $request->input('seed');
+        $seed = $seed !== null && $seed !== '' && preg_match('/^\d{1,9}$/', $seed) === 1 ? (int) $seed : random_int(1, 999999999);
+
+        return ExampleMentions::links($target, $seed, $this->config->baseUrl());
     }
 
     /**

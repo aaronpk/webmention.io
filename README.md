@@ -186,6 +186,17 @@ You can use the `since` or `since_id` parameters to find new mentions retrieved 
 `/api/links` is an alias of `/api/mentions`.
 
 
+### Example data for testing
+
+To try your code against every kind of mention before your site has received them, point it at the example feed. It returns made-up mentions on `.example` domains, one of each shape the real feed produces: replies, likes, reposts, bookmarks, plain mentions, all four RSVP values, an invite, photo, video and audio posts, a private webmention, a pingback, a legacy mention with no type or author, the pre-2018 `content-type`/`value` content shape, a check-in with `swarm-coins`, syndication links, `rels.canonical`, a bridged reply whose `url` differs from `wm-source`, and long HTML with non-Latin text.
+
+```
+GET https://webmention.io/api/example/mentions.jf2?target=https://example.com/post
+GET https://webmention.io/api/example/count
+```
+
+`target` is echoed as `wm-target`. `wm-property`, `sort-dir`, `per-page`, `page` and `jsonp` work as on the real feed. Names are randomised on every request; add `seed=123` to get the same ones again. `wm-id` values 1001 to 1021 are stable, one per case.
+
 ### JSONP
 
 The API also supports JSONP so you can use it to show webmentions on your own sites via JavaScript. Simply add a parameter `jsonp` to the API call, for example, https://webmention.io/api/mentions.jf2?jsonp=f&target=https%3A%2F%2Fwebmention.io

@@ -201,6 +201,8 @@ final class Bootstrap
         // Literal /api routes first, so {kind} never swallows count.
         $r->get('/api/count', [ApiController::class, 'count']);
         $r->get('/api/count.json', [ApiController::class, 'count']);
+        $r->get('/api/example/mentions.jf2', [ApiController::class, 'exampleMentions']);
+        $r->get('/api/example/count', [ApiController::class, 'exampleCount']);
         $r->get('/api/{kind}', [ApiController::class, 'mentions']);
 
         $r->get('/dashboard', [DashboardController::class, 'index']);
