@@ -243,7 +243,7 @@ final class Processor
         ]);
 
         if ($wasPublished) {
-            $this->webHooks->deleted($site, $job->source, $job->target, $job->isPrivate());
+            $this->webHooks->deleted($site, $job->source, $job->target, $job->isPrivate(), $link->id);
         }
 
         return true;

@@ -11,9 +11,11 @@ use Webmention\Http\Request;
 use Webmention\Http\Response;
 use Webmention\Http\Session;
 use Webmention\Model\Account;
+use Webmention\Model\WebhookDelivery;
 use Webmention\Storage\AccountRepository;
 use Webmention\Storage\BlockRepository;
 use Webmention\Storage\SiteRepository;
+use Webmention\Storage\WebhookDeliveryRepository;
 use Webmention\View\Template;
 use Webmention\Model\Mute;
 use Webmention\Storage\LinkRepository;
@@ -22,6 +24,7 @@ use Webmention\Storage\PageRepository;
 use Webmention\Webmention\HttpClient;
 use Webmention\Webmention\Moderation;
 use Webmention\Webmention\RateLimiter;
+use Webmention\Webmention\WebHooks;
 use Webmention\Webmention\SiteVerifier;
 use Webmention\Webmention\TargetResolver;
 
@@ -45,6 +48,8 @@ final class SettingsController extends Controller
         private readonly RateLimiter $limiter,
         private readonly LinkRepository $links,
         private readonly MuteRepository $mutes,
+        private readonly WebHooks $webHooks,
+        private readonly WebhookDeliveryRepository $deliveries,
         private readonly Config $config,
     ) {
         parent::__construct($view);
@@ -177,11 +182,87 @@ final class SettingsController extends Controller
                 'archive_avatars' => $site->archiveAvatars,
                 'moderation'      => $site->moderation ?? 'off',
             ],
-            'endpoint' => $this->config->baseUrl() . '/' . $user->domain . '/webmention',
-            'saved'    => $request->query('saved') !== null,
-            'checked'  => $request->query('checked'),
-            'csrf'     => $this->session->csrfToken(),
+            'endpoint'     => $this->config->baseUrl() . '/' . $user->domain . '/webmention',
+            'saved'        => $request->query('saved') !== null,
+            'checked'      => $request->query('checked'),
+            'deliveries'   => Url::blank($site->callbackUrl) ? [] : array_map(self::deliveryRow(...), $this->deliveries->recentForSite($site->id)),
+            'has_mentions' => $this->links->latestPublishedForSite($site->id) !== null,
+            'sent'         => $request->query('sent') !== null,
+            'resend_error' => $request->query('resend_error'),
+            'csrf'         => $this->session->csrfToken(),
         ], $this->nav($user, 'sites'));
+    }
+
+    /**
+     * A delivery as the site page shows it.
+     *
+     * @return array<string, mixed>
+     */
+    private static function deliveryRow(WebhookDelivery $d): array
+    {
+        $payload = json_decode($d->requestBody, true);
+        $pretty  = is_array($payload)
+            ? json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+            : false;
+        $when = date_create_immutable($d->createdAt . ' UTC');
+
+        return [
+            'id'       => $d->id,
+            'when'     => $when === false ? $d->createdAt : $when->format('M j, Y H:i') . ' UTC',
+            'kind'     => $d->kind,
+            'ok'       => $d->succeeded(),
+            'result'   => $d->result(),
+            'duration' => $d->durationMs,
+            'source'   => is_array($payload) ? (string) ($payload['source'] ?? '') : '',
+            'target'   => is_array($payload) ? (string) ($payload['target'] ?? '') : '',
+            'request'  => $pretty === false ? $d->requestBody : $pretty,
+            'response' => $d->responseBody,
+        ];
+    }
+
+    /**
+     * Send a web hook by hand (issue 231): an earlier delivery again, or the
+     * site's newest mention, so the owner can watch what their endpoint does.
+     *
+     * @param array<string, string> $params
+     */
+    public function resendWebhook(Request $request, array $params): Response
+    {
+        if (($user = $this->currentUser($request)) === null) {
+            return Response::redirect('/');
+        }
+        $this->checkCsrf($request);
+
+        $site = $this->sites->findForAccount($user->id, (int) $request->post('site_id'));
+        if ($site === null) {
+            throw HttpException::notFound('That site is not on your account.');
+        }
+        if (Url::blank($site->callbackUrl)) {
+            throw HttpException::badRequest('This site has no callback URL to send to.');
+        }
+
+        $back = "/settings/sites/{$site->id}";
+
+        // Each send is a request to someone's server; a few a minute is plenty.
+        if (!$this->limiter->allow('webhook_resend', (string) $user->id, 10, 60)) {
+            return Response::seeOther("$back?resend_error=" . rawurlencode('Too many sends in a row; try again in a minute.') . '#deliveries');
+        }
+
+        if ($request->post('delivery_id') !== null) {
+            $delivery = $this->deliveries->findForSite($site->id, (int) $request->post('delivery_id'));
+            if ($delivery === null) {
+                throw HttpException::notFound('That delivery is not on this site.');
+            }
+            $this->webHooks->resend($site, $delivery);
+        } else {
+            $link = $this->links->latestPublishedForSite($site->id);
+            if ($link === null) {
+                return Response::seeOther("$back?resend_error=" . rawurlencode('This site has no published webmention to send yet.') . '#deliveries');
+            }
+            $this->webHooks->notify($site, $link, (string) $link->href, (string) $link->targetHref, $link->isPrivate, 'test');
+        }
+
+        return Response::seeOther("$back?sent=1#deliveries");
     }
 
     /** @param array<string, string> $params */

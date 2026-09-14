@@ -301,7 +301,8 @@ X-Webmention-Signature: sha256=2f7e…
   "private": false,
   "deleted": true
 }</code></pre>
-    <p>Deliveries are not retried or replayed. If your endpoint was down, fetch what it missed from <a href="#mentions">List mentions</a> with <code>since_id</code> and from <a href="#deleted">Deleted mentions</a>; both return the same data the web hook carries.</p>
+    <p>Deliveries are not retried on their own. Each site's settings page lists its last 50 deliveries with the status or error, the time taken, and the request and response bodies, and can re-send any of them or send the newest webmention as a test.
+        If your endpoint was down for longer, fetch what it missed from <a href="#mentions">List mentions</a> with <code>since_id</code> and from <a href="#deleted">Deleted mentions</a>; both return the same data the web hook carries.</p>
 </section>
 
 <link rel="stylesheet" href="/assets/webmention-render.css">

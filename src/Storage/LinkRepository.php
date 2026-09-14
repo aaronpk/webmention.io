@@ -288,6 +288,12 @@ final class LinkRepository
         );
     }
 
+    /** The site's newest published mention, for a test web hook delivery. */
+    public function latestPublishedForSite(int $siteId): ?Link
+    {
+        return $this->first(self::SELECT . ' WHERE links.site_id = ? AND links.verified = 1 AND links.deleted = 0 ORDER BY links.id DESC LIMIT 1', [$siteId]);
+    }
+
     /** How many links a search matches in all, ignoring its page. */
     public function count(LinkSearch $search): int
     {

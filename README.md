@@ -305,7 +305,7 @@ In the original JSON format, `verified: true` now also means approved; held and 
 
 ## Web Hooks
 
-Each site's page under Sites has a callback URL and secret. If a site has a callback URL, every verified webmention is POSTed to it as JSON. When the site has a callback secret, the request also carries `X-Webmention-Signature: sha256=<hex>`, the HMAC-SHA256 of the request body keyed with that secret, so the receiver can verify the delivery without comparing the secret in the body:
+Each site's page under Sites has a callback URL and secret, and lists the last 50 deliveries with their status, timing and bodies; any of them can be re-sent, or the newest webmention sent as a test. If a site has a callback URL, every verified webmention is POSTed to it as JSON. When the site has a callback secret, the request also carries `X-Webmention-Signature: sha256=<hex>`, the HMAC-SHA256 of the request body keyed with that secret, so the receiver can verify the delivery without comparing the secret in the body:
 
 ```
 {

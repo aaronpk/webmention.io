@@ -7,6 +7,7 @@ namespace Webmention\Tests\Integration;
 use Webmention\Model\Account;
 use Webmention\Model\Site;
 use Webmention\Storage\LinkRepository;
+use Webmention\Storage\WebhookDeliveryRepository;
 use Webmention\Tests\Support\IntegrationTestCase;
 use Webmention\Webmention\Processor;
 use Webmention\Webmention\Queue;
@@ -96,6 +97,12 @@ final class WebmentionFlowTest extends IntegrationTestCase
         self::assertCount(1, $hooks);
         $payload = json_decode((string) $hooks[0]['body'], true);
         self::assertSame(['secret', 'source', 'target', 'private', 'post'], array_keys($payload));
+
+        // The delivery is on record for the site page (issue 231).
+        $deliveries = $this->service(WebhookDeliveryRepository::class)->recentForSite($links[0]->siteId);
+        self::assertCount(1, $deliveries);
+        self::assertSame((string) $hooks[0]['body'], $deliveries[0]->requestBody);
+        self::assertSame($links[0]->id, $deliveries[0]->linkId);
         self::assertSame('s3cret', $payload['secret']);
         self::assertSame(self::TARGET, $payload['post']['like-of']);
         self::assertContains('X-Webmention-Signature: sha256=' . hash_hmac('sha256', (string) $hooks[0]['body'], 's3cret'), $hooks[0]['headers']);

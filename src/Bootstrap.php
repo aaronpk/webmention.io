@@ -21,6 +21,7 @@ use Webmention\Storage\LinkRepository;
 use Webmention\Storage\MuteRepository;
 use Webmention\Storage\PageRepository;
 use Webmention\Storage\SiteRepository;
+use Webmention\Storage\WebhookDeliveryRepository;
 use Webmention\View\Template;
 use Webmention\Webmention\AvatarArchiver;
 use Webmention\Webmention\HttpClient;
@@ -113,7 +114,8 @@ final class Bootstrap
             $c->get(HttpClient::class),
             $c->get(Log::class),
         ));
-        $c->set(WebHooks::class, static fn (Container $c): WebHooks => new WebHooks($c->get(HttpClient::class), $c->get(Log::class)));
+        $c->set(WebhookDeliveryRepository::class, static fn (Container $c): WebhookDeliveryRepository => new WebhookDeliveryRepository($c->get(Database::class)));
+        $c->set(WebHooks::class, static fn (Container $c): WebHooks => new WebHooks($c->get(HttpClient::class), $c->get(Log::class), $c->get(WebhookDeliveryRepository::class)));
 
         $c->set(Processor::class, static fn (Container $c): Processor => new Processor(
             $c->get(AccountRepository::class),
@@ -196,6 +198,8 @@ final class Bootstrap
             $c->get(RateLimiter::class),
             $c->get(LinkRepository::class),
             $c->get(MuteRepository::class),
+            $c->get(WebHooks::class),
+            $c->get(WebhookDeliveryRepository::class),
             $config,
         ));
 
@@ -248,6 +252,7 @@ final class Bootstrap
         $r->get('/settings/sites/{id}', [SettingsController::class, 'site']);
         $r->get('/settings/webhooks', [SettingsController::class, 'webhooks']);
         $r->post('/webhook/configure', [SettingsController::class, 'configureWebhook']);
+        $r->post('/webhook/resend', [SettingsController::class, 'resendWebhook']);
         $r->get('/settings/blocks', [SettingsController::class, 'blocks']);
 
         $r->post('/d/{domain}/webmention', [WebmentionController::class, 'receiveForSite']);

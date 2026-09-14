@@ -5,8 +5,13 @@
  * @var array{id: int, domain: string, pages: int, mentions: int, verified: bool, verified_on: ?string, checked_on: ?string, error: ?string,
  *            callback_url: string, callback_secret: string, archive_avatars: bool, moderation: string} $site
  * @var string      $endpoint
- * @var bool        $saved    The settings form was just saved.
- * @var string|null $checked  Result of a "Check now".
+ * @var bool        $saved        The settings form was just saved.
+ * @var string|null $checked      Result of a "Check now".
+ * @var list<array{id: int, when: string, kind: string, ok: bool, result: string, duration: int, source: string, target: string,
+ *                 request: string, response: ?string}> $deliveries  Newest first; empty when no callback URL is set.
+ * @var bool        $has_mentions The site has a published mention that can be sent as a test.
+ * @var bool        $sent         A delivery was just sent by hand.
+ * @var string|null $resend_error Why one could not be.
  * @var string      $csrf
  */
 // Messages are already escaped; URLs in them are set in <code> so they read as addresses, not missing links.
@@ -103,3 +108,87 @@ $withCode = static fn (string $text): string => (string) preg_replace('#https?:/
         </div>
     </form>
 </section>
+
+<?php if ($site['callback_url'] !== '') { ?>
+<section class="card" id="deliveries">
+    <h2>Web hook deliveries</h2>
+
+    <?php if ($sent) { ?>
+        <p class="notice">Sent. The result is the newest delivery below.</p>
+    <?php } ?>
+    <?php if ($resend_error !== null) { ?>
+        <p class="alert"><?= $resend_error ?></p>
+    <?php } ?>
+
+    <?php if ($deliveries === []) { ?>
+        <p>Nothing has been sent to <code><?= $site['callback_url'] ?></code> yet. A delivery goes out each time a webmention for this site
+            verifies (and is approved, if you hold them for review).</p>
+    <?php } else { ?>
+        <?php $last = $deliveries[0]; ?>
+        <?php if ($last['ok']) { ?>
+            <p>The last delivery, <?= $last['when'] ?>, was accepted (<?= $last['result'] ?>).</p>
+        <?php } else { ?>
+            <p class="alert"><strong>The last delivery, <?= $last['when'] ?>, failed: <?= $last['result'] ?>.</strong>
+                Your endpoint has to answer with a 2xx status within 20 seconds, be reachable from the public internet
+                (not a private or local address), and if it uses https, present a valid certificate. Nothing is retried on its own;
+                once it is fixed, re-send a delivery below to check.</p>
+        <?php } ?>
+    <?php } ?>
+
+    <form action="/webhook/resend" method="post" class="form-actions">
+        <input type="hidden" name="csrf" value="<?= $csrf ?>">
+        <input type="hidden" name="site_id" value="<?= $site['id'] ?>">
+        <button type="submit" class="secondary"<?= $has_mentions ? '' : ' disabled' ?>>Send the latest webmention now</button>
+        <?php if (!$has_mentions) { ?>
+            <span class="muted small">This site has no published webmention to send yet.</span>
+        <?php } else { ?>
+            <span class="muted small">Sends this site's newest webmention to the callback URL again, as a test.</span>
+        <?php } ?>
+    </form>
+
+    <?php if ($deliveries !== []) { ?>
+        <div class="table-wrap">
+            <table class="data">
+                <thead>
+                    <tr><th>When</th><th>Kind</th><th>Result</th><th>Time</th><th>Webmention</th><th></th></tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($deliveries as $d) { ?>
+                        <tr class="has-detail">
+                            <td class="nowrap"><?= $d['when'] ?></td>
+                            <td><?= $d['kind'] ?></td>
+                            <td><span class="badge<?= $d['ok'] ? '' : ' badge-error' ?>"><?= $d['result'] ?></span></td>
+                            <td class="num nowrap"><?= number_format($d['duration']) ?> ms</td>
+                            <td class="url small"><code><?= $d['source'] ?></code> → <code><?= $d['target'] ?></code></td>
+                            <td class="actions">
+                                <form action="/webhook/resend" method="post" class="inline">
+                                    <input type="hidden" name="csrf" value="<?= $csrf ?>">
+                                    <input type="hidden" name="site_id" value="<?= $site['id'] ?>">
+                                    <input type="hidden" name="delivery_id" value="<?= $d['id'] ?>">
+                                    <button type="submit" class="secondary small">Re-send</button>
+                                </form>
+                            </td>
+                        </tr>
+                        <tr class="detail">
+                            <td colspan="6">
+                                <details>
+                                    <summary>Request and response</summary>
+                                    <p class="muted small">Sent to <code><?= $site['callback_url'] ?></code>:</p>
+                                    <pre><code><?= $d['request'] ?></code></pre>
+                                    <?php if ($d['response'] !== null) { ?>
+                                        <p class="muted small">The endpoint answered:</p>
+                                        <pre><code><?= $d['response'] ?></code></pre>
+                                    <?php } else { ?>
+                                        <p class="muted small">The endpoint sent no body back.</p>
+                                    <?php } ?>
+                                </details>
+                            </td>
+                        </tr>
+                    <?php } ?>
+                </tbody>
+            </table>
+        </div>
+        <p class="muted small">The newest 50 deliveries are kept. Re-sending uses the site's current callback URL and secret.</p>
+    <?php } ?>
+</section>
+<?php } ?>

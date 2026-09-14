@@ -282,7 +282,7 @@ final class DashboardController extends Controller
     {
         $site = $this->sites->find($link->siteId);
         if ($site !== null) {
-            $this->webHooks->deleted($site, (string) $link->href, (string) $link->targetHref, $link->isPrivate);
+            $this->webHooks->deleted($site, (string) $link->href, (string) $link->targetHref, $link->isPrivate, $link->id);
         }
     }
 
