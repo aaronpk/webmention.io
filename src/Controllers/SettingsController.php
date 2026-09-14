@@ -76,10 +76,11 @@ final class SettingsController extends Controller
         $base  = $this->config->baseUrl();
 
         return $this->page('settings', 'Settings', [
-            'token'    => $token,
-            'html_url' => $base . '/api/mentions.html?token=' . rawurlencode($token),
-            'atom_url' => $base . '/api/mentions.atom?token=' . rawurlencode($token),
-            'csrf'     => $this->session->csrfToken(),
+            'token'      => $token,
+            'html_url'   => $base . '/api/mentions.html?token=' . rawurlencode($token),
+            'atom_url'   => $base . '/api/mentions.atom?token=' . rawurlencode($token),
+            'export_url' => $base . '/api/export.jf2?token=' . rawurlencode($token),
+            'csrf'       => $this->session->csrfToken(),
         ], $this->nav($user, 'settings'));
     }
 

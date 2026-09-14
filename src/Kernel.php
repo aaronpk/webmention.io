@@ -22,9 +22,10 @@ final class Kernel
      * (the embeddable mentions feed, the sign-in form) set their own header,
      * and it is left alone.
      */
-    public static function csp(string $formAction = "'self'"): string
+    public static function csp(string $formAction = "'self'", ?string $connectSrc = null): string
     {
         return "default-src 'none'; script-src 'self'; style-src 'self'; img-src * data:; "
+            . ($connectSrc === null ? '' : "connect-src $connectSrc; ")
             . "form-action $formAction; frame-ancestors 'none'; base-uri 'none'";
     }
 

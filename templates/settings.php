@@ -3,6 +3,7 @@
  * @var string $token
  * @var string $html_url
  * @var string $atom_url
+ * @var string $export_url
  * @var string $csrf
  */
 ?>
@@ -27,4 +28,16 @@
         <input type="hidden" name="csrf" value="<?= $csrf ?>">
         <button type="submit" class="secondary">Generate new token</button>
     </form>
+</section>
+
+<section class="card">
+    <h2>Export your data</h2>
+    <p>Every published mention on your account, private ones included, as one <a href="/api#export">jf2</a> file: the same shape as
+        <code>/api/mentions.jf2</code>, oldest first, one record per line. Use it for a backup or to move to another service.</p>
+    <p class="alert"><strong>This downloads everything on your account in a single file.</strong>
+        For an account with many years of mentions that can be hundreds of megabytes.
+        An export can only be started once every five minutes; a second attempt inside that window is refused with a 429 response.</p>
+    <p><a class="button" href="<?= $export_url ?>" download>Download export</a></p>
+    <p class="muted small">The same file from the command line, or for one site only by adding <code>&amp;domain=example.com</code>:</p>
+    <pre><code id="export-url"><?= $export_url ?></code></pre>
 </section>

@@ -208,6 +208,7 @@ final class Bootstrap
 
         $r->get('/', [HomeController::class, 'index']);
         $r->get('/id', [HomeController::class, 'clientMetadata']);
+        $r->get('/api', [HomeController::class, 'api']);
 
         // Starting a sign-in and signing out change the session, so both are POSTs.
         $r->get('/auth/start', [AuthController::class, 'startForm']);

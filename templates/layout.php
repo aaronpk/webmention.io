@@ -11,6 +11,7 @@ $links = [
     'blocks'    => ['/settings/blocks', 'Blocklists'],
     'webhooks'  => ['/settings/webhooks', 'Web Hooks'],
     'settings'  => ['/settings', 'Settings'],
+    'api'       => ['/api', 'API'],
 ];
 ?>
 <!doctype html>
@@ -52,6 +53,8 @@ $links = [
     </main>
 
     <footer class="site-footer">
+        <a href="/api">API docs</a>
+        <span aria-hidden="true">·</span>
         <a href="https://github.com/aaronpk/webmention.io">Open source</a>
         <span aria-hidden="true">·</span>
         <span>Made by <a href="https://aaronparecki.com">aaronpk</a></span>

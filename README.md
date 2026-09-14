@@ -22,6 +22,8 @@ The Webmention protocol also supports specifying the endpoint in the headers,
 
 ## API
 
+The API documentation is rendered at [webmention.io/api](https://webmention.io/api), with the rendering script running against the example feed. The same material follows.
+
 ### Find links to a specific page
 
 This service provides an API for returning a list of pages that have linked to a given page. For example:

@@ -11,6 +11,8 @@ use Webmention\Model\Site;
 use Webmention\Storage\BlockRepository;
 use Webmention\Storage\LinkRepository;
 use Webmention\Storage\SiteRepository;
+use Webmention\Http\Session;
+use Webmention\Storage\AccountRepository;
 use Webmention\Tests\Support\IntegrationTestCase;
 
 final class DashboardTest extends IntegrationTestCase
@@ -37,6 +39,44 @@ final class DashboardTest extends IntegrationTestCase
             self::assertSame(302, $response->status, $path);
             self::assertSame('/', $response->header('location'));
         }
+    }
+
+    public function testApiDocsAreAPublicPageWithALiveDemo(): void
+    {
+        $response = $this->request('GET', '/api');
+        self::assertSame(200, $response->status);
+        self::assertStringContainsString('<h1>API documentation</h1>', $response->body);
+        self::assertStringContainsString('/js/webmention-render.js', $response->body);
+        self::assertStringContainsString('data-webmention-api="/api/example/mentions.jf2', $response->body, 'the demo runs against the example feed');
+        self::assertStringContainsString('/api/export.jf2?token=', $response->body);
+        self::assertStringContainsString('"total-pages"', $response->body);
+        self::assertStringContainsString('id="deleted"', $response->body);
+        self::assertStringContainsString("connect-src 'self'", (string) $response->header('content-security-policy'), 'the demo may fetch from this origin');
+        self::assertStringNotContainsString('Sign out', $response->body, 'no account nav when signed out');
+
+        // Public pages only look for a session when the browser sent the cookie.
+        $this->signIn($this->alice);
+        $signedIn = $this->request('GET', '/api', headers: ['cookie' => Session::COOKIE . '=test']);
+        self::assertSame(200, $signedIn->status);
+        self::assertStringContainsString('href="/api" aria-current="page"', $signedIn->body);
+
+        // The home page now points at the docs instead of carrying them.
+        $home = $this->request('GET', '/')->body;
+        self::assertStringNotContainsString('/api/count?target', $home);
+        self::assertStringContainsString('webmention-render.js', $home);
+        self::assertStringContainsString('href="/api"', $home);
+    }
+
+    public function testSettingsOffersTheExportWithAWarning(): void
+    {
+        $this->signIn($this->alice);
+        $body  = $this->request('GET', '/settings')->body;
+        $token = (string) $this->service(AccountRepository::class)->find($this->alice->id)?->token;
+
+        self::assertNotSame('', $token);
+        self::assertStringContainsString('/api/export.jf2?token=' . rawurlencode($token) . '" download>', $body);
+        self::assertStringContainsString('once every five minutes', $body);
+        self::assertStringContainsString('class="alert"', $body);
     }
 
     public function testSignedInPagesRender(): void

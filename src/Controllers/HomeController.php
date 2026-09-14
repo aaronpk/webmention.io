@@ -58,6 +58,26 @@ final class HomeController extends Controller
     }
 
     /**
+     * The API documentation, with the rendering script running against the
+     * example feed as a live demo. Public, but the nav shows when signed in.
+     *
+     * @param array<string, string> $params
+     */
+    public function api(Request $request, array $params): Response
+    {
+        $user = $request->header('cookie') !== null && str_contains((string) $request->header('cookie'), Session::COOKIE)
+            ? $this->currentUser($request)
+            : null;
+
+        $response = $this->page('api', 'API documentation', [
+            'base_url' => $this->config->baseUrl(),
+        ], $user === null ? null : $this->nav($user, 'api'));
+
+        // The demo fetches the example feed from this origin.
+        return $response->withHeader('content-security-policy', Kernel::csp("'self'", "'self'"));
+    }
+
+    /**
      * The IndieAuth client metadata document. The client_id is this URL.
      *
      * @param array<string, string> $params

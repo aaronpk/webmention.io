@@ -39,65 +39,12 @@
     <p>Your username is most likely your domain. For instance, if your website is <code>https://aaronparecki.com/</code>, your username is <code>aaronparecki.com</code>.</p>
 </section>
 
-<section class="doc" id="display-mention-counter">
-    <h2><a href="#display-mention-counter">Display a mention counter</a></h2>
-    <p>You can use the API from JavaScript to display a mention count for one or more URLs.
-        The API sends <code>Access-Control-Allow-Origin: *</code>, so it works from a browser as well as a server.</p>
-    <pre><code>fetch("<?= $base_url ?>/api/count?target=https://example.com/page/100")
-    .then(response =&gt; response.json())
-    .then(data =&gt; console.log(data));</code></pre>
-    <p>This returns the total number of mentions of the URL, as well as the count by type.</p>
-    <pre><code>{
-  "count": 6,
-  "type": {
-    "bookmark": 1,
-    "mention": 2,
-    "rsvp-maybe": 1,
-    "rsvp-no": 1,
-    "rsvp-yes": 1
-  }
-}</code></pre>
-</section>
-
-<section class="doc" id="show-all-mentions">
-    <h2><a href="#show-all-mentions">Show all mentions</a></h2>
-    <p>You can also use the API to list every mention of a URL.</p>
-    <pre><code>fetch("<?= $base_url ?>/api/mentions.jf2?target=https://example.com/page/100")
-    .then(response =&gt; response.json())
-    .then(data =&gt; console.log(data));</code></pre>
-    <p>The response looks like this:</p>
-    <pre><code>{
-  "type": "feed",
-  "name": "Webmentions",
-  "children": [
-    {
-      "type": "entry",
-      "author": {
-        "type": "card",
-        "name": "Tantek Çelik",
-        "url": "http://tantek.com/",
-        "photo": "http://tantek.com/logo.jpg"
-      },
-      "url": "http://tantek.com/2013/112/t2/milestone-show-indieweb-comments-h-entry-pingback",
-      "published": "2013-04-22T15:03:00-07:00",
-      "wm-received": "2013-04-25T17:09:33Z",
-      "wm-id": 900,
-      "wm-source": "http://tantek.com/2013/112/t2/milestone-show-indieweb-comments-h-entry-pingback",
-      "wm-target": "https://indieweb.org/",
-      "content": {
-        "html": "Another milestone: &lt;a href=\"https://twitter.com/eschnou\"&gt;@eschnou&lt;/a&gt; automatically shows #indieweb comments…",
-        "text": "Another milestone: @eschnou automatically shows #indieweb comments…"
-      },
-      "mention-of": "https://indieweb.org/",
-      "wm-property": "mention-of",
-      "wm-private": false
-    }
-  ]
-}</code></pre>
-</section>
-
-<section class="doc" id="more">
-    <h2><a href="#more">More API docs</a></h2>
-    <p>Filtering, sorting, paging, Atom feeds and more are described in <a href="https://github.com/aaronpk/webmention.io#api">the project's README</a>.
-        To test your code against every kind of mention at once, use the <a href="/api/example/mentions.jf2?target=https://example.com/post">example feed</a>, which returns made-up data in every shape the real API produces.</p>
+<section class="doc" id="show-mentions">
+    <h2><a href="#show-mentions">Show mentions on your pages</a></h2>
+    <p>Drop three lines into a page and its likes, reposts, replies and mentions appear, with no dependencies:</p>
+    <pre><code>&lt;div data-webmention-target="https://example.com/post/"&gt;&lt;/div&gt;
+&lt;link rel="stylesheet" href="<?= $base_url ?>/assets/webmention-render.css"&gt;
+&lt;script src="<?= $base_url ?>/js/webmention-render.js" defer&gt;&lt;/script&gt;</code></pre>
+    <p>The <a href="/api">API documentation</a> covers the script's options and shows it running, along with the JSON API for
+        listing and counting mentions, Atom and h-feed feeds, web hooks, example data for development, and a full export of your account.</p>
 </section>
