@@ -15,8 +15,12 @@ use Webmention\Storage\AccountRepository;
 use Webmention\Storage\BlockRepository;
 use Webmention\Storage\SiteRepository;
 use Webmention\View\Template;
+use Webmention\Model\Mute;
+use Webmention\Storage\LinkRepository;
+use Webmention\Storage\MuteRepository;
 use Webmention\Storage\PageRepository;
 use Webmention\Webmention\HttpClient;
+use Webmention\Webmention\Moderation;
 use Webmention\Webmention\RateLimiter;
 use Webmention\Webmention\SiteVerifier;
 use Webmention\Webmention\TargetResolver;
@@ -39,9 +43,16 @@ final class SettingsController extends Controller
         private readonly TargetResolver $targets,
         private readonly PageRepository $pages,
         private readonly RateLimiter $limiter,
+        private readonly LinkRepository $links,
+        private readonly MuteRepository $mutes,
         private readonly Config $config,
     ) {
         parent::__construct($view);
+    }
+
+    protected function pendingCount(Account $user): ?int
+    {
+        return $this->links->countPendingForAccount($user->id);
     }
 
     protected function session(): Session
@@ -268,6 +279,7 @@ final class SettingsController extends Controller
                 'callback_url'    => (string) $site->callbackUrl,
                 'callback_secret' => (string) $site->callbackSecret,
                 'archive_avatars' => $site->archiveAvatars,
+                'moderation'      => $site->moderation ?? 'off',
             ];
         }
 
@@ -299,11 +311,17 @@ final class SettingsController extends Controller
             throw HttpException::badRequest("That callback URL can't be reached from here: $why");
         }
 
+        $policy = (string) $request->post('moderation');
+        if (!in_array($policy, Moderation::POLICIES, true)) {
+            $policy = 'off';
+        }
+
         $this->sites->updateWebhook(
             $site->id,
             $url,
             mb_substr((string) $request->post('callback_secret'), 0, 50),
             $request->post('archive_avatars') !== null,
+            $policy,
         );
 
         return Response::seeOther('/settings/webhooks?saved=' . $site->id);
@@ -339,6 +357,8 @@ final class SettingsController extends Controller
         }
 
         return $this->page('blocks', 'Blocklists', [
+            'mutes'    => array_map(static fn (Mute $m): array => ['id' => $m->id, 'kind' => $m->kind, 'pattern' => $m->pattern, 'label' => $m->describe()], $this->mutes->forAccount($user->id)),
+            'mute_notice' => $request->query('muted'),
             'domains'  => $this->blocks->domainsForAccount($user->id),
             'sources'  => $sources,
             'total'    => $total,
@@ -348,6 +368,66 @@ final class SettingsController extends Controller
             'pages'    => $pages,
             'csrf'     => $this->session->csrfToken(),
         ], $this->nav($user, 'blocks'));
+    }
+
+    /**
+     * Add a mute rule and hide what it already covers (issue 85).
+     *
+     * @param array<string, string> $params
+     */
+    public function mute(Request $request, array $params): Response
+    {
+        if (($user = $this->currentUser($request)) === null) {
+            return Response::redirect('/');
+        }
+        $this->checkCsrf($request);
+
+        $kind    = (string) $request->post('kind');
+        $pattern = Mute::normalizePattern((string) $request->post('pattern'));
+        $back    = preg_match('#^/(dashboard|moderation)$#', (string) $request->post('back')) === 1 ? (string) $request->post('back') : '/settings/blocks';
+        $param   = $back === '/settings/blocks' ? 'muted' : 'notice';
+
+        if (!in_array($kind, Mute::KINDS, true) || $pattern === null) {
+            return Response::seeOther("$back?$param=" . rawurlencode('Enter a domain name like example.com, or a URL prefix like https://example.com/user/'));
+        }
+
+        $rule   = $this->mutes->add($user->id, $kind, $pattern);
+        $hidden = $this->links->hideMatching($user->id, $rule);
+
+        return Response::seeOther("$back?$param=" . rawurlencode(sprintf(
+            'Muted %s. %d existing webmention%s hidden; new ones will be too.',
+            lcfirst($rule->describe()),
+            $hidden,
+            $hidden === 1 ? '' : 's',
+        )));
+    }
+
+    /**
+     * Remove a mute rule; mentions no other rule covers become visible again.
+     *
+     * @param array<string, string> $params
+     */
+    public function unmute(Request $request, array $params): Response
+    {
+        if (($user = $this->currentUser($request)) === null) {
+            return Response::redirect('/');
+        }
+        $this->checkCsrf($request);
+
+        $rule = $this->mutes->find($user->id, (int) $request->post('id'));
+        if ($rule === null) {
+            return Response::seeOther('/settings/blocks');
+        }
+
+        $this->mutes->remove($user->id, $rule->id);
+        $restored = $this->links->restoreHidden($user->id, $this->mutes->forAccount($user->id));
+
+        return Response::seeOther('/settings/blocks?muted=' . rawurlencode(sprintf(
+            'Unmuted %s. %d webmention%s visible again.',
+            lcfirst($rule->describe()),
+            $restored,
+            $restored === 1 ? '' : 's',
+        )));
     }
 
     /** "https://Example.com/path" → "example.com". Null if there's no usable host. */

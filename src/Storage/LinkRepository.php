@@ -6,6 +6,7 @@ namespace Webmention\Storage;
 
 use Webmention\Format\Jf2Format;
 use Webmention\Model\Link;
+use Webmention\Model\Mute;
 
 final class LinkRepository
 {
@@ -93,10 +94,132 @@ final class LinkRepository
         );
     }
 
-    /** Removes the row entirely, as the old app did when a source stopped linking. */
-    public function destroy(int $id): void
+    // ---- Moderation (see Webmention\Moderation) ----
+
+    /** @return list<Link> Mentions held for review, newest first. */
+    public function pendingForAccount(int $accountId, int $limit, int $offset = 0): array
     {
-        $this->db->run('DELETE FROM links WHERE id = ?', [$id]);
+        return $this->many(
+            self::SELECT . " WHERE links.account_id = ? AND links.status = 'pending' AND links.deleted = 0
+                ORDER BY links.created_at DESC, links.id DESC LIMIT ? OFFSET ?",
+            [$accountId, max(0, $limit), max(0, $offset)],
+        );
+    }
+
+    public function countPendingForAccount(int $accountId): int
+    {
+        return (int) $this->db->value(
+            "SELECT COUNT(*) FROM links WHERE account_id = ? AND status = 'pending' AND deleted = 0",
+            [$accountId],
+        );
+    }
+
+    /** Make a held or hidden mention public. */
+    public function publish(int $id): void
+    {
+        $this->update($id, ['verified' => 1, 'status' => null]);
+    }
+
+    /** @return list<Link> The mentions from one source domain that were waiting, now published. */
+    public function publishPendingFromDomain(int $accountId, string $domain): array
+    {
+        $links = $this->many(
+            self::SELECT . " WHERE links.account_id = ? AND links.status = 'pending' AND links.deleted = 0 AND links.domain = ? ORDER BY links.id",
+            [$accountId, $domain],
+        );
+        foreach ($links as $link) {
+            $this->publish($link->id);
+        }
+
+        return array_values(array_filter(array_map(fn (Link $l): ?Link => $this->find($l->id), $links)));
+    }
+
+    /** Whether the account has ever published a mention from this source domain (the "first-time sender" test). */
+    public function hasPublishedFromDomain(int $accountId, string $domain): bool
+    {
+        return $this->db->value(
+            'SELECT 1 FROM links WHERE account_id = ? AND domain = ? AND verified = 1 AND deleted = 0 AND status IS NULL LIMIT 1',
+            [$accountId, $domain],
+        ) !== null;
+    }
+
+    /** Hide every published mention a new mute rule covers. Returns how many. */
+    public function hideMatching(int $accountId, Mute $rule): int
+    {
+        [$where, $params] = MuteRepository::predicate($rule);
+
+        return $this->db->run(
+            "UPDATE links SET verified = 0, status = 'hidden', updated_at = ?
+                WHERE account_id = ? AND verified = 1 AND deleted = 0 AND status IS NULL AND $where",
+            [Database::now(), $accountId, ...$params],
+        )->rowCount();
+    }
+
+    /**
+     * After a rule is removed: publish the hidden mentions no remaining rule
+     * covers. Returns how many.
+     *
+     * @param list<Mute> $remaining
+     */
+    public function restoreHidden(int $accountId, array $remaining): int
+    {
+        $clauses = [];
+        $params  = [Database::now(), $accountId];
+        foreach ($remaining as $rule) {
+            [$where, $ruleParams] = MuteRepository::predicate($rule);
+            $clauses[] = $where;
+            array_push($params, ...$ruleParams);
+        }
+        $still = $clauses === [] ? '' : ' AND NOT (' . implode(' OR ', $clauses) . ')';
+
+        return $this->db->run(
+            "UPDATE links SET verified = 1, status = NULL, updated_at = ? WHERE account_id = ? AND status = 'hidden' AND deleted = 0$still",
+            $params,
+        )->rowCount();
+    }
+
+    /**
+     * Deleted mentions, most recently deleted first, for clients pruning a
+     * cache (issue 128). createdAfter and idAfter apply to the deletion time
+     * (updated_at) and id.
+     *
+     * @return list<Link>
+     */
+    public function searchDeleted(LinkSearch $search): array
+    {
+        $where  = ['links.deleted = 1'];
+        $params = [];
+
+        if (!$search->includePrivate) {
+            $where[] = 'links.is_private = 0';
+        }
+        if ($search->accountId !== null) {
+            $where[]  = 'links.account_id = ?';
+            $params[] = $search->accountId;
+        }
+        if ($search->pageIds !== null) {
+            if ($search->pageIds === []) {
+                return [];
+            }
+            $where[] = 'links.page_id IN (' . Database::placeholders($search->pageIds) . ')';
+            array_push($params, ...$search->pageIds);
+        }
+        if ($search->createdAfter !== null) {
+            $where[]  = 'links.updated_at > ?';
+            $params[] = $search->createdAfter;
+        }
+        if ($search->idAfter !== null) {
+            $where[]  = 'links.id > ?';
+            $params[] = $search->idAfter;
+        }
+
+        $params[] = max(0, $search->limit);
+        $params[] = max(0, $search->offset);
+
+        return $this->many(
+            self::SELECT . ' WHERE ' . implode(' AND ', $where) . ' ORDER BY links.updated_at DESC, links.id DESC LIMIT ? OFFSET ?',
+            $params,
+        );
     }
 
     /**

@@ -1,8 +1,30 @@
 <?php
 /**
- * @var list<array> $links
+ * @var list<array> $pending        Mentions awaiting review (first page).
+ * @var int         $pending_total
+ * @var list<array> $links          Recent published mentions.
+ * @var string|null $notice
+ * @var string      $csrf
  */
+$back = '/dashboard';
 ?>
+<?php if ($notice !== null) { ?>
+    <p class="notice"><?= $notice ?></p>
+<?php } ?>
+
+<?php if ($pending !== []) { ?>
+    <section class="card review">
+        <h2>Awaiting review <span class="badge"><?= number_format($pending_total) ?></span></h2>
+        <p class="muted">Held by a site's moderation setting. Nothing here appears in the API or reaches your web hook until you approve it.</p>
+        <ul class="mention-list">
+            <?php foreach ($pending as $link) { require __DIR__ . '/_row.php'; } ?>
+        </ul>
+        <?php if ($pending_total > count($pending)) { ?>
+            <p><a href="/moderation">See all <?= number_format($pending_total) ?> waiting →</a></p>
+        <?php } ?>
+    </section>
+<?php } ?>
+
 <section class="card">
     <h2>Recent webmentions</h2>
 

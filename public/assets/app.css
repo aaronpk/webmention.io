@@ -382,6 +382,15 @@ details summary { cursor: pointer; color: var(--muted); margin: 1rem 0 .5rem; }
 .mention-row .urls { min-width: 0; font-size: .925rem; }
 .mention-row .urls a { overflow-wrap: anywhere; }
 .mention-row .on { color: var(--muted); }
+.mention-row .body { min-width: 0; font-size: .925rem; }
+.mention-row .byline { display: flex; flex-wrap: wrap; gap: .35rem .5rem; align-items: baseline; }
+.mention-row .kind { color: var(--muted); }
+.mention-row .target { overflow-wrap: anywhere; }
+.mention-row .excerpt { margin: .3rem 0 0; }
+.mention-row .meta { margin-top: .3rem; overflow-wrap: anywhere; }
+.mention-row.pending { background: var(--accent-soft); border-radius: 8px; padding-left: .6rem; padding-right: .6rem; }
+.review-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
+.nav .count { display: inline-block; min-width: 1.4em; padding: 0 .4em; border-radius: 999px; background: var(--danger); color: #fff; font-size: .75rem; font-weight: 700; text-align: center; line-height: 1.5; vertical-align: text-bottom; }
 
 /* Tables */
 
@@ -420,5 +429,19 @@ table.data tr.detail code { overflow-wrap: anywhere; }
 }
 
 .grid-2 .card { margin-bottom: 0; }
+
+/* One site's settings as a full-width row: two columns of fields, stacking when narrow. */
+.site-settings h3 { margin-top: 0; }
+.settings-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    gap: 1rem 1.5rem;
+    align-items: start;
+}
+.settings-grid .span { grid-column: 1 / -1; }
+.settings-grid .field .label { font-size: .875rem; font-weight: 600; }
+@media (max-width: 40rem) {
+    .settings-grid { grid-template-columns: 1fr; }
+}
 
 .card.spaced { margin-top: 1.5rem; }

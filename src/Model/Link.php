@@ -52,6 +52,8 @@ final class Link
         public readonly ?string $audio,
         public readonly ?string $targetHref,
         public readonly ?string $siteCreatedAt,
+        /** NULL when published; "pending" while held for review; "hidden" while a mute rule matches. */
+        public readonly ?string $status = null,
     ) {
     }
 
@@ -97,6 +99,7 @@ final class Link
             audio:           $str($row['audio']),
             targetHref:      $str($row['page_href'] ?? null),
             siteCreatedAt:   $str($row['site_created_at'] ?? null),
+            status:          $str($row['status'] ?? null),
         );
     }
 

@@ -175,6 +175,62 @@ final class ApiController extends Controller
         return $this->render($request, $format, $links, $account);
     }
 
+    /**
+     * Which mentions were deleted, so a client can prune its cache (issue
+     * 128): by target, or everything on the account with a token. `since`
+     * and `since_id` refer to the deletion, newest first.
+     *
+     * @param array<string, string> $params
+     */
+    public function deleted(Request $request, array $params): Response
+    {
+        $token   = $request->input('token') ?? $request->input('access_token') ?? self::bearerToken($request) ?? '';
+        $targets = self::targets($request);
+
+        if ($targets === [] && $token === '') {
+            return $this->json->respond($request, 400, [
+                'error'             => 'invalid_input',
+                'error_description' => 'Either a token or a target URL is required',
+            ]);
+        }
+
+        $limit = 20;
+        if ($request->has('perPage')) {
+            $limit = (int) $request->input('perPage');
+        } elseif ($request->has('per-page')) {
+            $limit = (int) $request->input('per-page');
+        }
+        $limit = min(max(0, $limit), self::MAX_PER_PAGE);
+
+        $filters = [
+            'createdAfter' => self::parseSince($request->input('since')),
+            'idAfter'      => $request->has('since_id') ? (int) $request->input('since_id') : null,
+            'limit'        => $limit,
+            'offset'       => self::offset((int) $request->input('page'), $limit),
+        ];
+
+        if ($targets === []) {
+            $account = $this->accounts->findByToken($token);
+            if ($account === null) {
+                return $this->json->respond($request, 401, ['error' => 'forbidden', 'error_description' => 'Access token was not valid']);
+            }
+            $links = $this->links->searchDeleted(new LinkSearch(...[...$filters, 'accountId' => $account->id, 'includePrivate' => true]));
+        } else {
+            $links = $this->links->searchDeleted(new LinkSearch(...[...$filters, 'pageIds' => $this->pages->idsForHrefs($targets)]));
+        }
+
+        return $this->json->respond($request, 200, [
+            'type'     => 'feed',
+            'name'     => 'Deleted webmentions',
+            'children' => array_map(static fn (Link $l): array => [
+                'wm-id'      => $l->id,
+                'wm-source'  => $l->href,
+                'wm-target'  => $l->targetHref,
+                'wm-deleted' => $l->updatedDate()?->format('Y-m-d\TH:i:s\Z'),
+            ], $links),
+        ]);
+    }
+
     /** @param list<Link> $links */
     private function render(Request $request, string $format, array $links, ?Account $account): Response
     {

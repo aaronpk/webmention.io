@@ -37,9 +37,15 @@ trait RequiresLogin
         }
     }
 
-    /** @return array{domain: string|null, active: string, csrf: string} */
+    /** Mentions awaiting review, shown next to "Dashboard"; controllers with a LinkRepository override this. */
+    protected function pendingCount(Account $user): ?int
+    {
+        return null;
+    }
+
+    /** @return array{domain: string|null, active: string, csrf: string, pending: int|null} */
     protected function nav(Account $user, string $active): array
     {
-        return ['domain' => $user->domain, 'active' => $active, 'csrf' => $this->session()->csrfToken()];
+        return ['domain' => $user->domain, 'active' => $active, 'csrf' => $this->session()->csrfToken(), 'pending' => $this->pendingCount($user)];
     }
 }

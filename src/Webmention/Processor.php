@@ -48,6 +48,7 @@ final class Processor
         private readonly AccountRepository $accounts,
         private readonly SiteRepository $sites,
         private readonly TargetResolver $targets,
+        private readonly Moderation $moderation,
         private readonly LinkRepository $links,
         private readonly BlockRepository $blocks,
         private readonly SourceFetcher $fetcher,
@@ -187,14 +188,24 @@ final class Processor
             $this->log->exception($e, "Error while reading microformats from $source");
         }
 
+        // Published now, held for the owner's review, or hidden by a mute rule.
+        // The sender is told "success" either way (spec 4.1 allows moderation).
+        $decision = $this->moderation->decide($account, $site, $link, $source, $sourceDomain, $row['author_url'] ?? null);
+
         $this->links->update($linkId, $row);
 
         $link = $this->links->find($linkId) ?? throw new \RuntimeException("Link $linkId vanished.");
 
-        $this->webHooks->notify($site, $link, $source, $target, $job->isPrivate());
-        $this->forwardToAperture($account->apertureUri, $account->apertureToken, $entry, $source, $target);
+        if ($decision === Moderation::PUBLISH) {
+            $this->webHooks->notify($site, $link, $source, $target, $job->isPrivate());
+            $this->forwardToAperture($account->apertureUri, $account->apertureToken, $entry, $source, $target);
+        }
 
-        $this->links->update($linkId, ['token' => $job->token, 'verified' => 1]);
+        $this->links->update($linkId, [
+            'token'    => $job->token,
+            'verified' => $decision === Moderation::PUBLISH ? 1 : 0,
+            'status'   => $decision === Moderation::PUBLISH ? null : $decision,
+        ]);
         $link = $this->links->find($linkId) ?? $link;
 
         $this->statuses->set($job->token, [
@@ -205,7 +216,7 @@ final class Processor
             'data'    => Jf2Format::entry($link),
         ]);
 
-        $this->log->info("Finished {$job->token}");
+        $this->log->info("Finished {$job->token}" . ($decision === Moderation::PUBLISH ? '' : " ($decision)"));
 
         return 'success';
     }
@@ -216,11 +227,13 @@ final class Processor
         $page = $this->targets->existingPageFor($site, $job->target);
         $link = $page === null ? null : $this->links->findByPageAndHref($page->id, $job->source);
 
-        if ($link === null) {
+        if ($link === null || $link->deleted) {
             return false;
         }
 
-        $this->links->destroy($link->id);
+        // Kept, marked deleted, so /api/deleted can tell clients to drop it.
+        $wasPublished = $link->verified === true && $link->status === null;
+        $this->links->markDeleted($link->id);
 
         $this->statuses->set($job->token, [
             'status'  => 'deleted',
@@ -229,7 +242,9 @@ final class Processor
             'private' => $link->isPrivate,
         ]);
 
-        $this->webHooks->deleted($site, $job->source, $job->target, $job->isPrivate());
+        if ($wasPublished) {
+            $this->webHooks->deleted($site, $job->source, $job->target, $job->isPrivate());
+        }
 
         return true;
     }

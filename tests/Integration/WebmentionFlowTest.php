@@ -233,6 +233,15 @@ final class WebmentionFlowTest extends IntegrationTestCase
             ['secret' => 's3cret', 'source' => self::SOURCE, 'target' => self::TARGET, 'private' => false, 'deleted' => true],
             json_decode((string) $hooks[1]['body'], true),
         );
+
+        // The row is kept, marked deleted, so clients can learn about it.
+        $deleted = self::json($this->request('GET', '/api/deleted', ['target' => self::TARGET]))['children'];
+        self::assertSame([self::SOURCE], array_column($deleted, 'wm-source'));
+
+        // Re-sending the same pair once it is gone again does nothing more: one deleted hook only.
+        $this->redis->flushDb();
+        $this->request('POST', '/target.example.com/webmention', post: ['source' => self::SOURCE, 'target' => self::TARGET, 'debug' => '1']);
+        self::assertCount(2, $this->http->posts(self::HOOK));
     }
 
     public function testFetchErrorsDoNotDeleteExistingMentions(): void

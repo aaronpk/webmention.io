@@ -152,6 +152,12 @@ The indexes can stay; the Ruby app's queries benefit from them too.
 
   and add a nightly cron entry, e.g. `15 4 * * * cd /web/sites/webmention.io && tools/verify-sites --limit=500 --apply >> logs/verify-sites.log 2>&1`. The backlog clears in about a week; afterwards it only re-tries sites that failed. Domains held by several accounts (376 of them: `t.co`, `bit.ly`, `web.archive.org`, …) show only their verified holders' mentions in public results from the moment the migration runs.
 
+* **Moderation.** Adds `links.status`, `sites.moderation` and the `mutes` table; nothing changes for existing rows.
+
+  ```bash
+  mysql webmention < database/migrations/2026-09-15-moderation.sql
+  ```
+
 * **Page aliases and fragment folding.** New mentions are filed under the target's canonical URL (redirects, `rel=canonical`, no fragment) with the other forms kept as aliases. Create the table, then fold the ~9,800 pages the Ruby app filed under `#fragment` URLs into their pages (dry run first):
 
   ```bash

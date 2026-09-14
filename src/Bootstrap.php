@@ -18,11 +18,13 @@ use Webmention\Storage\AccountRepository;
 use Webmention\Storage\BlockRepository;
 use Webmention\Storage\Database;
 use Webmention\Storage\LinkRepository;
+use Webmention\Storage\MuteRepository;
 use Webmention\Storage\PageRepository;
 use Webmention\Storage\SiteRepository;
 use Webmention\View\Template;
 use Webmention\Webmention\AvatarArchiver;
 use Webmention\Webmention\HttpClient;
+use Webmention\Webmention\Moderation;
 use Webmention\Webmention\Processor;
 use Webmention\Webmention\Queue;
 use Webmention\Webmention\RateLimiter;
@@ -84,6 +86,8 @@ final class Bootstrap
         $c->set(PageRepository::class, static fn (Container $c): PageRepository => new PageRepository($c->get(Database::class)));
         $c->set(LinkRepository::class, static fn (Container $c): LinkRepository => new LinkRepository($c->get(Database::class)));
         $c->set(BlockRepository::class, static fn (Container $c): BlockRepository => new BlockRepository($c->get(Database::class)));
+        $c->set(MuteRepository::class, static fn (Container $c): MuteRepository => new MuteRepository($c->get(Database::class)));
+        $c->set(Moderation::class, static fn (Container $c): Moderation => new Moderation($c->get(MuteRepository::class), $c->get(LinkRepository::class)));
 
         $c->set(Template::class, static fn (): Template => new Template(self::root() . '/templates'));
         $c->set(JsonResponder::class, static fn (Container $c): JsonResponder => new JsonResponder($c->get(Template::class)));
@@ -115,6 +119,7 @@ final class Bootstrap
             $c->get(AccountRepository::class),
             $c->get(SiteRepository::class),
             $c->get(TargetResolver::class),
+            $c->get(Moderation::class),
             $c->get(LinkRepository::class),
             $c->get(BlockRepository::class),
             $c->get(SourceFetcher::class),
@@ -188,6 +193,8 @@ final class Bootstrap
             $c->get(TargetResolver::class),
             $c->get(PageRepository::class),
             $c->get(RateLimiter::class),
+            $c->get(LinkRepository::class),
+            $c->get(MuteRepository::class),
             $config,
         ));
 
@@ -213,6 +220,8 @@ final class Bootstrap
         $r->get('/api/count.json', [ApiController::class, 'count']);
         $r->get('/api/example/mentions.jf2', [ApiController::class, 'exampleMentions']);
         $r->get('/api/example/count', [ApiController::class, 'exampleCount']);
+        $r->get('/api/deleted', [ApiController::class, 'deleted']);
+        $r->get('/api/deleted.jf2', [ApiController::class, 'deleted']);
         $r->get('/api/{kind}', [ApiController::class, 'mentions']);
 
         $r->get('/dashboard', [DashboardController::class, 'index']);
@@ -220,6 +229,11 @@ final class Bootstrap
         $r->post('/delete', [DashboardController::class, 'delete']);
         $r->post('/unblock', [DashboardController::class, 'unblock']);
         $r->post('/unblock-source', [DashboardController::class, 'unblockSource']);
+        $r->get('/moderation', [DashboardController::class, 'moderation']);
+        $r->post('/approve', [DashboardController::class, 'approve']);
+        $r->post('/reject', [DashboardController::class, 'reject']);
+        $r->post('/mute', [SettingsController::class, 'mute']);
+        $r->post('/unmute-rule', [SettingsController::class, 'unmute']);
 
         $r->get('/settings', [SettingsController::class, 'index']);
         $r->post('/settings/change_token', [SettingsController::class, 'changeToken']);

@@ -8,9 +8,7 @@
 <section class="card">
     <h2>Web hooks</h2>
     <p>Configure a web hook for a site and webmention.io will send it a POST request every time a webmention is received and verified.
-        Invalid webmentions are not sent.</p>
-    <p class="muted">"Archive avatars" (on by default) saves a copy of each author's photo and returns that URL instead, so old webmentions
-        don't end up with broken images when someone changes their profile photo. Turn it off to use the original URLs.</p>
+        Invalid webmentions are not sent. Each site also has its own moderation setting and avatar option.</p>
 </section>
 
 <?php if ($sites === []) { ?>
@@ -18,35 +16,47 @@
         <p>You don't have any sites yet. <a href="/settings/sites">Add a site</a> and its settings will appear here.</p>
     </section>
 <?php } else { ?>
-    <div class="grid-2">
-        <?php foreach ($sites as $site) { ?>
-            <section class="card">
-                <h3><?= $site['domain'] ?></h3>
-                <?php if ($saved === (string) $site['id']) { ?>
-                    <p class="notice small">Saved.</p>
-                <?php } ?>
-                <form action="/webhook/configure" method="post" class="stack">
-                    <input type="hidden" name="csrf" value="<?= $csrf ?>">
-                    <input type="hidden" name="site_id" value="<?= $site['id'] ?>">
-                    <div class="field">
-                        <label for="url-<?= $site['id'] ?>">Callback URL</label>
-                        <input type="url" id="url-<?= $site['id'] ?>" name="callback_url" value="<?= $site['callback_url'] ?>" placeholder="https://example.com/webmention/hook">
-                    </div>
-                    <div class="field">
-                        <label for="secret-<?= $site['id'] ?>">Callback secret</label>
-                        <input type="text" id="secret-<?= $site['id'] ?>" name="callback_secret" value="<?= $site['callback_secret'] ?>" maxlength="50" autocomplete="off" spellcheck="false">
-                    </div>
+    <?php foreach ($sites as $site) { ?>
+        <section class="card site-settings">
+            <h3><?= $site['domain'] ?><?php if ($saved === (string) $site['id']) { ?> <span class="badge">Saved</span><?php } ?></h3>
+            <form action="/webhook/configure" method="post" class="settings-grid">
+                <input type="hidden" name="csrf" value="<?= $csrf ?>">
+                <input type="hidden" name="site_id" value="<?= $site['id'] ?>">
+
+                <div class="field">
+                    <label for="url-<?= $site['id'] ?>">Callback URL</label>
+                    <input type="url" id="url-<?= $site['id'] ?>" name="callback_url" value="<?= $site['callback_url'] ?>" placeholder="https://example.com/webmention/hook">
+                </div>
+                <div class="field">
+                    <label for="secret-<?= $site['id'] ?>">Callback secret</label>
+                    <input type="text" id="secret-<?= $site['id'] ?>" name="callback_secret" value="<?= $site['callback_secret'] ?>" maxlength="50" autocomplete="off" spellcheck="false">
+                </div>
+
+                <div class="field">
+                    <label for="moderation-<?= $site['id'] ?>">Hold new webmentions for review</label>
+                    <select id="moderation-<?= $site['id'] ?>" name="moderation">
+                        <option value="off"<?= $site['moderation'] === 'off' ? ' selected' : '' ?>>Never: publish as soon as verified</option>
+                        <option value="first"<?= $site['moderation'] === 'first' ? ' selected' : '' ?>>First-time senders: hold until one from that domain is approved</option>
+                        <option value="all"<?= $site['moderation'] === 'all' ? ' selected' : '' ?>>Always: hold everything until approved</option>
+                    </select>
+                    <span class="muted small">Held webmentions wait on the dashboard, out of the API and this web hook, until approved.</span>
+                </div>
+                <div class="field">
+                    <span class="label">Avatars</span>
                     <label class="checkbox">
                         <input type="checkbox" name="archive_avatars" value="1"<?= $site['archive_avatars'] ? ' checked' : '' ?>>
                         Archive avatars
                     </label>
-                    <div class="form-actions">
-                        <button type="submit">Save</button>
-                    </div>
-                </form>
-            </section>
-        <?php } ?>
-    </div>
+                    <span class="muted small">Keeps a copy of each author's photo and returns that URL, so old webmentions don't end up with
+                        broken images when someone changes their profile photo. Turn it off to use the original URLs.</span>
+                </div>
+
+                <div class="form-actions span">
+                    <button type="submit">Save</button>
+                </div>
+            </form>
+        </section>
+    <?php } ?>
 <?php } ?>
 
 <section class="card spaced">

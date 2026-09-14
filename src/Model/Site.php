@@ -17,6 +17,8 @@ final class Site
         public readonly ?string $verifiedAt = null,
         public readonly ?string $verificationCheckedAt = null,
         public readonly ?string $verificationError = null,
+        /** Hold policy for new mentions: null/"off", "first" or "all". See Moderation. */
+        public readonly ?string $moderation = null,
     ) {
     }
 
@@ -41,6 +43,7 @@ final class Site
             verifiedAt:            isset($row['verified_at']) ? (string) $row['verified_at'] : null,
             verificationCheckedAt: isset($row['verification_checked_at']) ? (string) $row['verification_checked_at'] : null,
             verificationError:     isset($row['verification_error']) ? (string) $row['verification_error'] : null,
+            moderation:            isset($row['moderation']) ? (string) $row['moderation'] : null,
         );
     }
 }

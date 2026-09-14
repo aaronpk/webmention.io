@@ -262,6 +262,16 @@ The `location` URL returns the processing status for three days. Include a `code
 Source and target URLs may be at most 512 bytes. Requests are rate limited per (source, target) pair (one every 30 seconds), per client address and per source host; a `429` carries `Retry-After`. If the queue is full the endpoint answers `503` and the webmention should be re-sent later. Adding `debug=1` verifies the webmention synchronously and returns the result in the response; that path is limited to a few requests per minute per client.
 
 
+## Moderation
+
+Webmentions are published as soon as they verify unless you say otherwise.
+
+* **Hold for review.** Each site has a setting on the Web Hooks page: publish at once (the default), hold webmentions from *first-time senders* until you have approved one from that source domain, or hold *everything*. Held webmentions wait on the dashboard, out of the API and your web hook, until you approve them (which also sends the web hook) or reject them (which deletes them and blocks the source URL, like the dashboard's delete). The sender is told the webmention succeeded either way.
+* **Mute.** Under Settings › Blocklists you can mute a source (the pages that mention you) or an author (everything by someone, wherever it was relayed from) by domain or URL prefix. Muted webmentions are stored but hidden; unmuting brings them back, including ones that arrived while muted. Blocking, by contrast, deletes and refuses.
+* **Deletions.** `GET /api/deleted?target=…` (or `?token=…` for everything on your account) lists webmentions that have been deleted, newest first, as `{"wm-id","wm-source","wm-target","wm-deleted"}`, with `since`, `since_id`, `per-page` and `page` as on `/api/mentions`, so a client can prune its cache. This includes webmentions removed because their source stopped linking to you.
+
+In the original JSON format, `verified: true` now also means approved; held and hidden webmentions are never returned.
+
 ## Web Hooks
 
 If a site has a callback URL, every verified webmention is POSTed to it as JSON. When the site has a callback secret, the request also carries `X-Webmention-Signature: sha256=<hex>`, the HMAC-SHA256 of the request body keyed with that secret, so the receiver can verify the delivery without comparing the secret in the body:

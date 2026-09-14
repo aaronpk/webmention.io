@@ -1,6 +1,8 @@
 <?php
 /**
  * @var list<string> $domains  Domains blocked for the whole account.
+ * @var list<array>  $mutes    Mute rules: id, kind, pattern, label.
+ * @var string|null  $mute_notice
  * @var list<array>  $sources  This page of blocked URLs: id, site_id, domain, source, url (safe href or null), blocked_on.
  * @var int          $total    Blocked URLs on the account.
  * @var int          $matching Blocked URLs matching the filter (equals $total with no filter).
@@ -38,6 +40,49 @@ $pageQuery = static fn (int $p): string => '/settings/blocks?' . http_build_quer
         </div>
         <p class="muted small">Unblocking a domain does not restore webmentions that were deleted when it was blocked.</p>
     <?php } ?>
+</section>
+
+<section class="card">
+    <h2>Muted sources and authors</h2>
+    <p class="muted">Muting hides webmentions without deleting them: existing ones disappear from the API and your web hook stops hearing
+        about new ones, and unmuting brings them all back. Mute a <em>source</em> to cover the pages that mention you, or an <em>author</em>
+        to cover everything by someone, wherever it was relayed from (a bridged social account, say). A domain covers its subdomains;
+        a URL prefix such as <code>https://social.example/@someone/</code> covers exactly those URLs.</p>
+
+    <?php if ($mute_notice !== null) { ?>
+        <p class="notice"><?= $mute_notice ?></p>
+    <?php } ?>
+
+    <?php if ($mutes !== []) { ?>
+        <div class="table-wrap">
+            <table class="data">
+                <tbody>
+                    <?php foreach ($mutes as $rule) { ?>
+                        <tr>
+                            <td><?= $rule['label'] ?></td>
+                            <td class="actions">
+                                <form action="/unmute-rule" method="post">
+                                    <input type="hidden" name="id" value="<?= $rule['id'] ?>">
+                                    <input type="hidden" name="csrf" value="<?= $csrf ?>">
+                                    <button type="submit" class="secondary small">Unmute</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <?php } ?>
+                </tbody>
+            </table>
+        </div>
+    <?php } ?>
+
+    <form action="/mute" method="post" class="inline-field">
+        <input type="hidden" name="csrf" value="<?= $csrf ?>">
+        <select name="kind" aria-label="What to mute">
+            <option value="source">Source</option>
+            <option value="author">Author</option>
+        </select>
+        <input type="text" name="pattern" placeholder="example.com or https://example.com/user/" required aria-label="Domain or URL prefix" autocapitalize="off" spellcheck="false">
+        <button type="submit" class="secondary">Mute</button>
+    </form>
 </section>
 
 <section class="card">

@@ -166,12 +166,13 @@ final class SiteRepository
         return $this->find($id) ?? throw new \RuntimeException('Site vanished after insert.');
     }
 
-    public function updateWebhook(int $id, ?string $callbackUrl, ?string $callbackSecret, bool $archiveAvatars): void
+    public function updateWebhook(int $id, ?string $callbackUrl, ?string $callbackSecret, bool $archiveAvatars, ?string $moderation = null): void
     {
         $this->db->update('sites', $id, [
             'callback_url'    => $callbackUrl,
             'callback_secret' => $callbackSecret,
             'archive_avatars' => $archiveAvatars,
+            'moderation'      => $moderation === 'off' ? null : $moderation,
             'updated_at'      => Database::now(),
         ]);
     }

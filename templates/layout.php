@@ -33,7 +33,7 @@ $links = [
             <?php if ($nav !== null) { ?>
                 <nav class="nav" aria-label="Account">
                     <?php foreach ($links as $key => [$href, $label]) { ?>
-                        <a href="<?= $href ?>"<?= $nav['active'] === $key ? ' aria-current="page"' : '' ?>><?= $label ?></a>
+                        <a href="<?= $href ?>"<?= $nav['active'] === $key ? ' aria-current="page"' : '' ?>><?= $label ?><?php if ($key === 'dashboard' && ($nav['pending'] ?? 0) > 0) { ?> <span class="count" title="Awaiting review"><?= $nav['pending'] ?></span><?php } ?></a>
                     <?php } ?>
                 </nav>
                 <div class="account">

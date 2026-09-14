@@ -77,7 +77,9 @@ CREATE TABLE `links` (
   `photo` text DEFAULT NULL,
   `video` text DEFAULT NULL,
   `audio` text DEFAULT NULL,
+  `status` varchar(16) DEFAULT NULL,
   PRIMARY KEY (`id`),
+  KEY `account_status` (`account_id`,`status`),
   KEY `index_links_page` (`page_id`),
   KEY `index_links_token` (`token`),
   KEY `index_links_site` (`site_id`),
@@ -91,6 +93,16 @@ CREATE TABLE `links` (
   KEY `domain` (`domain`),
   KEY `page_verified_created` (`page_id`,`verified`,`deleted`,`created_at`),
   KEY `page_verified_type` (`page_id`,`verified`,`deleted`,`type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `mutes` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `account_id` int(10) unsigned NOT NULL,
+  `kind` varchar(16) NOT NULL,
+  `pattern` varchar(255) NOT NULL,
+  `created_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `account` (`account_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `page_aliases` (
@@ -134,6 +146,7 @@ CREATE TABLE `sites` (
   `verified_at` datetime DEFAULT NULL,
   `verification_checked_at` datetime DEFAULT NULL,
   `verification_error` varchar(255) DEFAULT NULL,
+  `moderation` varchar(16) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `account_domain` (`account_id`,`domain`),
   KEY `index_sites_account` (`account_id`),
