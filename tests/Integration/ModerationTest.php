@@ -57,6 +57,7 @@ final class ModerationTest extends IntegrationTestCase
         self::assertStringContainsString('Awaiting review', $dashboard);
         self::assertStringContainsString('<strong>Casey Commenter</strong>', $dashboard);
         self::assertStringContainsString('replied to', $dashboard);
+        self::assertStringContainsString('<span class="muted">target.example.com</span>/entry</a>', $dashboard);
         self::assertStringContainsString('A thoughtful reply, longer than a tweet', $dashboard);
         self::assertStringContainsString('<span class="count" title="Awaiting review">1</span>', $dashboard);
         self::assertStringContainsString('action="/approve"', $dashboard);

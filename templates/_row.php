@@ -28,9 +28,9 @@ $awaiting = ($link["status"] ?? null) === "pending" && isset($csrf);
             <?php } ?>
             <span class="kind"><?= $link['kind'] ?></span>
             <?php if ($link['target_url'] !== null) { ?>
-                <a href="<?= $link['target_url'] ?>" class="target"><?= $link['target_path'] ?></a>
+                <a href="<?= $link['target_url'] ?>" class="target"><span class="muted"><?= $link['target_host'] ?></span><?= $link['target_path'] ?></a>
             <?php } else { ?>
-                <span class="target"><?= $link['target_path'] ?></span>
+                <span class="target"><span class="muted"><?= $link['target_host'] ?></span><?= $link['target_path'] ?></span>
             <?php } ?>
         </div>
 

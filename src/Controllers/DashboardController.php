@@ -305,7 +305,8 @@ final class DashboardController extends Controller
         $text    = trim(preg_replace('/\s+/u', ' ', (string) $link->contentText) ?? '');
         $excerpt = $text === '' ? null : (mb_strlen($text) > 200 ? rtrim(mb_substr($text, 0, 200)) . '…' : $text);
         $target  = (string) $link->targetHref;
-        $path    = parse_url(Url::escape($target), PHP_URL_PATH);
+        $parts   = parse_url(Url::escape($target)) ?: [];
+        $path    = ($parts['path'] ?? '') . (isset($parts['query']) ? '?' . $parts['query'] : '');
 
         return [
             'id'          => $link->id,
@@ -315,7 +316,9 @@ final class DashboardController extends Controller
             'source_host' => (string) (Url::host((string) $link->href) ?? $link->domain),
             'target'      => $target,
             'target_url'  => ApiController::safeUrl($link->targetHref),
-            'target_path' => is_string($path) && $path !== '' ? $path : $target,
+            // Shown as host + path, so a row says which site it landed on without the scheme.
+            'target_host' => Url::host($target) ?? '',
+            'target_path' => Url::host($target) === null ? $target : ($path !== '' ? $path : '/'),
             'author_name' => (string) $link->authorName,
             'author_url'  => Url::blank($link->authorUrl) ? null : ApiController::safeUrl($link->authorUrl),
             'author_host' => Url::blank($link->authorUrl) ? null : Url::host((string) $link->authorUrl),
