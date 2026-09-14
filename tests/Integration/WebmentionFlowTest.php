@@ -258,6 +258,49 @@ final class WebmentionFlowTest extends IntegrationTestCase
         self::assertSame('source domain is blocked', self::json($response)['error_description']);
     }
 
+    /**
+     * Issue 221: the Ruby app's three-byte utf8 connection turned every emoji
+     * into `????`. Four-byte characters must survive storage and every output.
+     */
+    public function testNonAsciiTextSurvivesEndToEnd(): void
+    {
+        $source  = 'http://source.example.org/emoji';
+        $author  = 'fluffy 💜';
+        $name    = 'Jinx 🐈‍⬛ says 日本語';
+        $snippet = 'Café résumé 🚴‍♀️ — 你好, מה שלומך?';
+
+        $response = $this->request('POST', '/target.example.com/webmention', post: ['source' => $source, 'target' => self::TARGET, 'debug' => '1']);
+        self::assertSame(200, $response->status, $response->body);
+
+        $link = $this->service(LinkRepository::class)->recentForAccount($this->account->id, 1)[0];
+        self::assertSame($author, $link->authorName);
+        self::assertSame($name, $link->name);
+        self::assertStringContainsString($snippet, (string) $link->contentText);
+        self::assertStringContainsString('🇳🇿', (string) $link->content);
+
+        $jf2 = self::json($this->request('GET', '/api/mentions.jf2', ['target' => self::TARGET]))['children'][0];
+        self::assertSame($author, $jf2['author']['name']);
+        self::assertSame($name, $jf2['name']);
+        self::assertStringContainsString($snippet, $jf2['content']['text']);
+        self::assertStringContainsString('<b>💜</b>', $jf2['content']['html']);
+
+        $json = self::json($this->request('GET', '/api/mentions', ['target' => self::TARGET]))['links'][0];
+        self::assertSame($author, $json['data']['author']['name']);
+        self::assertSame($name, $json['data']['name']);
+
+        $html = $this->request('GET', '/api/mentions.html', ['target' => self::TARGET])->body;
+        self::assertStringContainsString($author, $html);
+        self::assertStringContainsString($name, $html);
+
+        $atom = $this->request('GET', '/api/mentions.atom', ['target' => self::TARGET])->body;
+        self::assertNotFalse(simplexml_load_string($atom));
+
+        $hook = json_decode((string) $this->http->posts(self::HOOK)[0]['body'], true);
+        self::assertSame($author, $hook['post']['author']['name']);
+        self::assertSame($name, $hook['post']['name']);
+        self::assertStringNotContainsString('??', json_encode($hook, JSON_UNESCAPED_UNICODE));
+    }
+
     public function testInternalErrorsAreNotDescribedToTheSender(): void
     {
         $this->db->pdo()->exec('RENAME TABLE pages TO pages_hidden');

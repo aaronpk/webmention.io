@@ -13,7 +13,7 @@ Both apps use the same database schema and the same Redis keys for webmention st
 * **FedCM sign-in and the Munin `/stats` endpoints are gone.**
 * **Bug fixes that change output**: see "Major bugs fixed" in PLAN.md. The ones API consumers could notice:
   * `.jf2` requests that used to fail with a 500 (links with no author photo, targets without a scheme) now return data.
-  * Emoji in names and content are stored correctly instead of as `????`.
+  * Emoji in names and content are stored correctly instead of as `????` (issue 221). The Ruby app's database connection spoke three-byte `utf8`, so the server replaced each byte of a four-byte character with `?` on the way in. This app connects as `utf8mb4`. Rows damaged before the switch are not rewritten; re-sending the webmention refreshes one.
   * Relative author URLs with a fragment (`about#me`) keep the `#` instead of `%23`.
   * `sort-by=rsvp` sorts every result, not just one page.
   * Re-sending a webmention whose source now answers 410 Gone, or no longer links, deletes it. A timeout or other fetch error no longer does.
