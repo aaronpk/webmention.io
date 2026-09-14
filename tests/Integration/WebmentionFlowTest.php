@@ -301,6 +301,27 @@ final class WebmentionFlowTest extends IntegrationTestCase
         self::assertStringNotContainsString('??', json_encode($hook, JSON_UNESCAPED_UNICODE));
     }
 
+    public function testUnblockingASourceUrlLetsItBeReceivedAgain(): void
+    {
+        $this->request('POST', '/target.example.com/webmention', post: ['source' => self::SOURCE, 'target' => self::TARGET, 'debug' => '1']);
+        $id   = $this->service(LinkRepository::class)->recentForAccount($this->account->id, 1)[0]->id;
+        $csrf = $this->signIn($this->account);
+
+        // Deleting from the dashboard blocks the URL, so a re-send is refused...
+        $this->request('POST', '/delete', post: ['id' => (string) $id, 'csrf' => $csrf]);
+        $this->redis->flushDb();
+        $blocked = $this->request('POST', '/target.example.com/webmention', post: ['source' => self::SOURCE, 'target' => self::TARGET, 'debug' => '1']);
+        self::assertSame('blocked', self::json($blocked)['error']);
+        self::assertSame('source URL is blocked', self::json($blocked)['error_description']);
+
+        // ...until it is unblocked under Blocklists.
+        $this->request('POST', '/unblock-source', post: ['site_id' => (string) $this->site->id, 'source' => self::SOURCE, 'csrf' => $csrf]);
+        $this->redis->flushDb();
+        $again = $this->request('POST', '/target.example.com/webmention', post: ['source' => self::SOURCE, 'target' => self::TARGET, 'debug' => '1']);
+        self::assertSame(200, $again->status, $again->body);
+        self::assertCount(1, $this->service(LinkRepository::class)->recentForAccount($this->account->id, 10));
+    }
+
     public function testInternalErrorsAreNotDescribedToTheSender(): void
     {
         $this->db->pdo()->exec('RENAME TABLE pages TO pages_hidden');

@@ -199,6 +199,9 @@ final class SettingsController extends Controller
         return Response::seeOther('/settings/webhooks?saved=' . $site->id);
     }
 
+    /** Blocked URLs shown per page on the Blocklists page. */
+    public const BLOCKED_URLS_PER_PAGE = 50;
+
     /** @param array<string, string> $params */
     public function blocks(Request $request, array $params): Response
     {
@@ -206,9 +209,34 @@ final class SettingsController extends Controller
             return Response::redirect('/');
         }
 
+        $filter  = mb_substr(trim((string) $request->query('q')), 0, 200);
+        $page    = max(0, (int) $request->query('page'));
+        $perPage = self::BLOCKED_URLS_PER_PAGE;
+
+        $total    = $this->blocks->countSourcesForAccount($user->id);
+        $matching = $filter === '' ? $total : $this->blocks->countSourcesForAccount($user->id, $filter);
+        $pages    = max(1, (int) ceil($matching / $perPage));
+        $page     = min($page, $pages - 1);
+
+        $sources = [];
+        foreach ($this->blocks->sourcesForAccount($user->id, $filter, $perPage, ApiController::offset($page, $perPage)) as $row) {
+            $date      = $row['created_at'] === null ? null : date_create_immutable($row['created_at'] . ' UTC');
+            $sources[] = [
+                ...$row,
+                'url'        => ApiController::safeUrl($row['source']),
+                'blocked_on' => $date === false || $date === null ? null : $date->format('M j, Y'),
+            ];
+        }
+
         return $this->page('blocks', 'Blocklists', [
-            'domains' => $this->blocks->domainsForAccount($user->id),
-            'csrf'    => $this->session->csrfToken(),
+            'domains'  => $this->blocks->domainsForAccount($user->id),
+            'sources'  => $sources,
+            'total'    => $total,
+            'matching' => $matching,
+            'q'        => $filter,
+            'page'     => $page,
+            'pages'    => $pages,
+            'csrf'     => $this->session->csrfToken(),
         ], $this->nav($user, 'blocks'));
     }
 

@@ -17,6 +17,7 @@ The Webmention protocol also supports specifying the endpoint in the headers,
 * API to get a list of pages linking to your site or a specific page
 * Web hooks when a webmention is received or deleted
 * [Private Webmentions](https://indieweb.org/Private-Webmention)
+* A dashboard to delete webmentions. Deleting one also blocks its source URL for that site, so it is refused if sent again; blocked URLs and blocked domains are listed, and can be unblocked, under Settings › Blocklists.
 
 
 ## API

@@ -151,8 +151,9 @@ final class Jf2FormatTest extends TestCase
             'relcanonical' => 'http://source.example.org/canonical',
         ]));
 
+        // published_ts was added after published in 2026 (issue 193); the rest is the old order.
         self::assertSame([
-            'type', 'author', 'url', 'published', 'wm-received', 'wm-id', 'wm-source', 'wm-target',
+            'type', 'author', 'url', 'published', 'published_ts', 'wm-received', 'wm-id', 'wm-source', 'wm-target',
             'wm-protocol', 'name', 'content', 'in-reply-to', 'wm-property', 'wm-private', 'rels',
         ], array_keys($jf2));
     }

@@ -207,6 +207,7 @@ final class Bootstrap
         $r->get('/delete', [DashboardController::class, 'confirmDelete']);
         $r->post('/delete', [DashboardController::class, 'delete']);
         $r->post('/unblock', [DashboardController::class, 'unblock']);
+        $r->post('/unblock-source', [DashboardController::class, 'unblockSource']);
 
         $r->get('/settings', [SettingsController::class, 'index']);
         $r->post('/settings/change_token', [SettingsController::class, 'changeToken']);

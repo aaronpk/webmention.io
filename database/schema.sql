@@ -29,7 +29,8 @@ CREATE TABLE `blocklists` (
   `site_id` int(11) DEFAULT NULL,
   `source` varchar(512) DEFAULT NULL,
   `created_at` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `site_source` (`site_id`,`source`(191))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `blocks` (

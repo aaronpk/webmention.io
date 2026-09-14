@@ -6,6 +6,7 @@ namespace Webmention\Controllers;
 
 use Webmention\Format\Jf2Format;
 use Webmention\Format\Url;
+use Webmention\Http\HttpException;
 use Webmention\Http\Request;
 use Webmention\Http\Response;
 use Webmention\Http\Session;
@@ -139,6 +140,34 @@ final class DashboardController extends Controller
         $this->blocks->unblockDomain($user->id, (string) $request->post('domain'));
 
         return Response::seeOther('/settings/blocks');
+    }
+
+    /**
+     * Let a source URL send webmentions to one of the user's sites again.
+     *
+     * @param array<string, string> $params
+     */
+    public function unblockSource(Request $request, array $params): Response
+    {
+        if (($user = $this->currentUser($request)) === null) {
+            return Response::redirect('/');
+        }
+        $this->checkCsrf($request);
+
+        $site = $this->sites->findForAccount($user->id, (int) $request->post('site_id'));
+        if ($site === null) {
+            throw HttpException::notFound('That site is not on your account.');
+        }
+
+        $this->blocks->unblockSource($site->id, (string) $request->post('source'));
+
+        // Back to the same page of the same filtered list.
+        $query = array_filter([
+            'q'    => trim((string) $request->post('q')),
+            'page' => (int) $request->post('page') > 0 ? (string) (int) $request->post('page') : '',
+        ], static fn (string $v): bool => $v !== '');
+
+        return Response::seeOther('/settings/blocks' . ($query === [] ? '' : '?' . http_build_query($query)));
     }
 
     private function notifyDeleted(Link $link): void

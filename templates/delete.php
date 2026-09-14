@@ -20,6 +20,8 @@ $show_delete = false;
     <?php if ($link !== null) { ?>
         <section class="card">
             <h2>Delete this webmention</h2>
+            <p class="muted small">Its source URL is also blocked for this site, so the same webmention is refused if it is sent again.
+                You can unblock it under <a href="/settings/blocks">Blocklists</a>.</p>
             <ul class="mention-list">
                 <?php (function () use ($link, $show_delete) { require __DIR__ . '/_row.php'; })(); ?>
             </ul>
@@ -34,6 +36,8 @@ $show_delete = false;
     <?php if ($links !== []) { ?>
         <section class="card">
             <h2>Delete all webmentions from this source URL</h2>
+            <p class="muted small">The source URL is also blocked on every site on your account, so webmentions from it are refused if sent again.
+                You can unblock it under <a href="/settings/blocks">Blocklists</a>.</p>
             <ul class="mention-list">
                 <?php foreach ($links as $row) { (function () use ($row, $show_delete) { $link = $row; require __DIR__ . '/_row.php'; })(); } ?>
             </ul>

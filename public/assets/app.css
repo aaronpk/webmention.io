@@ -208,7 +208,10 @@ pre code { background: none; padding: 0; overflow-wrap: normal; }
 
 input[type="url"],
 input[type="text"],
+input[type="search"],
 select {
+    -webkit-appearance: none;
+    appearance: none;
     width: 100%;
     min-width: 0;
     padding: .55rem .7rem;
@@ -383,6 +386,11 @@ details summary { cursor: pointer; color: var(--muted); margin: 1rem 0 .5rem; }
 /* Tables */
 
 .table-wrap { overflow-x: auto; }
+.data td.url { overflow-wrap: anywhere; max-width: 36rem; }
+.data td.nowrap { white-space: nowrap; }
+.pager { display: flex; gap: 1rem; align-items: center; justify-content: space-between; margin-top: 1rem; font-size: .925rem; }
+.pager .muted { flex: 1; text-align: center; }
+.filter-count { margin: .5rem 0 0; }
 
 table.data {
     width: 100%;
