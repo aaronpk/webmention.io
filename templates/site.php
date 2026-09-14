@@ -77,7 +77,7 @@ $withCode = static fn (string $text): string => (string) preg_replace('#https?:/
         <form action="/settings/sites/verify" method="post" class="form-actions">
             <input type="hidden" name="site_id" value="<?= $site['id'] ?>">
             <input type="hidden" name="csrf" value="<?= $csrf ?>">
-            <button type="submit" class="secondary">Check now</button>
+            <button type="submit" class="danger">Check now</button>
         </form>
         <p class="muted small">The tag counts as a <code>&lt;link&gt;</code>, an <code>&lt;a rel="webmention"&gt;</code> or a <code>Link</code> header,
             served by that domain itself; a redirect to another site does not count. Sites added before this check existed are verified
