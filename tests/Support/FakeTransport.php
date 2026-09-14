@@ -75,8 +75,11 @@ final class FakeTransport implements Transport
     {
     }
 
+    private int $maxRedirects = 8;
+
     public function set_max_redirects($max_redirects)
     {
+        $this->maxRedirects = (int) $max_redirects;
     }
 
     /** @param list<string> $headers */
@@ -90,7 +93,7 @@ final class FakeTransport implements Transport
         if ($registered !== null) {
             $location = $registered['headers']['Location'] ?? $registered['headers']['location'] ?? null;
             if ($location !== null && $registered['code'] >= 300 && $registered['code'] < 400
-                && in_array($method, ['GET', 'HEAD'], true) && $hops < 8) {
+                && in_array($method, ['GET', 'HEAD'], true) && $hops < $this->maxRedirects) {
                 return $this->handle($method, \Mf2\resolveUrl($url, $location), $body, $headers, $hops + 1);
             }
 

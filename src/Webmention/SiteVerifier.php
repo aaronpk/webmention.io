@@ -9,8 +9,8 @@ use Webmention\Format\Url;
 use Webmention\Model\Account;
 
 /**
- * Proof that an account may receive webmentions for a domain: the domain's
- * home page advertises one of the account's endpoints as its webmention
+ * Proof that an account may receive webmentions for a domain: a page served
+ * by the domain advertises one of the account's endpoints as its webmention
  * endpoint, in a Link header or a <link>/<a rel="webmention">.
  *
  * Without this, anyone signed in could add anyone else's domain, send
@@ -21,6 +21,12 @@ use Webmention\Model\Account;
 final class SiteVerifier
 {
     private const TIMEOUT = 5;
+
+    /** Same-host redirects followed per candidate URL (http to https, trailing slash, and the like). */
+    private const MAX_HOPS = 5;
+
+    /** The hostname every site's tag points at, whatever this deployment's BASE_URL is. */
+    private const PUBLIC_BASE = 'https://webmention.io';
 
     public function __construct(
         private readonly HttpClient $http,
@@ -35,39 +41,92 @@ final class SiteVerifier
     }
 
     /**
-     * Null when $domain's home page names one of $account's endpoints;
+     * Null when one of $domain's pages names one of $account's endpoints;
      * otherwise a sentence saying what was found instead.
+     *
+     * The home page is tried first (https, then http), then $alsoTry, which
+     * callers fill with the site's recent target pages: many sites only
+     * advertise the endpoint on posts.
+     *
+     * The proof has to be served by the domain itself. Redirects are followed
+     * only while they stay on that host (http to https, a trailing slash); a
+     * redirect elsewhere proves nothing, or a link shortener could be claimed
+     * by anyone with a short link to their own site.
+     *
+     * @param list<string> $alsoTry
      */
-    public function verify(Account $account, string $domain): ?string
+    public function verify(Account $account, string $domain, array $alsoTry = []): ?string
     {
+        $domain   = strtolower($domain);
         $accepted = $this->acceptedEndpoints($account, $domain);
         $http     = $this->http->http(self::TIMEOUT);
-        $failure  = null;
+        $http->set_max_redirects(0);
+        $problem  = null;
 
-        foreach (["https://$domain/", "http://$domain/"] as $url) {
-            $response = $http->get($url, ['Accept: text/html']);
-
-            if (!empty($response['error']) || (int) ($response['code'] ?? 0) >= 400) {
-                $failure ??= !empty($response['error'])
-                    ? (string) ($response['error_description'] ?: $response['error'])
-                    : 'HTTP ' . $response['code'];
-                continue;
+        $urls = ["https://$domain/", "http://$domain/"];
+        foreach ($alsoTry as $url) {
+            if (Url::isHttp($url) && Url::host($url) === $domain && !in_array($url, $urls, true)) {
+                $urls[] = $url;
             }
-
-            $found = self::endpoints($response, (string) ($response['url'] ?? $url));
-
-            foreach ($found as $endpoint) {
-                if (in_array(self::normalize($endpoint), $accepted, true)) {
-                    return null;
-                }
-            }
-
-            return $found === []
-                ? "$url does not have a webmention endpoint yet."
-                : "$url points to a different webmention endpoint (" . $found[0] . ').';
         }
 
-        return "Could not fetch https://$domain/: $failure";
+        foreach ($urls as $start) {
+            $url = $start;
+
+            for ($hop = 0; $hop <= self::MAX_HOPS; $hop++) {
+                $response = $http->get($url, ['Accept: text/html']);
+                $code     = (int) ($response['code'] ?? 0);
+
+                if (!empty($response['error']) || $code >= 400 || $code === 0) {
+                    $problem ??= "Could not fetch $url: " . (!empty($response['error'])
+                        ? (string) ($response['error_description'] ?: $response['error'])
+                        : "HTTP $code");
+                    break;
+                }
+
+                // A Link header counts on every hop, including a redirect's.
+                $found = self::endpoints($response, $url, includeBody: $code < 300);
+                foreach ($found as $endpoint) {
+                    if (in_array(self::normalize($endpoint), $accepted, true)) {
+                        return null;
+                    }
+                }
+
+                if ($code >= 300) {
+                    $next = self::location($response, $url);
+                    if ($next === null) {
+                        $problem ??= "Could not fetch $url: HTTP $code without a Location header";
+                        break;
+                    }
+                    if (Url::host($next) !== $domain) {
+                        $problem ??= "$url redirects to " . Url::host($next) . ", which does not prove $domain is yours.";
+                        break;
+                    }
+                    $url = $next;
+                    continue;
+                }
+
+                // A page that answered but names no endpoint of ours is the most useful thing to report.
+                $problem = $found === []
+                    ? "$url does not have a webmention endpoint."
+                    : "$url points to a different webmention endpoint (" . $found[0] . ').';
+                break;
+            }
+        }
+
+        return $problem ?? "Could not fetch https://$domain/.";
+    }
+
+    /** @param array<string, mixed> $response */
+    private static function location(array $response, string $url): ?string
+    {
+        if (preg_match('/^location:\s*(\S.*)$/im', (string) ($response['header'] ?? ''), $m) !== 1) {
+            return null;
+        }
+
+        $next = \Mf2\resolveUrl($url, trim($m[1]));
+
+        return Url::isHttp($next) ? $next : null;
     }
 
     /**
@@ -75,13 +134,17 @@ final class SiteVerifier
      */
     private function acceptedEndpoints(Account $account, string $domain): array
     {
-        $base  = $this->config->baseUrl();
         $names = array_unique(array_filter([(string) $account->username, (string) $account->domain]));
 
-        $accepted = [self::normalize("$base/d/$domain/webmention")];
-        foreach ($names as $name) {
-            $accepted[] = self::normalize($base . '/' . rawurlencode($name) . '/webmention');
-            $accepted[] = self::normalize("$base/$name/webmention");
+        // Sites advertise the public hostname, which a test or staging
+        // deployment with another BASE_URL still has to recognise.
+        $accepted = [];
+        foreach (array_unique([$this->config->baseUrl(), self::PUBLIC_BASE]) as $base) {
+            $accepted[] = self::normalize("$base/d/$domain/webmention");
+            foreach ($names as $name) {
+                $accepted[] = self::normalize($base . '/' . rawurlencode($name) . '/webmention');
+                $accepted[] = self::normalize("$base/$name/webmention");
+            }
         }
 
         return array_values(array_unique($accepted));
@@ -94,7 +157,7 @@ final class SiteVerifier
      * @param  array<string, mixed> $response
      * @return list<string>
      */
-    private static function endpoints(array $response, string $url): array
+    private static function endpoints(array $response, string $url, bool $includeBody = true): array
     {
         $found = [];
 
@@ -104,7 +167,7 @@ final class SiteVerifier
             }
         }
 
-        $body = (string) ($response['body'] ?? '');
+        $body = $includeBody ? (string) ($response['body'] ?? '') : '';
         if ($body !== '') {
             try {
                 $parsed = \Mf2\parse($body, $url);

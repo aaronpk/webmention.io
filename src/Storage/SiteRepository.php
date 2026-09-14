@@ -38,11 +38,85 @@ final class SiteRepository
         return $row === null ? null : Site::fromRow($row);
     }
 
+    /** The site for a domain, preferring one that has proved it owns it. */
     public function findByDomain(string $domain): ?Site
     {
-        $row = $this->db->one('SELECT * FROM sites WHERE domain = ? ORDER BY id LIMIT 1', [$domain]);
+        $row = $this->db->one(
+            'SELECT * FROM sites WHERE domain = ? ORDER BY verified_at IS NULL, id LIMIT 1',
+            [$domain],
+        );
 
         return $row === null ? null : Site::fromRow($row);
+    }
+
+    /** Record that the site advertises its account's endpoint. */
+    public function markVerified(int $id): void
+    {
+        $now = Database::now();
+        $this->db->update('sites', $id, [
+            'verified_at'             => $now,
+            'verification_checked_at' => $now,
+            'verification_error'      => null,
+            'updated_at'              => $now,
+        ]);
+    }
+
+    /** Record a check that found no proof. A verified site is not downgraded by it. */
+    public function markChecked(int $id, string $error): void
+    {
+        $this->db->update('sites', $id, [
+            'verification_checked_at' => Database::now(),
+            'verification_error'      => mb_strcut($error, 0, 255, 'UTF-8'),
+            'updated_at'              => Database::now(),
+        ]);
+    }
+
+    /**
+     * Unverified sites in the order they should be checked: never checked
+     * first, then longest since the last check; sites with recent mentions
+     * ahead of dormant ones.
+     *
+     * @return list<Site>
+     */
+    public function unverifiedToCheck(int $limit): array
+    {
+        return array_map(Site::fromRow(...), $this->db->all(
+            'SELECT s.* FROM sites s
+                LEFT JOIN (SELECT site_id, MAX(created_at) AS last_mention FROM links GROUP BY site_id) l ON l.site_id = s.id
+                WHERE s.verified_at IS NULL AND s.domain IS NOT NULL
+                ORDER BY s.verification_checked_at IS NULL DESC, s.verification_checked_at ASC, l.last_mention DESC, s.id DESC
+                LIMIT ?',
+            [max(0, $limit)],
+        ));
+    }
+
+    /**
+     * Verified sites not checked for $days days.
+     *
+     * @return list<Site>
+     */
+    public function verifiedToRecheck(int $days, int $limit): array
+    {
+        return array_map(Site::fromRow(...), $this->db->all(
+            'SELECT * FROM sites WHERE verified_at IS NOT NULL AND domain IS NOT NULL
+                AND (verification_checked_at IS NULL OR verification_checked_at <= ?)
+                ORDER BY verification_checked_at IS NULL DESC, verification_checked_at ASC, id LIMIT ?',
+            [gmdate('Y-m-d H:i:s', time() - $days * 86400), max(0, $limit)],
+        ));
+    }
+
+    /**
+     * The site's most recently mentioned page URLs, which often carry the
+     * endpoint tag when the home page does not.
+     *
+     * @return list<string>
+     */
+    public function recentPageHrefs(int $siteId, int $limit = 3): array
+    {
+        return array_map(
+            static fn (array $row): string => (string) $row['href'],
+            $this->db->all('SELECT href FROM pages WHERE site_id = ? AND href IS NOT NULL ORDER BY id DESC LIMIT ?', [$siteId, $limit]),
+        );
     }
 
     /** @return list<Site> */

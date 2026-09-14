@@ -58,7 +58,7 @@ abstract class IntegrationTestCase extends TestCase
         $this->db    = $this->container->get(Database::class);
         $this->redis = $this->container->get(Redis::class);
 
-        foreach (['accounts', 'sites', 'pages', 'links', 'blocks', 'blocklists'] as $table) {
+        foreach (['accounts', 'sites', 'pages', 'page_aliases', 'links', 'blocks', 'blocklists'] as $table) {
             $this->db->pdo()->exec("TRUNCATE TABLE `$table`");
         }
         $this->redis->flushDb();

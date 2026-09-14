@@ -93,6 +93,17 @@ CREATE TABLE `links` (
   KEY `page_verified_type` (`page_id`,`verified`,`deleted`,`type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE `page_aliases` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `site_id` int(10) unsigned NOT NULL,
+  `href` varchar(512) NOT NULL,
+  `page_id` int(10) unsigned NOT NULL,
+  `created_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `site_href` (`site_id`,`href`(191)),
+  KEY `page` (`page_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE `pages` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `href` varchar(512) DEFAULT NULL,
@@ -120,6 +131,9 @@ CREATE TABLE `sites` (
   `callback_url` varchar(255) DEFAULT NULL,
   `callback_secret` varchar(50) DEFAULT NULL,
   `archive_avatars` tinyint(1) DEFAULT 1,
+  `verified_at` datetime DEFAULT NULL,
+  `verification_checked_at` datetime DEFAULT NULL,
+  `verification_error` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `account_domain` (`account_id`,`domain`),
   KEY `index_sites_account` (`account_id`),

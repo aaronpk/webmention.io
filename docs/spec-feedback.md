@@ -82,6 +82,12 @@ unbounded work per request; done at verification time it is free. Suggest
 saying it MAY be deferred, and that a target answering 404 or 410 SHOULD NOT
 create any state on the receiver.
 
+The same fetch also answers a question the spec leaves open: which URL a
+mention belongs to when the target redirects or declares a `rel=canonical`.
+This receiver files mentions under the canonical URL and keeps the sent URL
+as an alias; the spec could recommend that, so that senders and receivers
+agree on what a `target` identifies.
+
 ## 8. Source equals target
 
 **Section 3.2.1** requires rejecting a request whose `source` equals

@@ -28,6 +28,7 @@ use Webmention\Storage\PageRepository;
 use Webmention\Storage\SiteRepository;
 use Webmention\View\Raw;
 use Webmention\View\Template;
+use Webmention\Webmention\TargetResolver;
 
 /**
  * The public read API, documented in the README. Port of controllers/api.rb.
@@ -286,18 +287,20 @@ final class ApiController extends Controller
 
     /**
      * Target URLs from the query, without any too long to have been stored
-     * (see WebmentionController::MAX_URL_BYTES) and at most MAX_TARGETS of them.
+     * (see WebmentionController::MAX_URL_BYTES) and at most MAX_TARGETS of
+     * them. A #fragment never names a different page, so it is dropped;
+     * PageRepository::idsForHrefs() also matches aliases.
      *
      * @return list<string>
      */
     private static function targets(Request $request): array
     {
         $targets = array_values(array_filter(
-            $request->inputList('target'),
-            static fn (string $target): bool => strlen($target) <= WebmentionController::MAX_URL_BYTES,
+            array_map(TargetResolver::key(...), $request->inputList('target')),
+            static fn (string $target): bool => $target !== '' && strlen($target) <= WebmentionController::MAX_URL_BYTES,
         ));
 
-        return array_slice($targets, 0, self::MAX_TARGETS);
+        return array_slice(array_values(array_unique($targets)), 0, self::MAX_TARGETS);
     }
 
     /** The token from an `Authorization: Bearer` header, so it can stay out of URLs and access logs. */

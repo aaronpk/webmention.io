@@ -60,6 +60,10 @@ GET https://webmention.io/api/mentions.jf2?target=https://indieweb.org
 }
 ```
 
+### Which URL a mention is filed under
+
+A mention is filed under the target's canonical URL. When a target is first seen, the service fetches it, follows your site's redirects and honours its `rel="canonical"`, and files the mention under the URL it ends up at, as long as that URL is on one of your sites. A `#fragment` in the target is ignored. Every other form that led to the page (the URL as the sender gave it, an old URL that now redirects, a fragment URL) is remembered as an alias, so `target=` queries for any of them return the same mentions, and `wm-target` is the canonical URL. Trailing slashes and `http`/`https` are not treated as equivalent by rule; your site decides, by redirecting. If you change a page's URL later, use "Moved a page?" on the Sites page to re-file its mentions once the old URL redirects.
+
 ### Count mentions of a page
 
 ```
@@ -350,6 +354,8 @@ Every outgoing request (fetching sources, private webmention tokens, web hooks, 
 ### Accounts and sites
 
 Signing in requires an `https://` profile URL. The domain signed in with becomes the account's first site. Any further domain must advertise one of the account's endpoints (`/{username}/webmention` or `/d/{domain}/webmention`) on its home page, in a `Link` header or a `<link rel="webmention">`, before it can be added; that is what stops anyone from adding someone else's domain and feeding mentions into its public results. The `sites.public_access` column from the old schema is not enforced (it never was).
+
+Each site records whether it has proved this (`sites.verified_at`). Sites added before the check existed are re-checked by `tools/verify-sites` (run it from cron with `--apply`; it tries the home page and the site's recently mentioned pages) and by the "Check now" button on the Sites page. The proof must come from the domain itself: redirects are followed only while they stay on that host, so a link shortener cannot be claimed by someone whose short link leads to their own site. An unverified site still receives its mentions, but when another account holds a verified site for the same domain, the unverified site's mentions are left out of public `target=` queries, and the `/d/{domain}/webmention` endpoint goes to the verified holder.
 
 ### Security notes for the spec
 

@@ -142,6 +142,24 @@ The indexes can stay; the Ruby app's queries benefit from them too.
   ```
 
   Both are safe with either app live. Afterwards the Ruby app's add-site form errors on a duplicate instead of creating one.
+* **Site verification.** Add the columns (the migration also marks every account's sign-in domain as verified, since IndieAuth proved it), then let the checker work through the ~4,000 legacy sites:
+
+  ```bash
+  mysql webmention < database/migrations/2026-09-15-site-verification.sql
+  tools/verify-sites --limit=20                 # dry run, read the lines
+  tools/verify-sites --limit=500 --apply
+  ```
+
+  and add a nightly cron entry, e.g. `15 4 * * * cd /web/sites/webmention.io && tools/verify-sites --limit=500 --apply >> logs/verify-sites.log 2>&1`. The backlog clears in about a week; afterwards it only re-tries sites that failed. Domains held by several accounts (376 of them: `t.co`, `bit.ly`, `web.archive.org`, …) show only their verified holders' mentions in public results from the moment the migration runs.
+
+* **Page aliases and fragment folding.** New mentions are filed under the target's canonical URL (redirects, `rel=canonical`, no fragment) with the other forms kept as aliases. Create the table, then fold the ~9,800 pages the Ruby app filed under `#fragment` URLs into their pages (dry run first):
+
+  ```bash
+  mysql webmention < database/migrations/2026-09-15-page-aliases.sql
+  php database/migrations/2026-09-15-fold-fragment-pages.php
+  php database/migrations/2026-09-15-fold-fragment-pages.php --apply
+  ```
+
 * **Re-sanitise old GitHub-sourced content.** Before XRay v2.0.1 (fixed and bundled here on 2026-09-13), XRay's GitHub format stored issue and comment bodies as raw HTML in `links.content`. Rows received from `github.com` sources through the hosted XRay may still carry markup that the current parser would strip, and every API format serves `content` as stored. Once traffic is on the new app, run a one-off pass over `links WHERE domain = 'github.com'` that passes `content` through `p3k\XRay\Formats\Format::sanitizeHTML()` and writes back only the rows that change.
 * The `debugs` table, `links.notification_id` and the `accounts.pingback_enabled`, `tiktokbot_*` and `xmpp_*` columns are no longer used. They can be dropped whenever convenient; nothing needs them gone.
 * `bin/worker` exits after 1000 jobs and systemd starts a fresh one, which keeps memory and connections from going stale.

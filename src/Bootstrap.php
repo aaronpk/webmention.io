@@ -29,6 +29,7 @@ use Webmention\Webmention\RateLimiter;
 use Webmention\Webmention\SiteVerifier;
 use Webmention\Webmention\SourceFetcher;
 use Webmention\Webmention\StatusStore;
+use Webmention\Webmention\TargetResolver;
 use Webmention\Webmention\WebHooks;
 
 /**
@@ -96,6 +97,12 @@ final class Bootstrap
             allowPrivateNetwork: $config->get('ALLOW_PRIVATE_NETWORK') === '1',
         ));
         $c->set(SourceFetcher::class, static fn (Container $c): SourceFetcher => new SourceFetcher($c->get(HttpClient::class)));
+        $c->set(TargetResolver::class, static fn (Container $c): TargetResolver => new TargetResolver(
+            $c->get(PageRepository::class),
+            $c->get(SiteRepository::class),
+            $c->get(SourceFetcher::class),
+            $c->get(Log::class),
+        ));
         $c->set(SiteVerifier::class, static fn (Container $c): SiteVerifier => new SiteVerifier($c->get(HttpClient::class), $config));
         $c->set(AvatarArchiver::class, static fn (Container $c): AvatarArchiver => new AvatarArchiver(
             $config,
@@ -107,7 +114,7 @@ final class Bootstrap
         $c->set(Processor::class, static fn (Container $c): Processor => new Processor(
             $c->get(AccountRepository::class),
             $c->get(SiteRepository::class),
-            $c->get(PageRepository::class),
+            $c->get(TargetResolver::class),
             $c->get(LinkRepository::class),
             $c->get(BlockRepository::class),
             $c->get(SourceFetcher::class),
@@ -178,6 +185,9 @@ final class Bootstrap
             $c->get(BlockRepository::class),
             $c->get(SiteVerifier::class),
             $c->get(HttpClient::class),
+            $c->get(TargetResolver::class),
+            $c->get(PageRepository::class),
+            $c->get(RateLimiter::class),
             $config,
         ));
 
@@ -215,6 +225,8 @@ final class Bootstrap
         $r->post('/settings/change_token', [SettingsController::class, 'changeToken']);
         $r->get('/settings/sites', [SettingsController::class, 'sites']);
         $r->post('/settings/sites/new', [SettingsController::class, 'createSite']);
+        $r->post('/settings/sites/merge', [SettingsController::class, 'mergePage']);
+        $r->post('/settings/sites/verify', [SettingsController::class, 'verifySite']);
         $r->get('/settings/webhooks', [SettingsController::class, 'webhooks']);
         $r->post('/webhook/configure', [SettingsController::class, 'configureWebhook']);
         $r->get('/settings/blocks', [SettingsController::class, 'blocks']);

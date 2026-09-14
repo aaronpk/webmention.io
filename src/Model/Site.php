@@ -14,7 +14,16 @@ final class Site
         public readonly ?string $callbackSecret,
         public readonly bool $archiveAvatars,
         public readonly ?string $createdAt,
+        public readonly ?string $verifiedAt = null,
+        public readonly ?string $verificationCheckedAt = null,
+        public readonly ?string $verificationError = null,
     ) {
+    }
+
+    /** Whether the site has proved it belongs to its account (see SiteVerifier). */
+    public function isVerified(): bool
+    {
+        return $this->verifiedAt !== null;
     }
 
     /** @param array<string, mixed> $row */
@@ -29,6 +38,9 @@ final class Site
             // The column defaults to 1; NULL was treated as falsy by the Ruby app.
             archiveAvatars: (bool) $row['archive_avatars'],
             createdAt:      $row['created_at'] === null ? null : (string) $row['created_at'],
+            verifiedAt:            isset($row['verified_at']) ? (string) $row['verified_at'] : null,
+            verificationCheckedAt: isset($row['verification_checked_at']) ? (string) $row['verification_checked_at'] : null,
+            verificationError:     isset($row['verification_error']) ? (string) $row['verification_error'] : null,
         );
     }
 }

@@ -1,0 +1,67 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Checks sites added before proof of ownership was required, and records
+ * which ones advertise their account's webmention endpoint.
+ *
+ *   tools/verify-sites [--limit=200] [--apply] [--recheck-verified-older-than=DAYS]
+ *
+ * Without --apply nothing is written. Each site costs up to five fetches
+ * (home page over https and http, then up to three recent target pages),
+ * with a short pause between sites. Verified sites are left alone unless
+ * --recheck-verified-older-than is given, and are never downgraded.
+ *
+ * Meant for cron, e.g. nightly with --limit=500 --apply, which works
+ * through the backlog in about a week.
+ */
+
+use Webmention\Bootstrap;
+use Webmention\Logging\ErrorHandler;
+use Webmention\Storage\AccountRepository;
+use Webmention\Storage\SiteRepository;
+use Webmention\Webmention\SiteRecheck;
+use Webmention\Webmention\SiteVerifier;
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+ErrorHandler::ignoreVendorNoise();
+
+$limit   = 200;
+$apply   = false;
+$recheck = null;
+foreach (array_slice($argv, 1) as $arg) {
+    if (preg_match('/^--limit=(\d+)$/', $arg, $m) === 1) {
+        $limit = (int) $m[1];
+    } elseif ($arg === '--apply') {
+        $apply = true;
+    } elseif (preg_match('/^--recheck-verified-older-than=(\d+)$/', $arg, $m) === 1) {
+        $recheck = (int) $m[1];
+    } else {
+        fwrite(STDERR, "Unknown argument $arg\n");
+        exit(2);
+    }
+}
+
+$container = Bootstrap::container(Bootstrap::config());
+$recheckRun = new SiteRecheck(
+    $container->get(SiteRepository::class),
+    $container->get(AccountRepository::class),
+    $container->get(SiteVerifier::class),
+);
+
+printf("%s: checking up to %d sites\n\n", $apply ? 'APPLYING' : 'DRY RUN', $limit);
+
+$verified = $failed = 0;
+foreach ($recheckRun->run($limit, dryRun: !$apply, recheckVerifiedOlderThanDays: $recheck) as $line) {
+    echo $line, "\n";
+    if (str_ends_with($line, ': verified')) {
+        $verified++;
+    } else {
+        $failed++;
+    }
+}
+
+printf("\n%d verified, %d not verified%s\n", $verified, $failed, $apply ? '' : ' (nothing written; add --apply)');

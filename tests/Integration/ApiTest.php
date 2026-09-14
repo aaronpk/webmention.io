@@ -151,8 +151,9 @@ final class ApiTest extends IntegrationTestCase
         $long = 'https://example.com/' . str_repeat('a', 600);
         self::assertSame(400, $this->request('GET', '/api/count', ['target' => $long])->status);
 
-        $many = array_fill(0, 60, 'https://nope.example/');
-        $many[59] = self::TARGET;
+        // Duplicates are collapsed, so the excess has to be distinct URLs.
+        $many   = array_map(static fn (int $i): string => "https://nope.example/$i", range(1, 59));
+        $many[] = self::TARGET;
         self::assertSame('{"count":0,"type":{}}', $this->request('GET', '/api/count', ['target' => $many])->body);
     }
 

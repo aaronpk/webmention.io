@@ -18,7 +18,6 @@ use Webmention\Storage\AccountRepository;
 use Webmention\Storage\BlockRepository;
 use Webmention\Storage\Database;
 use Webmention\Storage\LinkRepository;
-use Webmention\Storage\PageRepository;
 use Webmention\Storage\SiteRepository;
 
 /**
@@ -48,7 +47,7 @@ final class Processor
     public function __construct(
         private readonly AccountRepository $accounts,
         private readonly SiteRepository $sites,
-        private readonly PageRepository $pages,
+        private readonly TargetResolver $targets,
         private readonly LinkRepository $links,
         private readonly BlockRepository $blocks,
         private readonly SourceFetcher $fetcher,
@@ -146,6 +145,17 @@ final class Processor
         $this->log->info("Processing s=$source t=$target");
 
         $page = $this->createPageInSite($site, $target);
+
+        // The target may canonicalise onto another of the account's sites
+        // (apex to www, say); the mention then belongs to that site, whose
+        // web hook and blocklist apply.
+        if ($page->siteId !== $site->id) {
+            $site = $this->sites->find($page->siteId) ?? $site;
+            if ($this->blocks->isSourceBlocked($site->id, $source)) {
+                return $fail('blocked', 'source URL is blocked');
+            }
+        }
+
         $link = $this->links->findByPageAndHref($page->id, $source);
 
         $linkId = $link?->id ?? $this->links->create([
@@ -203,7 +213,7 @@ final class Processor
     /** A mention the source no longer links to is removed, and the callback told. */
     private function removeExisting(Job $job, Site $site): bool
     {
-        $page = $this->pages->findBySiteAndHref($site->id, $job->target);
+        $page = $this->targets->existingPageFor($site, $job->target);
         $link = $page === null ? null : $this->links->findByPageAndHref($page->id, $job->source);
 
         if ($link === null) {
@@ -225,46 +235,12 @@ final class Processor
     }
 
     /**
-     * The target page, created on first mention. XRay also tells us what kind
-     * of post it is (entry, photo, event, …).
+     * The page a target is filed under: its canonical URL, found by fetching
+     * it on first mention. See TargetResolver.
      */
     public function createPageInSite(Site $site, string $target): Page
     {
-        $page = $this->pages->findBySiteAndHref($site->id, $target);
-        if ($page !== null) {
-            return $page;
-        }
-
-        // Saved before parsing, since XRay may take a while.
-        $page = $this->pages->create($site->accountId, $site->id, $target);
-
-        $parsed = $this->fetcher->parse($target);
-
-        if (isset($parsed['error'])) {
-            $this->log->info("Error retrieving page $target: {$parsed['error']}");
-
-            return $page;
-        }
-
-        $data = $parsed['data'] ?? [];
-        $type = null;
-
-        if (($data['type'] ?? null) === 'entry') {
-            $type = match (true) {
-                !empty($data['photo']) => 'photo',
-                !empty($data['video']) => 'video',
-                !empty($data['audio']) => 'audio',
-                default                => 'entry',
-            };
-        } elseif (($data['type'] ?? null) === 'event') {
-            $type = 'event';
-        }
-
-        $name = isset($data['name']) && is_string($data['name']) ? $data['name'] : null;
-
-        $this->pages->describe($page->id, $type, $name);
-
-        return $this->pages->find($page->id) ?? $page;
+        return $this->targets->pageFor($site, $target);
     }
 
     /**
