@@ -128,6 +128,14 @@ final class AccountMergeTest extends IntegrationTestCase
         self::assertSame(303, $response->status);
         self::assertStringStartsWith('/settings?merge_error=', (string) $response->header('location'));
 
+        // The page then shows just the merge card, so the message is at the top.
+        $page = $this->request('GET', '/settings', ['merge_error' => 'That did not work'])->body;
+        self::assertStringContainsString('That did not work', $page);
+        self::assertStringNotContainsString('<h2>API key</h2>', $page);
+        self::assertStringNotContainsString('<h2>Export your data</h2>', $page);
+        self::assertStringContainsString('href="/settings">← All settings</a>', $page);
+        self::assertStringContainsString('<h2>API key</h2>', $this->request('GET', '/settings')->body);
+
         // Confirming without a check first is refused.
         $response = $this->request('POST', '/settings/merge-account/confirm', post: ['old_domain' => 'steele.example', 'csrf' => $csrf]);
         self::assertStringContainsString('expired', urldecode((string) $response->header('location')));

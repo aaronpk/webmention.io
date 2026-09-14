@@ -9,6 +9,14 @@
  * @var string $csrf
  */
 ?>
+<?php
+// After a failed domain check, show only the merge card so its message is
+// the first thing on the page; a link brings the rest back.
+$mergeOnly = $merge_error !== null;
+?>
+<?php if ($mergeOnly) { ?>
+    <p class="muted small"><a href="/settings">← All settings</a></p>
+<?php } else { ?>
 <section class="card">
     <h2>Mentions feed</h2>
     <p>Every mention received on your account, as a Microformats feed you can follow in a reader like
@@ -43,6 +51,7 @@
     <p class="muted small">The same file from the command line, or for one site only by adding <code>&amp;domain=example.com</code>:</p>
     <pre><code id="export-url"><?= $export_url ?></code></pre>
 </section>
+<?php } ?>
 
 <section class="card">
     <h2>Moved to a new domain?</h2>
