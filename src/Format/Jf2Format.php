@@ -59,6 +59,7 @@ final class Jf2Format
             ],
             'url'          => $link->absoluteUrl(),
             'published'    => $published,
+            'published_ts' => $link->publishedTs,
             'wm-received'  => $link->createdDate()?->format('Y-m-d\TH:i:s\Z'),
             'wm-id'        => $link->id,
             'wm-source'    => $link->href,
