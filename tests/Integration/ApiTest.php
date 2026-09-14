@@ -82,6 +82,22 @@ final class ApiTest extends IntegrationTestCase
         self::assertSame(['https://a.example/1', 'https://b.example/2'], $sources(['target' => self::TARGET, 'sort-dir' => 'up', 'perPage' => '2', 'page' => '-3']));
     }
 
+    public function testEveryJsonResponseSaysWhereItSitsInThePages(): void
+    {
+        $paging = fn (string $kind, array $query): array => self::json($this->request('GET', "/api/$kind", $query))['paging'];
+
+        self::assertSame(['per-page' => 20, 'page' => 0, 'total' => 7, 'total-pages' => 1], $paging('mentions.jf2', ['target' => self::TARGET]));
+        self::assertSame(['per-page' => 2, 'page' => 1, 'total' => 7, 'total-pages' => 4], $paging('mentions', ['target' => self::TARGET, 'per-page' => '2', 'page' => '1']));
+        self::assertSame(['per-page' => 20, 'page' => 0, 'total' => 1, 'total-pages' => 1], $paging('mentions.jf2', ['target' => self::TARGET, 'wm-property' => 'like-of']));
+        self::assertSame(['per-page' => 20, 'page' => 0, 'total' => 9, 'total-pages' => 1], $paging('mentions.jf2', ['token' => $this->token]), 'the owner sees the private one too');
+        self::assertSame(['per-page' => 20, 'page' => 0, 'total' => 0, 'total-pages' => 0], $paging('mentions.jf2', ['token' => $this->token, 'domain' => 'nope.example']));
+        self::assertSame(['per-page' => 5, 'page' => 0, 'total' => 21, 'total-pages' => 5], $paging('example/mentions.jf2', ['per-page' => '5']));
+
+        // The list keeps its place as the first key, for clients that never look further.
+        self::assertSame(['links', 'paging'], array_keys(self::json($this->request('GET', '/api/mentions', ['target' => self::TARGET]))));
+        self::assertSame(['type', 'name', 'children', 'paging'], array_keys(self::json($this->request('GET', '/api/mentions.jf2', ['target' => self::TARGET]))));
+    }
+
     public function testMentionOfMatchesEverythingShownAsAMention(): void
     {
         // Issue 206: rows with no type (and other unlabelled types) are shown as

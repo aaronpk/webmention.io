@@ -132,6 +132,7 @@ final class ExampleApiTest extends IntegrationTestCase
 
         self::assertSame(count($feed['children']), $count['count']);
         self::assertSame($count['count'], array_sum($count['type']));
+        self::assertSame($count['count'], $feed['paging']['total']);
         self::assertArrayHasKey('mention', $count['type']);
         self::assertArrayHasKey('rsvp-yes', $count['type']);
         self::assertArrayNotHasKey('link', $count['type']);

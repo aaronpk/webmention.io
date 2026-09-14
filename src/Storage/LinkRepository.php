@@ -265,6 +265,44 @@ final class LinkRepository
     /** @return list<Link> */
     public function search(LinkSearch $search): array
     {
+        if ($search->pageIds === []) {
+            return [];
+        }
+
+        [$where, $params] = self::whereFor($search);
+
+        $dir   = $search->descending ? 'DESC' : 'ASC';
+        $order = match ($search->sortBy) {
+            'published' => "links.published $dir, links.created_at $dir",
+            'updated'   => "links.updated_at $dir",
+            'rsvp'      => "FIELD(links.type, 'rsvp-no', 'rsvp-interested', 'rsvp-maybe', 'rsvp-yes') $dir, links.created_at $dir",
+            default     => "links.created_at $dir",
+        };
+
+        $params[] = max(0, $search->limit);
+        $params[] = max(0, $search->offset);
+
+        return $this->many(
+            self::SELECT . " WHERE $where ORDER BY $order LIMIT ? OFFSET ?",
+            $params,
+        );
+    }
+
+    /** How many links a search matches in all, ignoring its page. */
+    public function count(LinkSearch $search): int
+    {
+        if ($search->pageIds === []) {
+            return 0;
+        }
+
+        [$where, $params] = self::whereFor($search);
+
+        return (int) $this->db->value("SELECT COUNT(*) FROM links WHERE $where", $params);
+    }
+
+    /** @return array{string, list<mixed>} */
+    private static function whereFor(LinkSearch $search): array
+    {
         $where  = ['links.verified = 1', 'links.deleted = 0'];
         $params = [];
 
@@ -280,9 +318,6 @@ final class LinkRepository
             $params[] = $search->siteId;
         }
         if ($search->pageIds !== null) {
-            if ($search->pageIds === []) {
-                return [];
-            }
             $where[] = 'links.page_id IN (' . Database::placeholders($search->pageIds) . ')';
             array_push($params, ...$search->pageIds);
         }
@@ -308,19 +343,27 @@ final class LinkRepository
             $params[] = $search->idAfter;
         }
 
-        $dir   = $search->descending ? 'DESC' : 'ASC';
-        $order = match ($search->sortBy) {
-            'published' => "links.published $dir, links.created_at $dir",
-            'updated'   => "links.updated_at $dir",
-            'rsvp'      => "FIELD(links.type, 'rsvp-no', 'rsvp-interested', 'rsvp-maybe', 'rsvp-yes') $dir, links.created_at $dir",
-            default     => "links.created_at $dir",
-        };
+        return [implode(' AND ', $where), $params];
+    }
 
-        $params[] = max(0, $search->limit);
-        $params[] = max(0, $search->offset);
+    /**
+     * A slice of an account's published mentions in id order, for the export:
+     * everything after $afterId, private ones included.
+     *
+     * @return list<Link>
+     */
+    public function exportBatch(int $accountId, ?int $siteId, int $afterId, int $limit): array
+    {
+        $params = [$accountId];
+        $site   = '';
+        if ($siteId !== null) {
+            $site     = ' AND links.site_id = ?';
+            $params[] = $siteId;
+        }
+        array_push($params, $afterId, max(1, $limit));
 
         return $this->many(
-            self::SELECT . ' WHERE ' . implode(' AND ', $where) . " ORDER BY $order LIMIT ? OFFSET ?",
+            self::SELECT . " WHERE links.account_id = ?$site AND links.verified = 1 AND links.deleted = 0 AND links.id > ? ORDER BY links.id LIMIT ?",
             $params,
         );
     }

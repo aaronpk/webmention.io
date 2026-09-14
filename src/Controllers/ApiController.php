@@ -26,6 +26,7 @@ use Webmention\Storage\LinkRepository;
 use Webmention\Storage\LinkSearch;
 use Webmention\Storage\PageRepository;
 use Webmention\Storage\SiteRepository;
+use Webmention\Webmention\RateLimiter;
 use Webmention\View\Raw;
 use Webmention\View\Template;
 use Webmention\Webmention\TargetResolver;
@@ -44,6 +45,9 @@ final class ApiController extends Controller
     /** How many target URLs one query may name. */
     public const MAX_TARGETS = 50;
 
+    /** Rows per query while streaming an export. */
+    public const EXPORT_BATCH = 1000;
+
     public function __construct(
         Template $view,
         private readonly JsonResponder $json,
@@ -53,6 +57,7 @@ final class ApiController extends Controller
         private readonly PageRepository $pages,
         private readonly LinkRepository $links,
         private readonly Config $config,
+        private readonly RateLimiter $limiter,
     ) {
         parent::__construct($view);
     }
@@ -118,6 +123,8 @@ final class ApiController extends Controller
         }
 
         $sortDir = $request->input('sort-dir');
+        $perPage = min(max(0, $limit), self::MAX_PER_PAGE);
+        $page    = max(0, (int) $request->input('page'));
 
         $properties = $request->inputList('wm-property');
 
@@ -132,8 +139,8 @@ final class ApiController extends Controller
                 default                        => 'created',
             },
             'descending'   => $sortDir === null || $sortDir === 'down',
-            'limit'        => min(max(0, $limit), self::MAX_PER_PAGE),
-            'offset'       => self::offset((int) $request->input('page'), min(max(0, $limit), self::MAX_PER_PAGE)),
+            'limit'        => $perPage,
+            'offset'       => self::offset($page, $perPage),
         ];
 
         // Kept from the old app, which set this for matching URLs containing emoji.
@@ -155,13 +162,13 @@ final class ApiController extends Controller
             if ($request->has('domain')) {
                 $site = $this->sites->findByAccountAndDomain($account->id, (string) $request->input('domain'));
                 if ($site === null) {
-                    return $this->render($request, $format, [], $account);
+                    return $this->render($request, $format, [], $account, self::paging($perPage, $page, 0));
                 }
                 $siteId = $site->id;
             }
 
             // The owner may see the private webmentions sent to their own sites.
-            $links = $this->links->search(new LinkSearch(...[...$filters, 'accountId' => $account->id, 'siteId' => $siteId, 'includePrivate' => true]));
+            $search = new LinkSearch(...[...$filters, 'accountId' => $account->id, 'siteId' => $siteId, 'includePrivate' => true]);
         } else {
             // A single target with no scheme (e.g. "//example.com/post") matches either scheme.
             if (!is_array($request->post['target'] ?? $request->query['target'] ?? null)
@@ -169,10 +176,93 @@ final class ApiController extends Controller
                 $targets = ['https:' . $targets[0], 'http:' . $targets[0]];
             }
 
-            $links = $this->links->search(new LinkSearch(...[...$filters, 'pageIds' => $this->pages->idsForHrefs($targets)]));
+            $search = new LinkSearch(...[...$filters, 'pageIds' => $this->pages->idsForHrefs($targets)]);
         }
 
-        return $this->render($request, $format, $links, $account);
+        return $this->render($request, $format, $this->links->search($search), $account, self::paging($perPage, $page, $this->links->count($search)));
+    }
+
+    /**
+     * The paging block on JSON responses (issue 108): what page this is and
+     * how many there are, so a client knows whether to ask for another.
+     *
+     * @return array{per-page: int, page: int, total: int, total-pages: int}
+     */
+    public static function paging(int $perPage, int $page, int $total): array
+    {
+        return [
+            'per-page'    => $perPage,
+            'page'        => $page,
+            'total'       => $total,
+            'total-pages' => $perPage > 0 ? (int) ceil($total / $perPage) : 0,
+        ];
+    }
+
+    /**
+     * Everything on an account as one jf2 feed, streamed oldest first, for
+     * backups and moving elsewhere (issue 109). Private mentions are
+     * included; held, hidden and deleted ones are not.
+     *
+     * @param array<string, string> $params
+     */
+    public function export(Request $request, array $params): Response
+    {
+        $token   = $request->input('token') ?? $request->input('access_token') ?? self::bearerToken($request) ?? '';
+        $account = $token === '' ? null : $this->accounts->findByToken($token);
+        if ($account === null) {
+            return $this->json->respond($request, 401, ['error' => 'forbidden', 'error_description' => 'Access token was not valid']);
+        }
+
+        $site = null;
+        if ($request->has('domain')) {
+            $site = $this->sites->findByAccountAndDomain($account->id, (string) $request->input('domain'));
+            if ($site === null) {
+                return $this->json->respond($request, 404, ['error' => 'not_found', 'error_description' => 'That domain is not on this account']);
+            }
+        }
+
+        // A full export reads every row on the account; one at a time is plenty.
+        if (!$this->limiter->allow('export', (string) $account->id, 1, 300)) {
+            return $this->json->respond($request, 429, [
+                'error'             => 'rate_limit_exceeded',
+                'error_description' => 'An export was started for this account in the last five minutes; try again later',
+            ], ['retry-after' => '300']);
+        }
+
+        $accountId = $account->id;
+        $siteId    = $site?->id;
+        $links     = $this->links;
+
+        // One record per line: JSON allows whitespace between values, and a
+        // file this size is far easier to grep, diff or stream line by line.
+        $writer = static function () use ($accountId, $siteId, $links): void {
+            echo '{"type":"feed","name":"Webmentions","children":[', "\n";
+            $after = 0;
+            $first = true;
+            do {
+                $batch = $links->exportBatch($accountId, $siteId, $after, self::EXPORT_BATCH);
+                foreach ($batch as $link) {
+                    echo $first ? '' : ",\n", JsonResponder::encode(Jf2Format::entry($link));
+                    $first = false;
+                    $after = $link->id;
+                }
+                if (function_exists('flush')) {
+                    flush();
+                }
+            } while (count($batch) === self::EXPORT_BATCH);
+            echo "\n]}\n";
+        };
+
+        $name = preg_replace('/[^A-Za-z0-9.\-]+/', '-', (string) ($site?->domain ?? $account->domain ?? 'account'));
+
+        return Response::stream($writer, [
+            'content-type'        => 'application/json;charset=UTF-8',
+            'cache-control'       => 'no-store',
+            'content-disposition' => 'attachment; filename="webmentions-' . $name . '-' . gmdate('Y-m-d') . '.jf2.json"',
+            // Let nginx pass each batch on as it is written rather than
+            // holding the whole file first.
+            'x-accel-buffering'   => 'no',
+        ]);
     }
 
     /**
@@ -231,11 +321,14 @@ final class ApiController extends Controller
         ]);
     }
 
-    /** @param list<Link> $links */
-    private function render(Request $request, string $format, array $links, ?Account $account): Response
+    /**
+     * @param list<Link>                                                    $links
+     * @param array{per-page: int, page: int, total: int, total-pages: int} $paging
+     */
+    private function render(Request $request, string $format, array $links, ?Account $account, array $paging): Response
     {
         return match ($format) {
-            'jf2'  => $this->json->respond($request, 200, Jf2Format::feed($links)),
+            'jf2'  => $this->json->respond($request, 200, [...Jf2Format::feed($links), 'paging' => $paging]),
             // Feeds fetched with a token must not be kept by a shared cache.
             'atom' => Response::make(200, AtomFormat::feed($links, $this->config->baseUrl()), [
                 'content-type'                => 'application/atom+xml;charset=UTF-8',
@@ -246,7 +339,7 @@ final class ApiController extends Controller
                 'account' => $account?->username,
                 'links'   => array_map(self::feedEntry(...), $links),
             ]))->withHeader('content-security-policy', self::FEED_CSP)->withHeader('cache-control', 'no-store'),
-            default => $this->json->respond($request, 200, JsonFormat::links($links)),
+            default => $this->json->respond($request, 200, [...JsonFormat::links($links), 'paging' => $paging]),
         };
     }
 
@@ -280,9 +373,11 @@ final class ApiController extends Controller
             $limit = (int) $request->input('per-page');
         }
         $limit = min(max(0, $limit), self::MAX_PER_PAGE);
-        $links = array_slice($links, self::offset((int) $request->input('page'), $limit), $limit);
+        $page  = max(0, (int) $request->input('page'));
+        $total = count($links);
+        $links = array_slice($links, self::offset($page, $limit), $limit);
 
-        return $this->json->respond($request, 200, Jf2Format::feed($links));
+        return $this->json->respond($request, 200, [...Jf2Format::feed($links), 'paging' => self::paging($limit, $page, $total)]);
     }
 
     /** The count endpoint's answer for the sample data. @param array<string, string> $params */

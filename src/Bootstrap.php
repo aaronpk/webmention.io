@@ -147,6 +147,7 @@ final class Bootstrap
             $c->get(PageRepository::class),
             $c->get(LinkRepository::class),
             $config,
+            $c->get(RateLimiter::class),
         ));
 
         $c->set(WebmentionController::class, static fn (Container $c): WebmentionController => new WebmentionController(
@@ -220,6 +221,8 @@ final class Bootstrap
         $r->get('/api/count.json', [ApiController::class, 'count']);
         $r->get('/api/example/mentions.jf2', [ApiController::class, 'exampleMentions']);
         $r->get('/api/example/count', [ApiController::class, 'exampleCount']);
+        $r->get('/api/export', [ApiController::class, 'export']);
+        $r->get('/api/export.jf2', [ApiController::class, 'export']);
         $r->get('/api/deleted', [ApiController::class, 'deleted']);
         $r->get('/api/deleted.jf2', [ApiController::class, 'deleted']);
         $r->get('/api/{kind}', [ApiController::class, 'mentions']);

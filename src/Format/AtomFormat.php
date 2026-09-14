@@ -77,31 +77,72 @@ final class AtomFormat
         $xml->writeElement('title', "$host $verb $targetPath");
         $xml->writeElement('id', $baseUrl . '/api/mention/' . $link->id);
         $xml->writeElement('updated', ($link->updatedDate() ?? new DateTimeImmutable('now', new DateTimeZone('UTC')))->format(DATE_ATOM));
+
+        if (($published = Jf2Format::publishedDate($link)) !== null) {
+            $xml->writeElement('published', $published->format(DATE_ATOM));
+        }
+
+        // The person, not the service: readers show this next to the entry.
+        $xml->startElement('author');
+        $xml->writeElement('name', self::clean(Url::blank($link->authorName) ? $host : (string) $link->authorName));
+        if (self::isHttp($link->authorUrl)) {
+            $xml->writeElement('uri', self::clean((string) $link->authorUrl));
+        }
+        $xml->endElement();
+
+        $permalink = $link->absoluteUrl();
+        if (self::isHttp($permalink)) {
+            $xml->startElement('link');
+            $xml->writeAttribute('rel', 'alternate');
+            $xml->writeAttribute('href', self::clean((string) $permalink));
+            $xml->endElement();
+        }
+
         $xml->writeElement('summary', "$source $verb $target");
 
-        $xml->startElement('content');
-        $xml->writeAttribute('type', 'xhtml');
-        $xml->writeAttribute('xml:lang', 'en');
-        // Indenting mixed content would change the text, so the xhtml is written flat.
-        $xml->setIndent(false);
-        $xml->startElement('div');
-        $xml->writeAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-        $xml->startElement('p');
-        $xml->startElement('a');
-        $xml->writeAttribute('href', $source);
-        $xml->text($source);
-        $xml->endElement();
-        $xml->text(" $verb ");
-        $xml->startElement('a');
-        $xml->writeAttribute('href', $target);
-        $xml->text($target);
-        $xml->endElement();
-        $xml->endElement(); // p
-        $xml->endElement(); // div
-        $xml->endElement(); // content
-        $xml->setIndent(true);
+        // What they wrote, when there is anything: the mention's html, else
+        // its text, summary or name; otherwise a sentence saying who linked
+        // to what, as the feed always had.
+        if (!Url::blank($link->content)) {
+            $xml->startElement('content');
+            $xml->writeAttribute('type', 'html');
+            $xml->text(self::clean((string) $link->content));
+            $xml->endElement();
+        } elseif (!Url::blank($link->contentText) || !Url::blank($link->summary) || !Url::blank($link->name)) {
+            $xml->startElement('content');
+            $xml->writeAttribute('type', 'text');
+            $xml->text(self::clean((string) (Url::blank($link->contentText) ? (Url::blank($link->summary) ? $link->name : $link->summary) : $link->contentText)));
+            $xml->endElement();
+        } else {
+            $xml->startElement('content');
+            $xml->writeAttribute('type', 'xhtml');
+            $xml->writeAttribute('xml:lang', 'en');
+            // Indenting mixed content would change the text, so the xhtml is written flat.
+            $xml->setIndent(false);
+            $xml->startElement('div');
+            $xml->writeAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+            $xml->startElement('p');
+            $xml->startElement('a');
+            $xml->writeAttribute('href', $source);
+            $xml->text($source);
+            $xml->endElement();
+            $xml->text(" $verb ");
+            $xml->startElement('a');
+            $xml->writeAttribute('href', $target);
+            $xml->text($target);
+            $xml->endElement();
+            $xml->endElement(); // p
+            $xml->endElement(); // div
+            $xml->endElement(); // content
+            $xml->setIndent(true);
+        }
 
         $xml->endElement(); // entry
+    }
+
+    private static function isHttp(?string $url): bool
+    {
+        return $url !== null && preg_match('#^https?://#i', $url) === 1;
     }
 
     public static function verb(?string $type): string

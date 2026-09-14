@@ -59,6 +59,45 @@ final class JsonAndAtomFormatTest extends TestCase
         self::assertArrayNotHasKey('rsvp', $json['data']);
     }
 
+    public function testAtomEntriesCarryTheAuthorLinkAndContent(): void
+    {
+        $xml = AtomFormat::feed([
+            Links::make([
+                'id'           => 1,
+                'author_name'  => 'Joe & Jane',
+                'author_url'   => 'https://source.example.org/',
+                'url'          => 'https://source.example.org/reply/1',
+                'content'      => '<p>Nice <b>post</b> &amp; thanks</p>',
+                'content_text' => 'Nice post & thanks',
+                'type'         => 'reply',
+            ]),
+            Links::make(['id' => 2, 'name' => 'Only a title', 'author_name' => '']),
+            Links::make(['id' => 3, 'type' => 'like', 'author_url' => 'javascript:alert(1)']),
+        ], 'https://webmention.io');
+
+        $doc = simplexml_load_string($xml);
+        self::assertNotFalse($doc);
+        $doc->registerXPathNamespace('a', 'http://www.w3.org/2005/Atom');
+        $entries = $doc->xpath('//a:entry');
+
+        self::assertSame('Joe & Jane', (string) $entries[0]->author->name);
+        self::assertSame('https://source.example.org/', (string) $entries[0]->author->uri);
+        self::assertSame('https://source.example.org/reply/1', (string) $entries[0]->link['href']);
+        self::assertSame('html', (string) $entries[0]->content['type']);
+        self::assertSame('<p>Nice <b>post</b> &amp; thanks</p>', (string) $entries[0]->content);
+        self::assertSame('2016-02-19T09:16:07+00:00', (string) $entries[0]->published);
+
+        // No content: the name as text, and the source host as the author.
+        self::assertSame('text', (string) $entries[1]->content['type']);
+        self::assertSame('Only a title', (string) $entries[1]->content);
+        self::assertSame('source.example.org', (string) $entries[1]->author->name);
+
+        // Nothing at all: the old "X liked Y" xhtml block; an unsafe author URL is left out.
+        self::assertSame('xhtml', (string) $entries[2]->content['type']);
+        self::assertEmpty($entries[2]->author->uri);
+        self::assertStringNotContainsString('javascript:', $xml);
+    }
+
     public function testAtomFeedIsWellFormedAndDescribesEachMention(): void
     {
         $xml = AtomFormat::feed([

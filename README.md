@@ -171,6 +171,14 @@ Basic paging is supported by using the `per-page` and `page` parameters. For exa
 
 The default number of results per page is 20, and the most is 1000. A query may name up to 50 `target[]` URLs.
 
+Every JSON and jf2 response says where it sits, so a client knows whether to fetch another page:
+
+```json
+"paging": {"per-page": 20, "page": 0, "total": 93, "total-pages": 5}
+```
+
+`total` is how many mentions match the query in all; `total-pages` follows from `per-page`.
+
 
 ### Finding New Mentions
 
@@ -188,6 +196,27 @@ You can use the `since` or `since_id` parameters to find new mentions retrieved 
 * `/api/mentions.html` - a Microformats h-feed you can subscribe to in a reader
 
 `/api/links` is an alias of `/api/mentions`.
+
+### Export everything
+
+```
+GET https://webmention.io/api/export.jf2?token=xxxxx
+GET https://webmention.io/api/export.jf2?token=xxxxx&domain=example.com
+```
+
+Streams every published mention on your account (or one site) as a single jf2 feed, oldest first, private ones included, as a file download. It is meant for backups and for moving to another service, so it can only be started once every five minutes per account.
+
+### Show mentions on your page
+
+A small script renders a page's mentions with no dependencies: likes, reposts and bookmarks as a row of avatars, replies and mentions as a list. Everything is built from the API data with DOM calls, so nothing in a mention can add markup to your page.
+
+```html
+<div data-webmention-target="https://example.com/post/"></div>
+<link rel="stylesheet" href="https://webmention.io/assets/webmention-render.css">
+<script src="https://webmention.io/js/webmention-render.js" defer></script>
+```
+
+Leave out `data-webmention-target` to use the current page's URL. While developing, add `data-webmention-api="https://webmention.io/api/example/mentions.jf2"` to render the example feed. Add `data-webmention-html` if you would rather show each mention's sanitised `content.html` than its plain text. The styles are all under `.webmentions`, so replace or override them freely.
 
 
 ### Example data for testing
@@ -208,7 +237,7 @@ The API also supports JSONP so you can use it to show webmentions on your own si
 
 ### Atom
 
-You can change `/mentions` to `/mentions.atom` to receive your results in the [Atom] format:
+You can change `/mentions` to `/mentions.atom` to receive your results in the [Atom] format. Each entry carries the author, a link to the mention, and its content (or summary or name) when there is any:
 
 [Atom]: https://en.wikipedia.org/wiki/Atom_(Web_standard)
 
