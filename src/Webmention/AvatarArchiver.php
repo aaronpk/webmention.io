@@ -34,6 +34,13 @@ final class AvatarArchiver
             return $originalUrl;
         }
 
+        // CA3DB hands SVGs back with a download disposition, so a browser
+        // won't show them (issue 204). Until it rasterises them or serves
+        // image/svg+xml safely, an SVG avatar keeps its original URL.
+        if (preg_match('/\.svg$/i', (string) parse_url($originalUrl, PHP_URL_PATH)) === 1) {
+            return $originalUrl;
+        }
+
         // CA3DB fetches whatever URL it is given, so it only gets ones this app
         // would fetch itself.
         if ($this->http->blockedReason($originalUrl) !== null) {
