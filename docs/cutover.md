@@ -11,7 +11,7 @@ Both apps use the same database schema and the same Redis keys for webmention st
 * **Sign-in uses the user's own IndieAuth server**, discovered from their website, instead of indieauth.com.
 * **Pingback is gone.** `POST /{user}/xmlrpc` and `POST /webmention?forward=` return 404.
 * **FedCM sign-in and the Munin `/stats` endpoints are gone.**
-* **Bug fixes that change output**: see "Major bugs fixed" in PLAN.md. The ones API consumers could notice:
+* **Bug fixes that change output**: see "Bugs in the Ruby app fixed by the rewrite" below. The ones API consumers could notice:
   * `.jf2` requests that used to fail with a 500 (links with no author photo, targets without a scheme) now return data.
   * Emoji in names and content are stored correctly instead of as `????` (issue 221). The Ruby app's database connection spoke three-byte `utf8`, so the server replaced each byte of a four-byte character with `?` on the way in. This app connects as `utf8mb4`. Rows damaged before the switch are not rewritten; re-sending the webmention refreshes one.
   * Relative author URLs with a fragment (`about#me`) keep the `#` instead of `%23`.
@@ -145,3 +145,34 @@ The indexes can stay; the Ruby app's queries benefit from them too.
 * **Re-sanitise old GitHub-sourced content.** Before XRay v2.0.1 (fixed and bundled here on 2026-09-13), XRay's GitHub format stored issue and comment bodies as raw HTML in `links.content`. Rows received from `github.com` sources through the hosted XRay may still carry markup that the current parser would strip, and every API format serves `content` as stored. Once traffic is on the new app, run a one-off pass over `links WHERE domain = 'github.com'` that passes `content` through `p3k\XRay\Formats\Format::sanitizeHTML()` and writes back only the rows that change.
 * The `debugs` table, `links.notification_id` and the `accounts.pingback_enabled`, `tiktokbot_*` and `xmpp_*` columns are no longer used. They can be dropped whenever convenient; nothing needs them gone.
 * `bin/worker` exits after 1000 jobs and systemd starts a fresh one, which keeps memory and connections from going stale.
+
+
+## Bugs in the Ruby app fixed by the rewrite
+
+Found while porting and in the security review, and behaving differently here on purpose.
+
+1. **`POST /webhook/configure` has no ownership check.** Any logged-in user can set any site's callback URL and receive its webhooks. This app scopes it to the user's sites.
+2. **`POST /delete` by id always passes its ownership check**, because it uses `=` instead of `==`. Any user can delete any link. This app adds a real check.
+3. **Several POST forms lack CSRF.** `change_token`, `sites/new` and `webhook/configure` have none. This app adds a session CSRF token to every POST.
+4. **The `jsonp` callback is echoed raw.** This app restricts it to `[A-Za-z0-9_.$]`.
+5. **Any XRay error on re-send hard-deletes an existing mention**, including timeouts, DNS or SSL errors, and 5xx. This app deletes only on `no_link_found`, `not_found` and HTTP 410, and leaves other errors alone. 
+6. **Some responses crash:**
+   - jf2 on links with a NULL `author_photo`
+   - atom/html error responses (Ruby handed a hash to the XML writer)
+   - `/delete` with a bad `source`
+   - negative `page` values
+
+   This app makes these graceful: error responses for atom/html are JSON, and `page` is clamped to 0.
+7. **`sort-by=rsvp` is broken.** Ruby sorts only one page, and only in target mode. This app does it in SQL: `FIELD(type,'rsvp-no','rsvp-interested','rsvp-maybe','rsvp-yes')` followed by created_at.
+8. **RSVP values are stored unvalidated.** Live data contains `rsvp-marty mcguire`. This app only accepts yes/no/maybe/interested and otherwise treats the post as a reply/mention. Existing rows are untouched.
+9. **`/settings/sites/new` accepts garbage.** This app normalizes the domain (lowercase, strip scheme and path) and rejects empty or duplicate entries.
+
+Found during implementation and the overnight review (2026-09-14):
+
+10. **Server-side request forgery.** Fetches used to happen on the hosted XRay service; now they run next to Redis and the database. A private webmention's token endpoint comes from the source's headers, so a `gopher://` URL could send commands to Redis, where sessions live. Sources could also point at internal addresses. This app sends every outgoing request through `SafeTransport`: http/https only, public addresses only, each redirect checked, resolved address pinned.
+11. **Accounts whose username isn't their domain lost webmentions.** The controller accepted `/{domain}/webmention`, but the worker looked the account up again by username only (`target_not_found`). Jobs now carry the account id.
+12. **A private webmention's web hook said `post.wm-private: false`**, because Ruby set `is_private` after sending the hook.
+13. **A deleted post (HTTP 410) didn't remove the mention.** XRay treats 410 as a success and throws on an empty body. The status is now checked directly.
+14. **Emoji were stored as `????`** in names, content and author names. The new connection stores them intact.
+15. **A huge `page` value overflowed the offset and returned a 500.**
+16. **Listing or counting a very busy page's mentions took ~9s** (http://tantek.com/ has 172k). Covering indexes on `links` bring it under 40ms (`database/migrations/2026-09-14-links-by-page.sql`).
