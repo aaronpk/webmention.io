@@ -127,15 +127,78 @@ final class AuthController extends Controller
         }
 
         $this->configureClient();
-        $entered = isset($_SESSION['indieauth_entered_url']) ? (string) $_SESSION['indieauth_entered_url'] : null;
+        // The library clears its session data on failure, so note now which
+        // endpoint the code is about to be redeemed at (for the log) and the
+        // PKCE verifier (for a second attempt at the token endpoint).
+        $entered  = isset($_SESSION['indieauth_entered_url']) ? (string) $_SESSION['indieauth_entered_url'] : null;
+        $authEndpoint = isset($_SESSION['indieauth_authorization_endpoint']) ? (string) $_SESSION['indieauth_authorization_endpoint'] : null;
+        $endpoint = isset($_SESSION['indieauth_token_endpoint']) ? (string) $_SESSION['indieauth_token_endpoint'] : $authEndpoint;
+        $verifier = isset($_SESSION['indieauth_code_verifier']) ? (string) $_SESSION['indieauth_code_verifier'] : null;
 
         [$response, $error] = Client::complete($request->query);
 
         if ($error) {
-            return $this->failure($error, me: $entered, via: 'indieauth');
+            // The exchange happened (state checked, code sent) but the
+            // authorization endpoint did not answer with a profile URL. Some
+            // older servers only redeem codes at their token endpoint; try
+            // there before giving up.
+            if (isset($error['debug']) && $entered !== null && $authEndpoint !== null && $verifier !== null && $endpoint === $authEndpoint) {
+                $retried = $this->redeemAtTokenEndpoint($request, $entered, $authEndpoint, $verifier, $error);
+                if ($retried !== null) {
+                    return $retried;
+                }
+            }
+
+            return $this->failure($error, me: $entered, via: 'indieauth', endpoint: $endpoint);
         }
 
         return $this->signInAs((string) $response['me'], 'indieauth');
+    }
+
+    /**
+     * Redeem the code at the site's token endpoint, when it advertises one
+     * that differs from the authorization endpoint just tried. Returns null
+     * when there is no such endpoint, so the original failure stands.
+     *
+     * @param array<string, mixed> $original The failure from the first attempt.
+     */
+    private function redeemAtTokenEndpoint(Request $request, string $entered, string $authEndpoint, string $verifier, array $original): ?Response
+    {
+        $tokenEndpoint = Client::discoverTokenEndpoint($entered);
+        if (!is_string($tokenEndpoint) || $tokenEndpoint === '' || $tokenEndpoint === $authEndpoint) {
+            return null;
+        }
+
+        $this->log->info("Sign-in for $entered: $authEndpoint did not redeem the code" . self::describeExchange($original['debug'] ?? null, null) . "; trying token endpoint $tokenEndpoint");
+
+        $data = Client::exchangeAuthorizationCode($tokenEndpoint, [
+            'code'          => (string) $request->query('code'),
+            'redirect_uri'  => Client::$redirectURL,
+            'client_id'     => Client::$clientID,
+            'code_verifier' => $verifier,
+        ]);
+
+        $me = $data['response']['me'] ?? null;
+        if (!is_string($me) || $me === '') {
+            return $this->failure([
+                'error'             => (string) ($data['response']['error'] ?? 'indieauth_error'),
+                'error_description' => (string) ($data['response']['error_description'] ?? 'The authorization server did not return a valid response'),
+                'debug'             => $data,
+            ], me: $entered, via: 'indieauth', endpoint: $tokenEndpoint);
+        }
+
+        // As the library does: a different profile URL than was entered must
+        // declare the same authorization endpoint, or anyone's server could
+        // vouch for anyone's URL.
+        $me = (string) Client::normalizeMeURL($me);
+        if ($me !== $entered && Client::discoverAuthorizationEndpoint($me) !== $authEndpoint) {
+            return $this->failure([
+                'error'             => 'invalid_authorization_endpoint',
+                'error_description' => 'The authorization server of the returned profile URL did not match the initial authorization server',
+            ], me: $entered, via: 'indieauth', endpoint: $tokenEndpoint);
+        }
+
+        return $this->signInAs($me, 'indieauth');
     }
 
     /**
@@ -338,6 +401,46 @@ final class AuthController extends Controller
         return str_replace('/', '_', $me);
     }
 
+    /**
+     * What the authorization server actually answered when a code was
+     * redeemed, for the log: the endpoint, the HTTP status, the content type
+     * and the start of the body. The library passes its exchange data as
+     * "debug" on that kind of failure. The code and verifier are not in it.
+     *
+     * @param mixed $debug
+     */
+    public static function describeExchange(mixed $debug, ?string $endpoint): string
+    {
+        if ($endpoint === null && !is_array($debug)) {
+            return '';
+        }
+
+        $parts = [];
+        if ($endpoint !== null) {
+            $parts[] = "endpoint $endpoint";
+        }
+
+        if (is_array($debug)) {
+            $details = is_array($debug['response_details'] ?? null) ? $debug['response_details'] : [];
+            $code    = (int) ($debug['response_code'] ?? $details['code'] ?? 0);
+            $parts[] = $code > 0 ? "HTTP $code" : 'no HTTP response';
+
+            $transportError = trim((string) ($details['error_description'] ?? '') ?: (string) ($details['error'] ?? ''));
+            if ($transportError !== '') {
+                $parts[] = "transport: $transportError";
+            }
+
+            if (preg_match('/^content-type:\s*([^\r\n]+)/im', (string) ($details['header'] ?? ''), $m) === 1) {
+                $parts[] = 'type ' . trim($m[1]);
+            }
+
+            $body = trim((string) preg_replace('/\s+/', ' ', (string) ($debug['raw_response'] ?? '')));
+            $parts[] = $body === '' ? 'empty body' : 'body "' . mb_strimwidth($body, 0, 300, '…') . '"';
+        }
+
+        return ' [' . implode('; ', $parts) . ']';
+    }
+
     private function configureClient(): PinnedHttp
     {
         Client::$clientID    = $this->config->baseUrl() . '/id';
@@ -355,16 +458,17 @@ final class AuthController extends Controller
      *
      * @param array<string, mixed> $error
      */
-    private function failure(array $error, int $status = 400, ?string $me = null, string $via = 'indieauth'): Response
+    private function failure(array $error, int $status = 400, ?string $me = null, string $via = 'indieauth', ?string $endpoint = null): Response
     {
         $description = trim((string) ($error['error_description'] ?? '') ?: (string) ($error['error'] ?? 'Unknown error'));
 
         $this->log->warning(sprintf(
-            'Sign-in failed (%s) for %s: %s%s',
+            'Sign-in failed (%s) for %s: %s%s%s',
             $via,
             $me ?? '(no profile URL)',
             isset($error['error']) ? $error['error'] . ': ' : '',
             $description,
+            self::describeExchange($error['debug'] ?? null, $endpoint),
         ));
 
         return $this->page('message', 'Sign-in failed', [

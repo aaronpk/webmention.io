@@ -244,6 +244,71 @@ final class AuthFlowTest extends IntegrationTestCase
         self::assertStringNotContainsString('forged', $written, 'state values stay out of the log');
     }
 
+    public function testCodeIsRedeemedAtTheTokenEndpointWhenTheAuthorizationEndpointWillNot(): void
+    {
+        // An older server pair: the authorization endpoint only issues codes
+        // and answers a redemption with a redirect; the token endpoint redeems.
+        $this->http->respond('GET', 'https://lee.example/', 200, '<html><head><link rel="authorization_endpoint" href="https://old.example/authorization"><link rel="token_endpoint" href="https://old.example/token"></head><body>Hi</body></html>', ['Content-Type' => 'text/html']);
+        $location = $this->startSignIn('https://lee.example/');
+        self::assertStringStartsWith('https://old.example/authorization?', $location);
+        parse_str((string) parse_url($location, PHP_URL_QUERY), $params);
+
+        $this->http->respond('POST', 'https://old.example/authorization', 303, '', ['Location' => '/login?redirect=%2Fauthorization']);
+        $this->http->respond('POST', 'https://old.example/token', 200, '{"access_token":"t0k3n","token_type":"Bearer","me":"https://lee.example/"}', ['Content-Type' => 'application/json']);
+
+        $response = $this->request('GET', '/auth/callback', ['code' => 'c0de', 'state' => $params['state']]);
+
+        self::assertSame(302, $response->status, $response->body);
+        self::assertSame('/settings/sites', $response->header('location'));
+        self::assertNotNull($this->service(AccountRepository::class)->findByDomain('lee.example'));
+
+        self::assertCount(1, $this->http->posts('https://old.example/authorization'));
+        $retry = $this->http->posts('https://old.example/token');
+        self::assertCount(1, $retry);
+        parse_str((string) $retry[0]['body'], $body);
+        self::assertSame('c0de', $body['code']);
+        self::assertSame('https://webmention.io/id', $body['client_id']);
+        self::assertSame($params['code_challenge'], rtrim(strtr(base64_encode(hash('sha256', $body['code_verifier'], true)), '+/', '-_'), '='), 'same PKCE verifier');
+        self::assertSame(0, $this->db->value('SELECT COUNT(*) FROM accounts WHERE token = ?', ['t0k3n']), 'the access token is not kept anywhere');
+    }
+
+    public function testTokenEndpointCannotVouchForSomeoneElsesUrl(): void
+    {
+        $this->http->respond('GET', 'https://max.example/', 200, '<html><head><link rel="authorization_endpoint" href="https://old.example/authorization"><link rel="token_endpoint" href="https://old.example/token"></head></html>', ['Content-Type' => 'text/html']);
+        $this->http->respond('GET', 'https://victim.example/', 200, '<html><head><link rel="authorization_endpoint" href="https://auth.example/auth"></head></html>', ['Content-Type' => 'text/html']);
+        parse_str((string) parse_url($this->startSignIn('https://max.example/'), PHP_URL_QUERY), $params);
+
+        $this->http->respond('POST', 'https://old.example/authorization', 303, '', ['Location' => '/login']);
+        $this->http->respond('POST', 'https://old.example/token', 200, '{"me":"https://victim.example/"}', ['Content-Type' => 'application/json']);
+
+        $response = $this->request('GET', '/auth/callback', ['code' => 'c0de', 'state' => $params['state']]);
+
+        self::assertSame(400, $response->status);
+        self::assertArrayNotHasKey('user_id', $_SESSION);
+        self::assertNull($this->service(AccountRepository::class)->findByDomain('victim.example'));
+    }
+
+    public function testAnUnusableAnswerFromTheAuthorizationServerIsLoggedInDetail(): void
+    {
+        $log = sys_get_temp_dir() . '/webmention-test.log';
+        @unlink($log);
+        $this->fakeProfile('kim.example');
+        parse_str((string) parse_url($this->startSignIn('https://kim.example/'), PHP_URL_QUERY), $params);
+
+        // A server that answers the code redemption with an HTML page instead of the profile URL.
+        $this->http->respond('POST', 'https://auth.example/auth', 200, "<html>\n  <body>Please   sign in</body></html>", ['Content-Type' => 'text/html; charset=utf-8']);
+        $response = $this->request('GET', '/auth/callback', ['code' => 'secret-code', 'state' => $params['state']]);
+        self::assertSame(400, $response->status);
+
+        $written = (string) @file_get_contents($log);
+        self::assertStringContainsString('Sign-in failed (indieauth) for https://kim.example/: indieauth_error: The authorization server did not return a valid response', $written);
+        self::assertStringContainsString('endpoint https://auth.example/auth', $written);
+        self::assertStringContainsString('HTTP 200', $written);
+        self::assertStringContainsString('type text/html; charset=utf-8', $written);
+        self::assertStringContainsString('body "<html> <body>Please sign in</body></html>"', $written, 'whitespace collapsed');
+        self::assertStringNotContainsString('secret-code', $written);
+    }
+
     public function testSignInCannotBeStartedFromAnotherSite(): void
     {
         $this->fakeProfile('mallory.example');
