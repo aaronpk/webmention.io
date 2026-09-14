@@ -107,14 +107,141 @@ final class AuthFlowTest extends IntegrationTestCase
         self::assertArrayNotHasKey('user_id', $_SESSION);
     }
 
-    public function testSiteWithoutAnAuthorizationEndpointGetsAnError(): void
+    public function testSiteWithOnlyRelMeLinksIsSignedInThroughIndielogin(): void
     {
-        $this->http->respond('GET', 'https://nobody.example/', 200, '<html><body>No IndieAuth here</body></html>', ['Content-Type' => 'text/html']);
+        $this->http->respond('GET', 'https://nobody.example/', 200, '<html><head><link rel="me" href="https://github.com/nobody"></head><body>No IndieAuth here</body></html>', ['Content-Type' => 'text/html']);
 
-        $response = $this->request('POST', '/auth/start', post: ['me' => 'https://nobody.example/'], headers: self::SAME_ORIGIN);
+        $location = $this->startSignIn('https://nobody.example/');
+        self::assertStringStartsWith('https://indielogin.com/authorize?', $location);
+        parse_str((string) parse_url($location, PHP_URL_QUERY), $params);
+        self::assertSame('https://nobody.example/', $params['me']);
+        self::assertSame('https://webmention.io/', $params['client_id'], 'indielogin wants the app home page, on the same host as the redirect');
+        self::assertSame('https://webmention.io/auth/callback', $params['redirect_uri']);
+        self::assertSame('S256', $params['code_challenge_method']);
+        self::assertNotEmpty($params['state']);
+
+        $this->http->respond('POST', 'https://indielogin.com/token', 200, '{"me":"https://nobody.example/"}', ['Content-Type' => 'application/json']);
+        $response = $this->request('GET', '/auth/callback', ['code' => 'c0de', 'state' => $params['state'], 'iss' => 'https://indielogin.com/']);
+
+        self::assertSame(302, $response->status, $response->body);
+        self::assertSame('/settings/sites', $response->header('location'));
+        $account = $this->service(AccountRepository::class)->findByDomain('nobody.example');
+        self::assertNotNull($account);
+        self::assertSame($account->id, $_SESSION['user_id']);
+        self::assertArrayNotHasKey('indielogin_state', $_SESSION);
+
+        $exchange = $this->http->posts('https://indielogin.com/token')[0];
+        parse_str((string) $exchange['body'], $body);
+        self::assertSame('c0de', $body['code']);
+        self::assertSame('https://webmention.io/', $body['client_id']);
+        self::assertSame('https://webmention.io/auth/callback', $body['redirect_uri']);
+        self::assertSame($params['code_challenge'], rtrim(strtr(base64_encode(hash('sha256', $body['code_verifier'], true)), '+/', '-_'), '='), 'PKCE verifier matches the challenge');
+        self::assertContains('Accept: application/json', $exchange['headers']);
+    }
+
+    public function testIndieloginCallbackIsCheckedAndItsErrorsShown(): void
+    {
+        // One host per start: the library caches fetched pages for the whole process.
+        foreach (['lonely1', 'lonely2', 'lonely3'] as $host) {
+            $this->http->respond('GET', "https://$host.example/", 200, '<html><body>rel=me only</body></html>', ['Content-Type' => 'text/html']);
+        }
+
+        // Forged state.
+        $this->startSignIn('https://lonely1.example/');
+        $response = $this->request('GET', '/auth/callback', ['code' => 'x', 'state' => 'forged']);
+        self::assertSame(400, $response->status);
+        self::assertArrayNotHasKey('user_id', $_SESSION);
+        self::assertSame([], $this->http->posts('https://indielogin.com/token'), 'nothing is redeemed');
+
+        // Wrong issuer.
+        parse_str((string) parse_url($this->startSignIn('https://lonely2.example/'), PHP_URL_QUERY), $params);
+        $response = $this->request('GET', '/auth/callback', ['code' => 'x', 'state' => $params['state'], 'iss' => 'https://evil.example/']);
+        self::assertSame(400, $response->status);
+        self::assertStringContainsString('unexpected server', $response->body);
+
+        // indielogin declined.
+        parse_str((string) parse_url($this->startSignIn('https://lonely3.example/'), PHP_URL_QUERY), $params);
+        $this->http->respond('POST', 'https://indielogin.com/token', 400, '{"error":"invalid_request","error_description":"The code provided was not valid"}', ['Content-Type' => 'application/json']);
+        $response = $this->request('GET', '/auth/callback', ['code' => 'bad', 'state' => $params['state']]);
+        self::assertSame(400, $response->status);
+        self::assertStringContainsString('The code provided was not valid', $response->body);
+        self::assertArrayNotHasKey('user_id', $_SESSION);
+
+        // A callback with the state used once cannot be replayed.
+        $response = $this->request('GET', '/auth/callback', ['code' => 'bad', 'state' => $params['state']]);
+        self::assertSame(400, $response->status);
+    }
+
+    public function testAnUnreachableSiteIsAnErrorNotAHandOff(): void
+    {
+        $this->http->respond('GET', 'https://down.example/', 0, '', [], 'Could not resolve host: down.example');
+        $response = $this->request('POST', '/auth/start', post: ['me' => 'https://down.example/'], headers: self::SAME_ORIGIN);
+        self::assertSame(400, $response->status);
+        self::assertStringContainsString('could not be fetched', $response->body);
+
+        $this->http->respond('GET', 'https://gone.example/', 404, '<html><body>Not here</body></html>', ['Content-Type' => 'text/html']);
+        $response = $this->request('POST', '/auth/start', post: ['me' => 'https://gone.example/'], headers: self::SAME_ORIGIN);
+        self::assertSame(400, $response->status);
+        self::assertStringContainsString('(HTTP 404)', $response->body);
+    }
+
+    public function testIndieloginFallbackCanBeTurnedOff(): void
+    {
+        // A host no other test fetched: the library caches pages per process.
+        $this->http->respond('GET', 'https://alone.example/', 200, '<html><body>No IndieAuth here</body></html>', ['Content-Type' => 'text/html']);
+        putenv('INDIELOGIN_URL=off');
+        try {
+            $response = $this->request('POST', '/auth/start', post: ['me' => 'https://alone.example/'], headers: self::SAME_ORIGIN);
+        } finally {
+            putenv('INDIELOGIN_URL');
+        }
 
         self::assertSame(400, $response->status);
         self::assertStringContainsString('Could not find your authorization endpoint', $response->body);
+    }
+
+    public function testLegacyEndpointAnsweringFormEncodedSignsIn(): void
+    {
+        // Only rel="authorization_endpoint", no metadata; the code is redeemed
+        // at that endpoint and answered the pre-2020 way.
+        $this->fakeProfile('carol.example');
+        $location = $this->startSignIn('https://carol.example/');
+        self::assertStringStartsWith('https://auth.example/auth?', $location);
+        parse_str((string) parse_url($location, PHP_URL_QUERY), $params);
+
+        $this->http->respond('POST', 'https://auth.example/auth', 200, 'me=' . rawurlencode('https://carol.example/'), ['Content-Type' => 'application/x-www-form-urlencoded']);
+        $response = $this->request('GET', '/auth/callback', ['code' => 'legacy', 'state' => $params['state']]);
+
+        self::assertSame(302, $response->status, $response->body);
+        self::assertSame('/settings/sites', $response->header('location'));
+        self::assertNotNull($this->service(AccountRepository::class)->findByDomain('carol.example'));
+    }
+
+    public function testReturnedProfileUrlWithoutTrailingSlashIsTheSameAccount(): void
+    {
+        $this->fakeProfile('ivan.example');
+        $this->http->respond('GET', 'https://ivan.example', 200, '<html><head><link rel="authorization_endpoint" href="https://auth.example/auth"></head></html>', ['Content-Type' => 'text/html']);
+        $existing = $this->createAccount('ivan.example');
+
+        parse_str((string) parse_url($this->startSignIn('https://ivan.example/'), PHP_URL_QUERY), $params);
+        $this->http->respond('POST', 'https://auth.example/auth', 200, '{"me":"https://ivan.example"}', ['Content-Type' => 'application/json']);
+        $response = $this->request('GET', '/auth/callback', ['code' => 'x', 'state' => $params['state']]);
+
+        self::assertSame(302, $response->status, $response->body);
+        self::assertSame($existing->id, $_SESSION['user_id']);
+    }
+
+    public function testFailuresAreLogged(): void
+    {
+        $log = sys_get_temp_dir() . '/webmention-test.log';
+        @unlink($log);
+        $this->fakeProfile('judy.example');
+        $this->startSignIn('https://judy.example/');
+        $this->request('GET', '/auth/callback', ['code' => 'x', 'state' => 'forged']);
+
+        $written = (string) @file_get_contents($log);
+        self::assertStringContainsString('Sign-in failed (indieauth) for https://judy.example/', $written);
+        self::assertStringNotContainsString('forged', $written, 'state values stay out of the log');
     }
 
     public function testSignInCannotBeStartedFromAnotherSite(): void

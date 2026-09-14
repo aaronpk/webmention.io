@@ -10,14 +10,20 @@ use Webmention\Http\HttpException;
 use Webmention\Http\Request;
 use Webmention\Http\Response;
 use Webmention\Http\Session;
+use Webmention\Logging\Log;
 use Webmention\Storage\AccountRepository;
 use Webmention\View\Template;
 use Webmention\Webmention\HttpClient;
+use Webmention\Webmention\PinnedHttp;
 use Webmention\Webmention\RateLimiter;
 
 /**
  * Sign in with IndieAuth. The user's own authorization server is discovered
- * from their website.
+ * from their website: indieauth-metadata first, then the older
+ * rel="authorization_endpoint" link (the library tries both). A site with
+ * neither, typically one that only has rel="me" links, is handed to
+ * indielogin.com, which does RelMeAuth on our behalf and returns the
+ * profile URL the same way.
  *
  * Starting a sign-in is a POST from this site's own form. A GET link could be
  * planted anywhere and would begin a flow in the visitor's session with the
@@ -41,6 +47,7 @@ final class AuthController extends Controller
         private readonly HttpClient $http,
         private readonly RateLimiter $limiter,
         private readonly Config $config,
+        private readonly Log $log,
     ) {
         parent::__construct($view);
     }
@@ -80,12 +87,31 @@ final class AuthController extends Controller
         }
 
         $this->session->start($request);
-        $this->configureClient();
+        $http = $this->configureClient();
 
         [$authorizationUrl, $error] = Client::begin($normalized);
 
         if ($error) {
-            return $this->failure($error);
+            if (($error['error'] ?? '') === 'missing_authorization_endpoint') {
+                // The library says the same thing whether the page had no
+                // endpoint or could not be fetched at all; the transport
+                // remembers how the fetch went.
+                $status = $http->firstStatus();
+                if ($status === null || $status < 200 || $status >= 400) {
+                    return $this->failure([
+                        'error'             => 'unreachable',
+                        'error_description' => 'Your website could not be fetched' . ($status ? " (HTTP $status)" : '') . '. Check the address and that the site is up, then try again.',
+                    ], me: $normalized, via: 'indieauth');
+                }
+
+                // A site with no IndieAuth endpoint at all: let indielogin.com
+                // sign them in by their rel="me" links, as the old site did.
+                if (($indielogin = $this->indieloginUrl()) !== null) {
+                    return $this->startIndielogin($indielogin, $normalized);
+                }
+            }
+
+            return $this->failure($error, me: $normalized, via: 'indieauth');
         }
 
         return Response::redirect((string) $authorizationUrl);
@@ -95,17 +121,110 @@ final class AuthController extends Controller
     public function callback(Request $request, array $params): Response
     {
         $this->session->start($request);
+
+        if (isset($_SESSION['indielogin_state']) && !isset($_SESSION['indieauth_state'])) {
+            return $this->completeIndielogin($request);
+        }
+
         $this->configureClient();
+        $entered = isset($_SESSION['indieauth_entered_url']) ? (string) $_SESSION['indieauth_entered_url'] : null;
 
         [$response, $error] = Client::complete($request->query);
 
         if ($error) {
-            return $this->failure($error);
+            return $this->failure($error, me: $entered, via: 'indieauth');
         }
 
-        $me = (string) $response['me'];
+        return $this->signInAs((string) $response['me'], 'indieauth');
+    }
 
+    /**
+     * Hand the sign-in to indielogin.com: PKCE and state as with any
+     * authorization server. indielogin wants client_id to be the app's home
+     * page, on the same host as redirect_uri.
+     */
+    private function startIndielogin(string $indielogin, string $me): Response
+    {
+        $state    = Client::generateStateParameter();
+        $verifier = Client::generatePKCECodeVerifier();
+
+        unset($_SESSION['indieauth_entered_url']);
+        $_SESSION['indielogin_state']         = $state;
+        $_SESSION['indielogin_code_verifier'] = $verifier;
+        $_SESSION['indielogin_me']            = $me;
+
+        $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+
+        return Response::redirect($indielogin . '/authorize?' . http_build_query([
+            'me'                    => $me,
+            'client_id'             => $this->config->baseUrl() . '/',
+            'redirect_uri'          => $this->config->baseUrl() . '/auth/callback',
+            'state'                 => $state,
+            'code_challenge'        => $challenge,
+            'code_challenge_method' => 'S256',
+        ]));
+    }
+
+    private function completeIndielogin(Request $request): Response
+    {
+        $indielogin = $this->indieloginUrl() ?? 'https://indielogin.com';
+        $me         = (string) ($_SESSION['indielogin_me'] ?? '');
+        $state      = (string) ($_SESSION['indielogin_state'] ?? '');
+        $verifier   = (string) ($_SESSION['indielogin_code_verifier'] ?? '');
+        unset($_SESSION['indielogin_state'], $_SESSION['indielogin_code_verifier'], $_SESSION['indielogin_me']);
+
+        $fail = fn (string $code, string $description): Response => $this->failure(['error' => $code, 'error_description' => $description], me: $me, via: 'indielogin');
+
+        if ($request->query('error') !== null) {
+            return $fail((string) $request->query('error'), (string) ($request->query('error_description') ?? 'indielogin.com reported an error.'));
+        }
+        if ($state === '' || !hash_equals($state, (string) $request->query('state'))) {
+            return $fail('invalid_state', 'The sign-in did not come back the way it started. Please try again.');
+        }
+        if ($request->query('iss') !== null && (string) $request->query('iss') !== $indielogin . '/') {
+            return $fail('invalid_issuer', 'The sign-in came back from an unexpected server.');
+        }
+        if (($code = (string) $request->query('code')) === '') {
+            return $fail('invalid_response', 'indielogin.com did not return an authorization code.');
+        }
+
+        $response = $this->http->http(10)->post($indielogin . '/token', http_build_query([
+            'code'          => $code,
+            'client_id'     => $this->config->baseUrl() . '/',
+            'redirect_uri'  => $this->config->baseUrl() . '/auth/callback',
+            'code_verifier' => $verifier,
+        ]), ['Content-Type: application/x-www-form-urlencoded;charset=UTF-8', 'Accept: application/json']);
+
+        $data = json_decode((string) ($response['body'] ?? ''), true);
+        if (!is_array($data) || !is_string($data['me'] ?? null) || $data['me'] === '') {
+            return $fail(
+                (string) (is_array($data) ? ($data['error'] ?? '') : '') ?: 'indielogin_error',
+                (string) (is_array($data) ? ($data['error_description'] ?? '') : '')
+                    ?: (string) ($response['error_description'] ?? $response['error'] ?? '')
+                    ?: 'indielogin.com did not confirm the sign-in (HTTP ' . (int) ($response['code'] ?? 0) . ').',
+            );
+        }
+
+        return $this->signInAs($data['me'], 'indielogin');
+    }
+
+    /** Where to send people whose site has no IndieAuth endpoint; null when turned off. */
+    private function indieloginUrl(): ?string
+    {
+        $url = rtrim(trim((string) $this->config->get('INDIELOGIN_URL', 'https://indielogin.com')), '/');
+
+        return $url === 'off' || $url === '0' || !str_starts_with($url, 'https://') ? null : $url;
+    }
+
+    /**
+     * The profile URL an authorization server (or indielogin.com) vouched
+     * for becomes the account.
+     */
+    private function signInAs(string $me, string $via): Response
+    {
         if (parse_url($me, PHP_URL_QUERY) !== null) {
+            $this->log->warning("Sign-in failed ($via) for $me: profile URL has a query string");
+
             return $this->page('message', 'Sign-in failed', [
                 'heading' => 'Sign-in failed',
                 'message' => "Sorry, you can't use this service if your IndieAuth URL contains a query string. You signed in as $me. "
@@ -117,12 +236,12 @@ final class AuthController extends Controller
         // has to meet the same rules.
         $normalized = self::normalizeMe($me);
         if (is_array($normalized)) {
-            return $this->failure($normalized);
+            return $this->failure($normalized, me: $me, via: $via);
         }
 
         $domain = self::domainFor($normalized);
         if (strlen($domain) > self::MAX_ACCOUNT_NAME_BYTES) {
-            return $this->failure(['error_description' => 'Sorry, that profile URL is too long to use as an account name.']);
+            return $this->failure(['error_description' => 'Sorry, that profile URL is too long to use as an account name.'], me: $me, via: $via);
         }
 
         $account = $this->accounts->findByDomain($domain);
@@ -219,20 +338,38 @@ final class AuthController extends Controller
         return str_replace('/', '_', $me);
     }
 
-    private function configureClient(): void
+    private function configureClient(): PinnedHttp
     {
         Client::$clientID    = $this->config->baseUrl() . '/id';
         Client::$redirectURL = $this->config->baseUrl() . '/auth/callback';
         // Discovery fetches the URL someone typed in, so it goes through the safe transport too.
         Client::$http = $this->http->http(10);
+
+        return Client::$http;
     }
 
-    /** @param array<string, mixed> $error */
-    private function failure(array $error, int $status = 400): Response
+    /**
+     * Show the failure, and log it so a report can be traced: which site,
+     * which path (indieauth or indielogin) and what went wrong. Codes and
+     * state values are never logged.
+     *
+     * @param array<string, mixed> $error
+     */
+    private function failure(array $error, int $status = 400, ?string $me = null, string $via = 'indieauth'): Response
     {
+        $description = trim((string) ($error['error_description'] ?? '') ?: (string) ($error['error'] ?? 'Unknown error'));
+
+        $this->log->warning(sprintf(
+            'Sign-in failed (%s) for %s: %s%s',
+            $via,
+            $me ?? '(no profile URL)',
+            isset($error['error']) ? $error['error'] . ': ' : '',
+            $description,
+        ));
+
         return $this->page('message', 'Sign-in failed', [
             'heading' => 'Sign-in failed',
-            'message' => trim((string) ($error['error_description'] ?? '') ?: (string) ($error['error'] ?? 'Unknown error')),
+            'message' => $description,
         ], status: $status);
     }
 }

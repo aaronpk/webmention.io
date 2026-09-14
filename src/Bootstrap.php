@@ -175,6 +175,7 @@ final class Bootstrap
             $c->get(HttpClient::class),
             $c->get(RateLimiter::class),
             $config,
+            $c->get(Log::class),
         ));
 
         $c->set(DashboardController::class, static fn (Container $c): DashboardController => new DashboardController(
