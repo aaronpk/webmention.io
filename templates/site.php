@@ -36,10 +36,9 @@ $withCode = static fn (string $text): string => (string) preg_replace('#https?:/
     <?php } ?>
 
     <?php if ($site['verified']) { ?>
-        <p>This site was found to carry your webmention tag<?= $site['verified_on'] !== null ? ' on ' . $site['verified_on'] : '' ?>, so it is known to be yours.
-            Its mentions appear in public API results even if someone else adds the same domain to their account.</p>
+        <p>Your webmention tag was found on this site<?= $site['verified_on'] !== null ? ' on ' . $site['verified_on'] : '' ?>, so it is known to be yours.</p>
     <?php } else { ?>
-        <p>This site has not yet been seen to carry your webmention tag. It still receives its mentions, but if another account has verified
+        <p>Your webmention link was not yet found on this site. It still receives its mentions, but if another account has verified
             the same domain, only that account's mentions appear in public API results for it.</p>
         <?php if ($site['checked_on'] !== null) { ?>
             <p class="muted small">Last checked <?= $site['checked_on'] ?><?= $site['error'] !== null ? ': ' . $withCode($site['error']) : '' ?></p>
@@ -64,7 +63,7 @@ $withCode = static fn (string $text): string => (string) preg_replace('#https?:/
         <input type="hidden" name="site_id" value="<?= $site['id'] ?>">
 
         <h3>Web hook</h3>
-        <p class="muted small">Every webmention that verifies for this site is POSTed to the callback URL as JSON, with the secret in the body
+        <p class="muted small">Every verified webmention for this site is POSTed to the callback URL as JSON, with the secret in the body
             and a signature header. The payload is described in the <a href="/api#webhooks">API documentation</a>.</p>
         <div class="settings-grid">
             <div class="field">
