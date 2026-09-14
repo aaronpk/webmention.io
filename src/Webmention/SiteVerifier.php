@@ -49,7 +49,8 @@ final class SiteVerifier
      * advertise the endpoint on posts.
      *
      * The proof has to be served by the domain itself. Redirects are followed
-     * only while they stay on that host (http to https, a trailing slash); a
+     * only while they stay on that host (http to https, a trailing slash) or
+     * move between it and its "www." form, which the same person controls; a
      * redirect elsewhere proves nothing, or a link shortener could be claimed
      * by anyone with a short link to their own site.
      *
@@ -98,7 +99,7 @@ final class SiteVerifier
                         $problem ??= "Could not fetch $url: HTTP $code without a Location header";
                         break;
                     }
-                    if (Url::host($next) !== $domain) {
+                    if (!Url::sameOwner(Url::host($next), $domain)) {
                         $problem ??= "$url redirects to " . Url::host($next) . ", which does not prove $domain is yours.";
                         break;
                     }

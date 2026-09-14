@@ -59,7 +59,7 @@
     <h2>Add a site</h2>
     <p>To add another domain, first put the tag above on that domain's home page (or a page that receives mentions), so it names
         this account's endpoint. That is how the site proves it is yours; without it, anyone could add
-        your domain to their account. The page has to be served by that domain: a redirect to another site does not count.</p>
+        your domain to their account. The page has to be served by that domain (or its <code>www.</code> twin): a redirect to another site does not count.</p>
     <?php if ($error !== null) { ?>
         <p class="alert"><?= $error ?></p>
     <?php } ?>

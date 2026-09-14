@@ -84,6 +84,27 @@ final class SiteVerificationTest extends IntegrationTestCase
         self::assertSame('https://short.example/ redirects to alice.example, which does not prove short.example is yours.', $verifier->verify($this->alice, 'short.example'));
     }
 
+    public function testApexAndWwwAreTheSameOwner(): void
+    {
+        $verifier = $this->service(SiteVerifier::class);
+
+        // example.com redirects to www.example.com, which carries the tag.
+        $this->http->respond('GET', 'https://apex.example/', 301, '', ['Location' => 'https://www.apex.example/']);
+        $this->advertise('https://www.apex.example/', 'https://webmention.io/alice.example/webmention');
+        self::assertNull($verifier->verify($this->alice, 'apex.example'));
+
+        // And the other way round.
+        $this->http->respond('GET', 'https://www.other.example/', 301, '', ['Location' => 'https://other.example/']);
+        $this->advertise('https://other.example/', 'https://webmention.io/alice.example/webmention');
+        self::assertNull($verifier->verify($this->alice, 'www.other.example'));
+
+        // But not to a different name, even one that starts with www.
+        $this->http->respond('GET', 'https://third.example/', 301, '', ['Location' => 'https://www.alice.example/']);
+        $this->http->respond('GET', 'http://third.example/', 301, '', ['Location' => 'https://www.alice.example/']);
+        $this->advertise('https://www.alice.example/', 'https://webmention.io/alice.example/webmention');
+        self::assertSame('https://third.example/ redirects to www.alice.example, which does not prove third.example is yours.', $verifier->verify($this->alice, 'third.example'));
+    }
+
     public function testSameHostRedirectsAndLinkHeadersOnRedirectsStillCount(): void
     {
         $verifier = $this->service(SiteVerifier::class);

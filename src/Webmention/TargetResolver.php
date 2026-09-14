@@ -129,7 +129,17 @@ final class TargetResolver
             return null;
         }
 
-        return strtolower((string) $site->domain) === $host ? $site : $this->sites->findByAccountAndDomain($site->accountId, $host);
+        if (strtolower((string) $site->domain) === $host) {
+            return $site;
+        }
+
+        $owner = $this->sites->findByAccountAndDomain($site->accountId, $host);
+        if ($owner === null && Url::sameOwner($host, (string) $site->domain)) {
+            // example.com and www.example.com are one site's two names.
+            $owner = $site;
+        }
+
+        return $owner;
     }
 
     /**

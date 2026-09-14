@@ -111,6 +111,20 @@ final class TargetResolverTest extends IntegrationTestCase
         self::assertSame($www->id, $link->siteId);
     }
 
+    public function testACanonicalOnTheWwwTwinStaysOnTheSite(): void
+    {
+        // The account has only target.example.com; the page canonicalises to www.
+        $this->http->respond('GET', 'http://target.example.com/moved', 301, '', ['Location' => 'https://www.target.example.com/moved']);
+        $this->http->respond('GET', 'https://www.target.example.com/moved', 200, '<div class="h-entry"><h1 class="p-name">Moved</h1></div>', ['Content-Type' => 'text/html']);
+        $this->http->respond('GET', 'http://source.example.org/w', 200, '<a href="http://target.example.com/moved">x</a>', ['Content-Type' => 'text/html']);
+
+        $this->request('POST', '/target.example.com/webmention', post: ['source' => 'http://source.example.org/w', 'target' => 'http://target.example.com/moved', 'debug' => '1']);
+
+        $page = $this->service(PageRepository::class)->findBySiteAndHref($this->site->id, 'https://www.target.example.com/moved');
+        self::assertNotNull($page, 'filed under the canonical www URL, on the apex site');
+        self::assertSame($page->id, $this->service(LinkRepository::class)->recentForAccount($this->account->id, 1)[0]->pageId);
+    }
+
     public function testAnUnreachableTargetIsFiledAsGiven(): void
     {
         $this->http->respond('GET', 'http://target.example.com/down', 0, '', [], 'timeout');

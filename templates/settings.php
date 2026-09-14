@@ -4,6 +4,8 @@
  * @var string $html_url
  * @var string $atom_url
  * @var string $export_url
+ * @var string|null $merge_error
+ * @var string|null $merged
  * @var string $csrf
  */
 ?>
@@ -40,4 +42,22 @@
     <p><a class="button" href="<?= $export_url ?>" download>Download export</a></p>
     <p class="muted small">The same file from the command line, or for one site only by adding <code>&amp;domain=example.com</code>:</p>
     <pre><code id="export-url"><?= $export_url ?></code></pre>
+</section>
+
+<section class="card">
+    <h2>Moved to a new domain?</h2>
+    <p>If you signed in before under another domain and its webmentions are on that older account, you can bring them here.
+        The old domain has to point at this account first: either redirect its home page to one of this account's
+        verified sites (<code>example.com</code> to <code>www.example.com</code>, say), or put this account's webmention tag on it.</p>
+    <?php if ($merged !== null) { ?>
+        <p class="notice"><?= $merged ?></p>
+    <?php } ?>
+    <?php if ($merge_error !== null) { ?>
+        <p class="alert"><?= $merge_error ?></p>
+    <?php } ?>
+    <form action="/settings/merge-account" method="post" class="inline-field">
+        <input type="hidden" name="csrf" value="<?= $csrf ?>">
+        <input type="text" name="old_domain" placeholder="old-domain.example" required aria-label="Old domain" autocapitalize="off" spellcheck="false">
+        <button type="submit" class="secondary">Check the old domain</button>
+    </form>
 </section>

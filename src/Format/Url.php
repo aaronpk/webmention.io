@@ -83,6 +83,22 @@ final class Url
         return is_string($host) && $host !== '' ? strtolower($host) : null;
     }
 
+    /**
+     * Whether two hostnames belong to the same site owner: the same host, or
+     * one is the other with "www." in front. Whoever controls example.com's
+     * DNS controls www.example.com, so a redirect between them proves the
+     * same thing a same-host redirect does.
+     */
+    public static function sameOwner(?string $a, ?string $b): bool
+    {
+        if ($a === null || $b === null || $a === '' || $b === '') {
+            return false;
+        }
+        $strip = static fn (string $h): string => (string) preg_replace('/^www\./', '', strtolower($h));
+
+        return $strip($a) === $strip($b);
+    }
+
     /** True for an http or https URL that has a host. */
     public static function isHttp(string $url): bool
     {

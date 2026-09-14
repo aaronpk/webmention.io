@@ -46,6 +46,18 @@ final class AvatarArchiverTest extends TestCase
         self::assertSame('https://elsewhere.example/x.jpg', $archiver->archive(self::PHOTO));
     }
 
+    public function testSvgAvatarsKeepTheirOriginalUrl(): void
+    {
+        [$archiver, $http] = $this->archiver([]);
+
+        self::assertSame('https://alice.example/me.SVG', $archiver->archive('https://alice.example/me.SVG'));
+        self::assertSame('https://alice.example/avatar.svg?v=2', $archiver->archive('https://alice.example/avatar.svg?v=2'));
+        self::assertSame([], $http->posts(self::ENDPOINT), 'nothing is sent to CA3DB');
+
+        // Anything else still goes through.
+        self::assertSame('https://webmention.io/avatar/alice.example/abc.jpg', $archiver->archive(self::PHOTO));
+    }
+
     public function testOriginalUrlIsKeptWhenArchivingIsOffOrFails(): void
     {
         [$off] = $this->archiver(['CA3DB_API_ENDPOINT' => '']);

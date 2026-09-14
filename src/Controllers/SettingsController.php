@@ -23,6 +23,7 @@ use Webmention\Storage\MuteRepository;
 use Webmention\Storage\PageRepository;
 use Webmention\Webmention\HttpClient;
 use Webmention\Webmention\Moderation;
+use Webmention\Webmention\AccountMerger;
 use Webmention\Webmention\RateLimiter;
 use Webmention\Webmention\SiteActivity;
 use Webmention\Webmention\WebHooks;
@@ -52,6 +53,7 @@ final class SettingsController extends Controller
         private readonly WebHooks $webHooks,
         private readonly WebhookDeliveryRepository $deliveries,
         private readonly SiteActivity $activity,
+        private readonly AccountMerger $merger,
         private readonly Config $config,
     ) {
         parent::__construct($view);
@@ -87,8 +89,74 @@ final class SettingsController extends Controller
             'html_url'   => $base . '/api/mentions.html?token=' . rawurlencode($token),
             'atom_url'   => $base . '/api/mentions.atom?token=' . rawurlencode($token),
             'export_url' => $base . '/api/export.jf2?token=' . rawurlencode($token),
+            'merge_error' => $request->query('merge_error'),
+            'merged'      => $request->query('merged'),
             'csrf'       => $this->session->csrfToken(),
         ], $this->nav($user, 'settings'));
+    }
+
+    /**
+     * Step one of bringing an old account in (issue 223): check that its
+     * domain now points here, then ask for confirmation.
+     *
+     * @param array<string, string> $params
+     */
+    public function mergeAccount(Request $request, array $params): Response
+    {
+        if (($user = $this->currentUser($request)) === null) {
+            return Response::redirect('/');
+        }
+        $this->checkCsrf($request);
+
+        // Each check fetches the old domain.
+        if (!$this->limiter->allow('merge_check', (string) $user->id, 5, 60)) {
+            return Response::seeOther('/settings?merge_error=' . rawurlencode('Too many checks in a row; try again in a minute.'));
+        }
+
+        $old = $this->merger->check($user, (string) $request->post('old_domain'));
+        if (is_string($old)) {
+            return Response::seeOther('/settings?merge_error=' . rawurlencode($old));
+        }
+
+        // Remember what was proved, so the confirmation cannot name another account.
+        $_SESSION['merge_account'] = ['id' => $old->id, 'until' => time() + 600];
+
+        return $this->page('merge', 'Merge accounts', [
+            ...$this->merger->preview($old),
+            'old_domain' => (string) $old->domain,
+            'csrf'       => $this->session->csrfToken(),
+        ], $this->nav($user, 'settings'));
+    }
+
+    /** @param array<string, string> $params */
+    public function confirmMergeAccount(Request $request, array $params): Response
+    {
+        if (($user = $this->currentUser($request)) === null) {
+            return Response::redirect('/');
+        }
+        $this->checkCsrf($request);
+
+        $pending = $_SESSION['merge_account'] ?? null;
+        unset($_SESSION['merge_account']);
+        if (!is_array($pending) || (int) ($pending['until'] ?? 0) < time()) {
+            return Response::seeOther('/settings?merge_error=' . rawurlencode('That confirmation has expired; check the old domain again.'));
+        }
+
+        $old = $this->accounts->find((int) $pending['id']);
+        if ($old === null || $old->id === $user->id || strtolower((string) $old->domain) !== AccountMerger::domain((string) $request->post('old_domain'))) {
+            return Response::seeOther('/settings?merge_error=' . rawurlencode('That confirmation does not match; check the old domain again.'));
+        }
+
+        $moved = $this->merger->merge($user, $old);
+
+        return Response::seeOther('/settings?merged=' . rawurlencode(sprintf(
+            'Merged %s: %d site%s and %s webmention%s are now on this account.',
+            $old->domain,
+            $moved['sites'],
+            $moved['sites'] === 1 ? '' : 's',
+            number_format($moved['mentions']),
+            $moved['mentions'] === 1 ? '' : 's',
+        )));
     }
 
     /** @param array<string, string> $params */

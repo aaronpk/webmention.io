@@ -28,6 +28,7 @@ use Webmention\Webmention\HttpClient;
 use Webmention\Webmention\Moderation;
 use Webmention\Webmention\Processor;
 use Webmention\Webmention\Queue;
+use Webmention\Webmention\AccountMerger;
 use Webmention\Webmention\RateLimiter;
 use Webmention\Webmention\SiteActivity;
 use Webmention\Webmention\SiteVerifier;
@@ -96,6 +97,15 @@ final class Bootstrap
         $c->set(Session::class, static fn (): Session => Session::native($config));
 
         $c->set(StatusStore::class, static fn (Container $c): StatusStore => new StatusStore($c->get(Redis::class)));
+        $c->set(AccountMerger::class, static fn (Container $c): AccountMerger => new AccountMerger(
+            $c->get(Database::class),
+            $c->get(AccountRepository::class),
+            $c->get(SiteRepository::class),
+            $c->get(PageRepository::class),
+            $c->get(SiteVerifier::class),
+            $c->get(HttpClient::class),
+            $c->get(Log::class),
+        ));
         $c->set(SiteActivity::class, static fn (Container $c): SiteActivity => new SiteActivity($c->get(Database::class), $c->get(Redis::class)));
         $c->set(Queue::class, static fn (Container $c): Queue => new Queue($c->get(Redis::class)));
         $c->set(RateLimiter::class, static fn (Container $c): RateLimiter => new RateLimiter($c->get(Redis::class), $c->get(Log::class)));
@@ -204,6 +214,7 @@ final class Bootstrap
             $c->get(WebHooks::class),
             $c->get(WebhookDeliveryRepository::class),
             $c->get(SiteActivity::class),
+            $c->get(AccountMerger::class),
             $config,
         ));
 
@@ -249,6 +260,8 @@ final class Bootstrap
 
         $r->get('/settings', [SettingsController::class, 'index']);
         $r->post('/settings/change_token', [SettingsController::class, 'changeToken']);
+        $r->post('/settings/merge-account', [SettingsController::class, 'mergeAccount']);
+        $r->post('/settings/merge-account/confirm', [SettingsController::class, 'confirmMergeAccount']);
         $r->get('/settings/sites', [SettingsController::class, 'sites']);
         $r->post('/settings/sites/new', [SettingsController::class, 'createSite']);
         $r->post('/settings/sites/merge', [SettingsController::class, 'mergePage']);
