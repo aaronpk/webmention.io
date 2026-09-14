@@ -358,6 +358,13 @@ details summary { cursor: pointer; color: var(--muted); margin: 1rem 0 .5rem; }
 .facts dt { color: var(--muted); font-size: .875rem; }
 .facts dd { margin: 0; min-width: 0; }
 
+/* Received-per-month bars on the site page */
+.sparkline { margin: 1rem 0 0; }
+.sparkline svg { display: block; width: 100%; height: 3.5rem; }
+.sparkline rect { fill: var(--accent); }
+.sparkline rect.current { fill: var(--muted); }
+.sparkline figcaption { display: flex; justify-content: space-between; gap: 1rem; margin-top: .25rem; }
+
 /* Mention lists */
 
 .mention-list {

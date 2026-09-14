@@ -29,6 +29,7 @@ use Webmention\Webmention\Moderation;
 use Webmention\Webmention\Processor;
 use Webmention\Webmention\Queue;
 use Webmention\Webmention\RateLimiter;
+use Webmention\Webmention\SiteActivity;
 use Webmention\Webmention\SiteVerifier;
 use Webmention\Webmention\SourceFetcher;
 use Webmention\Webmention\StatusStore;
@@ -95,6 +96,7 @@ final class Bootstrap
         $c->set(Session::class, static fn (): Session => Session::native($config));
 
         $c->set(StatusStore::class, static fn (Container $c): StatusStore => new StatusStore($c->get(Redis::class)));
+        $c->set(SiteActivity::class, static fn (Container $c): SiteActivity => new SiteActivity($c->get(Database::class), $c->get(Redis::class)));
         $c->set(Queue::class, static fn (Container $c): Queue => new Queue($c->get(Redis::class)));
         $c->set(RateLimiter::class, static fn (Container $c): RateLimiter => new RateLimiter($c->get(Redis::class), $c->get(Log::class)));
         $c->set(HttpClient::class, static fn (): HttpClient => new HttpClient(
@@ -200,6 +202,7 @@ final class Bootstrap
             $c->get(MuteRepository::class),
             $c->get(WebHooks::class),
             $c->get(WebhookDeliveryRepository::class),
+            $c->get(SiteActivity::class),
             $config,
         ));
 

@@ -244,6 +244,8 @@ final class DashboardTest extends IntegrationTestCase
         self::assertStringContainsString('name="moderation"', $page);
         self::assertStringContainsString('name="archive_avatars"', $page);
         self::assertStringContainsString('href="/api#webhooks"', $page);
+        self::assertStringContainsString('class="sparkline"', $page);
+        self::assertStringContainsString('<title>' . date('M Y') . ': 0 webmentions</title>', $page, 'the current month, empty');
         self::assertStringContainsString('Not verified</span>', $page, 'fixture sites start unverified');
         self::assertStringContainsString('action="/settings/sites/verify"', $page, 'so the page offers Check now');
 

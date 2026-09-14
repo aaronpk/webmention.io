@@ -4,6 +4,7 @@
  *
  * @var array{id: int, domain: string, pages: int, mentions: int, verified: bool, verified_on: ?string, checked_on: ?string, error: ?string,
  *            callback_url: string, callback_secret: string, archive_avatars: bool, moderation: string} $site
+ * @var array{months: list<array{month: string, label: string, count: int}>, max: int, total: int} $activity  Received per month, oldest first.
  * @var string      $endpoint
  * @var bool        $saved        The settings form was just saved.
  * @var string|null $checked      Result of a "Check now".
@@ -31,6 +32,29 @@ $withCode = static fn (string $text): string => (string) preg_replace('#https?:/
         <dt>Pages</dt><dd><?= number_format($site['pages']) ?></dd>
         <dt>Webmentions</dt><dd><?= number_format($site['mentions']) ?></dd>
     </dl>
+
+    <?php
+    // Received per month as a row of bars: 4 units per month, 1 unit gap,
+    // 20 units tall. The drawing is stretched to the full width of the card
+    // (preserveAspectRatio="none"), so bars and gaps widen with the window.
+    // Zero months keep a stub so the timeline reads evenly; the current
+    // month is drawn muted because it is not over yet.
+    $bars  = count($activity['months']);
+    $width = $bars * 5 - 1;
+    ?>
+    <figure class="sparkline">
+        <svg viewBox="0 0 <?= $width ?> 20" preserveAspectRatio="none" role="img" aria-label="Webmentions received per month">
+            <?php foreach ($activity['months'] as $i => $m) { ?>
+                <?php $h = $m['count'] === 0 ? 0.5 : max(1, round($m['count'] / $activity['max'] * 20, 1)); ?>
+                <rect x="<?= $i * 5 ?>" y="<?= 20 - $h ?>" width="4" height="<?= $h ?>"<?= $i === $bars - 1 ? ' class="current"' : '' ?>><title><?= $m['label'] ?>: <?= number_format($m['count']) ?> webmention<?= $m['count'] === 1 ? '' : 's' ?></title></rect>
+            <?php } ?>
+        </svg>
+        <figcaption class="muted small">
+            <span><?= $activity['months'][0]['label'] ?></span>
+            <span><?= number_format($activity['total']) ?> received in the last <?= ($bars - 1) % 12 === 0 ? (($bars - 1) / 12) . ' years' : ($bars - 1) . ' months' ?></span>
+            <span><?= $activity['months'][$bars - 1]['label'] ?></span>
+        </figcaption>
+    </figure>
 </section>
 
 <section class="card">

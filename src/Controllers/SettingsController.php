@@ -24,6 +24,7 @@ use Webmention\Storage\PageRepository;
 use Webmention\Webmention\HttpClient;
 use Webmention\Webmention\Moderation;
 use Webmention\Webmention\RateLimiter;
+use Webmention\Webmention\SiteActivity;
 use Webmention\Webmention\WebHooks;
 use Webmention\Webmention\SiteVerifier;
 use Webmention\Webmention\TargetResolver;
@@ -50,6 +51,7 @@ final class SettingsController extends Controller
         private readonly MuteRepository $mutes,
         private readonly WebHooks $webHooks,
         private readonly WebhookDeliveryRepository $deliveries,
+        private readonly SiteActivity $activity,
         private readonly Config $config,
     ) {
         parent::__construct($view);
@@ -182,6 +184,7 @@ final class SettingsController extends Controller
                 'archive_avatars' => $site->archiveAvatars,
                 'moderation'      => $site->moderation ?? 'off',
             ],
+            'activity'     => self::activity($this->activity->monthlyCounts($site->id)),
             'endpoint'     => $this->config->baseUrl() . '/' . $user->domain . '/webmention',
             'saved'        => $request->query('saved') !== null,
             'checked'      => $request->query('checked'),
@@ -191,6 +194,19 @@ final class SettingsController extends Controller
             'resend_error' => $request->query('resend_error'),
             'csrf'         => $this->session->csrfToken(),
         ], $this->nav($user, 'sites'));
+    }
+
+    /**
+     * The sparkline's data: the monthly series with what the template needs to scale it.
+     *
+     * @param  list<array{month: string, label: string, count: int}> $months
+     * @return array{months: list<array{month: string, label: string, count: int}>, max: int, total: int}
+     */
+    private static function activity(array $months): array
+    {
+        $counts = array_column($months, 'count');
+
+        return ['months' => $months, 'max' => max(1, ...$counts), 'total' => array_sum($counts)];
     }
 
     /**
