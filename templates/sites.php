@@ -1,22 +1,15 @@
 <?php
 /**
- * @var list<array{id: int, domain: string, pages: int, mentions: int, verified: bool, checked_on: ?string, error: ?string}> $sites
- * @var string|null $checked      Result of a "Check now".
+ * @var list<array{id: int, domain: string, pages: int, mentions: int, verified: bool}> $sites
  * @var string      $endpoint
  * @var string|null $error
  * @var string|null $merged       Result of re-filing a moved page.
  * @var string|null $merge_error
  * @var string      $csrf
  */
-// Messages are already escaped; URLs in them are set in <code> so they read as addresses, not missing links.
-$withCode = static fn (string $text): string => (string) preg_replace('#https?://[^\s<>"()]+?(?=[.,:;]?(?:\s|$|\)))#', '<code>$0</code>', $text);
 ?>
 <section class="card">
     <h2>Sites</h2>
-
-    <?php if ($checked !== null) { ?>
-        <p class="notice"><?= $checked ?></p>
-    <?php } ?>
 
     <?php if ($sites === []) { ?>
         <p>Add a site, then add the tag below to any pages you want to receive webmentions for.</p>
@@ -28,9 +21,8 @@ $withCode = static fn (string $text): string => (string) preg_replace('#https?:/
                 </thead>
                 <tbody>
                     <?php foreach ($sites as $site) { ?>
-                        <?php $detail = !$site['verified'] && $site['checked_on'] !== null; ?>
-                        <tr<?= $detail ? ' class="has-detail"' : '' ?>>
-                            <td><?= $site['domain'] ?></td>
+                        <tr>
+                            <td><a href="/settings/sites/<?= $site['id'] ?>"><?= $site['domain'] ?></a></td>
                             <td class="num"><?= number_format($site['pages']) ?></td>
                             <td class="num"><?= number_format($site['mentions']) ?></td>
                             <td>
@@ -41,34 +33,14 @@ $withCode = static fn (string $text): string => (string) preg_replace('#https?:/
                                 <?php } ?>
                             </td>
                             <td class="actions">
-                                <?php if (!$site['verified']) { ?>
-                                    <form action="/settings/sites/verify" method="post">
-                                        <input type="hidden" name="site_id" value="<?= $site['id'] ?>">
-                                        <input type="hidden" name="csrf" value="<?= $csrf ?>">
-                                        <button type="submit" class="secondary small">Check now</button>
-                                    </form>
-                                <?php } ?>
+                                <a class="button secondary small" href="/settings/sites/<?= $site['id'] ?>">Settings</a>
                             </td>
                         </tr>
-                        <?php if ($detail) { ?>
-                            <tr class="detail">
-                                <td colspan="5" class="muted small">
-                                    Checked <?= $site['checked_on'] ?><?= $site['error'] !== null ? ': ' . $withCode($site['error']) : '' ?>
-                                </td>
-                            </tr>
-                        <?php } ?>
                     <?php } ?>
                 </tbody>
             </table>
         </div>
-        <?php if (array_filter($sites, static fn (array $s): bool => !$s['verified']) !== []) { ?>
-            <p class="muted small">A site is verified when its home page, or a page that has received a mention, carries the tag below
-                (as a <code>&lt;link&gt;</code>, an <code>&lt;a rel="webmention"&gt;</code> or a <code>Link</code> header) on that domain itself;
-                a redirect to another site does not count.
-                Sites added before this check existed are verified automatically once they are found to carry it.
-                Until then an unverified site still receives its mentions, but if another account has verified the same domain,
-                only that account's mentions appear in public API results for it.</p>
-        <?php } ?>
+        <p class="muted small">Each site's settings page has its verification status, web hook, moderation and avatar options.</p>
     <?php } ?>
 </section>
 
@@ -80,7 +52,7 @@ $withCode = static fn (string $text): string => (string) preg_replace('#https?:/
         <button type="button" class="secondary" data-copy="setup-code">Copy</button>
     </div>
     <p class="muted">Webmentions for any site on your account are accepted at this endpoint, and can be queried
-        <a href="https://github.com/aaronpk/webmention.io#api">using the API</a>.</p>
+        <a href="/api">using the API</a>.</p>
 </section>
 
 <section class="card">

@@ -9,7 +9,6 @@ $links = [
     'dashboard' => ['/dashboard', 'Dashboard'],
     'sites'     => ['/settings/sites', 'Sites'],
     'blocks'    => ['/settings/blocks', 'Blocklists'],
-    'webhooks'  => ['/settings/webhooks', 'Web Hooks'],
     'settings'  => ['/settings', 'Settings'],
     'api'       => ['/api', 'API'],
 ];

@@ -245,6 +245,7 @@ final class Bootstrap
         $r->post('/settings/sites/new', [SettingsController::class, 'createSite']);
         $r->post('/settings/sites/merge', [SettingsController::class, 'mergePage']);
         $r->post('/settings/sites/verify', [SettingsController::class, 'verifySite']);
+        $r->get('/settings/sites/{id}', [SettingsController::class, 'site']);
         $r->get('/settings/webhooks', [SettingsController::class, 'webhooks']);
         $r->post('/webhook/configure', [SettingsController::class, 'configureWebhook']);
         $r->get('/settings/blocks', [SettingsController::class, 'blocks']);

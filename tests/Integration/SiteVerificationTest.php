@@ -169,28 +169,31 @@ final class SiteVerificationTest extends IntegrationTestCase
         self::assertSame(['https://m.example/2'], $sources(['target' => 'https://lonely.example/post']));
     }
 
-    public function testCheckNowFromTheSitesPage(): void
+    public function testCheckNowFromTheSitePage(): void
     {
         $site = $this->createSite($this->alice, 'later.example');
         $csrf = $this->signIn($this->alice);
         $this->http->respond('GET', 'https://later.example/', 200, '<html><body>nothing yet</body></html>', ['Content-Type' => 'text/html']);
         $this->http->respond('GET', 'http://later.example/', 200, '<html><body>nothing yet</body></html>', ['Content-Type' => 'text/html']);
 
-        $page = $this->request('GET', '/settings/sites')->body;
+        self::assertStringContainsString('Not verified', $this->request('GET', '/settings/sites')->body);
+        $page = $this->request('GET', "/settings/sites/{$site->id}")->body;
         self::assertStringContainsString('Not verified', $page);
         self::assertStringContainsString('action="/settings/sites/verify"', $page);
 
         $response = $this->request('POST', '/settings/sites/verify', post: ['site_id' => (string) $site->id, 'csrf' => $csrf]);
         self::assertSame(303, $response->status);
+        self::assertStringStartsWith("/settings/sites/{$site->id}?checked=", (string) $response->header('location'));
         self::assertStringContainsString(rawurlencode('could not be verified'), (string) $response->header('location'));
-        $page = $this->request('GET', '/settings/sites')->body;
+        $page = $this->request('GET', "/settings/sites/{$site->id}")->body;
+        self::assertStringContainsString('Last checked', $page);
         self::assertStringContainsString('does not have a webmention endpoint', $page);
 
         $this->advertise('https://later.example/', 'https://webmention.io/alice.example/webmention');
         $response = $this->request('POST', '/settings/sites/verify', post: ['site_id' => (string) $site->id, 'csrf' => $csrf]);
         self::assertStringContainsString(rawurlencode('later.example is verified.'), (string) $response->header('location'));
         self::assertTrue($this->service(SiteRepository::class)->find($site->id)?->isVerified());
-        self::assertStringNotContainsString('action="/settings/sites/verify"', $this->request('GET', '/settings/sites')->body);
+        self::assertStringNotContainsString('action="/settings/sites/verify"', $this->request('GET', "/settings/sites/{$site->id}")->body);
 
         // Not for someone else's site.
         $mcsrf = $this->signIn($this->mallory);

@@ -253,17 +253,55 @@ GET <?= $base_url ?>/api/deleted.jf2?token=xxxxx</code></pre>
 
 <section class="doc" id="webhooks">
     <h2><a href="#webhooks">Web hooks</a></h2>
-    <p>Instead of polling, give a site a callback URL on the <a href="/settings/webhooks">Web Hooks</a> page and every verified webmention is POSTed to it as JSON as it arrives. The <code>post</code> is the same jf2 entry the API returns.</p>
+    <p>Instead of polling, give a site a callback URL on its settings page under <a href="/settings/sites">Sites</a>, and every webmention that verifies is POSTed to it as JSON as it arrives. Webmentions that fail verification, and ones held for moderation until you approve them, are not sent.
+        The <code>post</code> is the same jf2 entry the API returns, so one parser handles both.</p>
+    <pre><code>POST https://example.com/webmention/hook
+Content-Type: application/json
+X-Webmention-Signature: sha256=2f7e…
+
+{
+  "secret": "1234abcd",
+  "source": "http://rhiaro.co.uk/2015/11/1446953889",
+  "target": "http://aaronparecki.com/notes/2015/11/07/4/indiewebcamp",
+  "private": false,
+  "post": {
+    "type": "entry",
+    "author": {
+      "type": "card",
+      "name": "Amy Guy",
+      "photo": "https://avatars.webmention.io/rhiaro.co.uk/829d3f6e7083d7ee8bd7b20363da84d88ce5b4ce094f78fd1b27d8d3dc42560e.png",
+      "url": "http://rhiaro.co.uk/about#me"
+    },
+    "url": "http://rhiaro.co.uk/2015/11/1446953889",
+    "published": "2015-11-08T03:38:09+00:00",
+    "wm-received": "2015-11-08T03:40:12Z",
+    "wm-id": 900,
+    "wm-source": "http://rhiaro.co.uk/2015/11/1446953889",
+    "wm-target": "http://aaronparecki.com/notes/2015/11/07/4/indiewebcamp",
+    "wm-protocol": "webmention",
+    "name": "repost of http://aaronparecki.com/notes/2015/11/07/4/indiewebcamp",
+    "repost-of": "http://aaronparecki.com/notes/2015/11/07/4/indiewebcamp",
+    "wm-property": "repost-of",
+    "wm-private": false
+  }
+}</code></pre>
+    <p><code>wm-property</code>, and the matching property inside <code>post</code>, says what kind of post it is: <code>in-reply-to</code>, <code>like-of</code>, <code>repost-of</code>, <code>bookmark-of</code>, <code>mention-of</code> or <code>rsvp</code>, as described under <a href="#mentions-fields">Fields on a mention</a>.
+        <code>private</code> is <code>true</code> for a private webmention.</p>
+
+    <h3 id="webhooks-secret"><a href="#webhooks-secret">Checking it came from webmention.io</a></h3>
+    <p>If the site has a callback secret, it is sent as <code>secret</code> in the body and the request also carries <code>X-Webmention-Signature: sha256=&lt;hex&gt;</code>, the HMAC-SHA256 of the raw request body keyed with that secret.
+        Compare the signature rather than the secret, and your endpoint never has to read the body before trusting it.</p>
+
+    <h3 id="webhooks-deleted"><a href="#webhooks-deleted">Deletions</a></h3>
+    <p>When a webmention is later deleted, because the linking page was removed or stopped linking to you, or because you deleted or rejected it on the dashboard, the callback receives the same <code>source</code> and <code>target</code> with <code>deleted</code> and no <code>post</code>:</p>
     <pre><code>{
   "secret": "1234abcd",
   "source": "http://rhiaro.co.uk/2015/11/1446953889",
   "target": "http://aaronparecki.com/notes/2015/11/07/4/indiewebcamp",
   "private": false,
-  "post": { ...the jf2 entry, as returned by /api/mentions.jf2... }
+  "deleted": true
 }</code></pre>
-    <p>When a mention is later deleted, the callback receives the same <code>source</code> and <code>target</code> with <code>"deleted": true</code> and no <code>post</code>.
-        If the site has a callback secret, it is sent in the body and the request also carries <code>X-Webmention-Signature: sha256=…</code>, the HMAC-SHA256 of the body keyed with that secret, so you can verify a delivery without comparing the secret itself.
-        Deliveries are not replayed; if your endpoint missed some, fetch them from <a href="#mentions">List mentions</a> with <code>since_id</code>, which returns the same jf2 entries.</p>
+    <p>Deliveries are not retried or replayed. If your endpoint was down, fetch what it missed from <a href="#mentions">List mentions</a> with <code>since_id</code> and from <a href="#deleted">Deleted mentions</a>; both return the same data the web hook carries.</p>
 </section>
 
 <link rel="stylesheet" href="/assets/webmention-render.css">

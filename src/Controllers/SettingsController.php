@@ -26,7 +26,7 @@ use Webmention\Webmention\SiteVerifier;
 use Webmention\Webmention\TargetResolver;
 
 /**
- * Account settings: API token, sites, webhooks, blocked domains.
+ * Account settings: API token, sites and their web hooks, blocked domains.
  */
 final class SettingsController extends Controller
 {
@@ -136,6 +136,49 @@ final class SettingsController extends Controller
             'error'    => $request->query('error'),
             'merged'   => $request->query('merged'),
             'merge_error' => $request->query('merge_error'),
+            'csrf'     => $this->session->csrfToken(),
+        ], $this->nav($user, 'sites'));
+    }
+
+    /**
+     * Everything about one site: verification, web hook, moderation, avatars.
+     *
+     * @param array<string, string> $params
+     */
+    public function site(Request $request, array $params): Response
+    {
+        if (($user = $this->currentUser($request)) === null) {
+            return Response::redirect('/');
+        }
+
+        $site = $this->sites->findForAccount($user->id, (int) ($params['id'] ?? 0));
+        if ($site === null) {
+            throw HttpException::notFound('That site is not on your account.');
+        }
+
+        $date = static function (?string $utc): ?string {
+            $d = $utc === null ? null : date_create_immutable($utc . ' UTC');
+
+            return $d === false || $d === null ? null : $d->format('M j, Y');
+        };
+
+        return $this->page('site', (string) $site->domain, [
+            'site' => [
+                'id'              => $site->id,
+                'domain'          => (string) $site->domain,
+                'pages'           => $this->sites->pageCount($site->id),
+                'mentions'        => $this->sites->linkCount($site->id),
+                'verified'        => $site->isVerified(),
+                'verified_on'     => $date($site->verifiedAt),
+                'checked_on'      => $date($site->verificationCheckedAt),
+                'error'           => $site->verificationError,
+                'callback_url'    => (string) $site->callbackUrl,
+                'callback_secret' => (string) $site->callbackSecret,
+                'archive_avatars' => $site->archiveAvatars,
+                'moderation'      => $site->moderation ?? 'off',
+            ],
+            'endpoint' => $this->config->baseUrl() . '/' . $user->domain . '/webmention',
+            'saved'    => $request->query('saved') !== null,
             'checked'  => $request->query('checked'),
             'csrf'     => $this->session->csrfToken(),
         ], $this->nav($user, 'sites'));
@@ -195,7 +238,7 @@ final class SettingsController extends Controller
 
         // Each check fetches the site; a handful a minute is plenty.
         if (!$this->limiter->allow('verify_site', (string) $user->id, 10, 60)) {
-            return Response::seeOther('/settings/sites?checked=' . rawurlencode('Too many checks in a row; try again in a minute.'));
+            return Response::seeOther("/settings/sites/{$site->id}?checked=" . rawurlencode('Too many checks in a row; try again in a minute.'));
         }
 
         $problem = $this->verifier->verify($user, (string) $site->domain, $this->sites->recentPageHrefs($site->id));
@@ -203,12 +246,12 @@ final class SettingsController extends Controller
         if ($problem === null) {
             $this->sites->markVerified($site->id);
 
-            return Response::seeOther('/settings/sites?checked=' . rawurlencode("{$site->domain} is verified."));
+            return Response::seeOther("/settings/sites/{$site->id}?checked=" . rawurlencode("{$site->domain} is verified."));
         }
 
         $this->sites->markChecked($site->id, $problem);
 
-        return Response::seeOther('/settings/sites?checked=' . rawurlencode("{$site->domain} could not be verified. $problem"));
+        return Response::seeOther("/settings/sites/{$site->id}?checked=" . rawurlencode("{$site->domain} could not be verified. $problem"));
     }
 
     /**
@@ -265,30 +308,15 @@ final class SettingsController extends Controller
         )));
     }
 
-    /** @param array<string, string> $params */
+    /**
+     * The Web Hooks page is gone: each site's settings live on its own page
+     * under Sites. Old links land on the list.
+     *
+     * @param array<string, string> $params
+     */
     public function webhooks(Request $request, array $params): Response
     {
-        if (($user = $this->currentUser($request)) === null) {
-            return Response::redirect('/');
-        }
-
-        $sites = [];
-        foreach ($this->sites->listForAccount($user->id) as $site) {
-            $sites[] = [
-                'id'              => $site->id,
-                'domain'          => (string) $site->domain,
-                'callback_url'    => (string) $site->callbackUrl,
-                'callback_secret' => (string) $site->callbackSecret,
-                'archive_avatars' => $site->archiveAvatars,
-                'moderation'      => $site->moderation ?? 'off',
-            ];
-        }
-
-        return $this->page('webhooks', 'Web Hooks', [
-            'sites'    => $sites,
-            'saved'    => $request->query('saved'),
-            'csrf'     => $this->session->csrfToken(),
-        ], $this->nav($user, 'webhooks'));
+        return Response::redirect('/settings/sites');
     }
 
     /** @param array<string, string> $params */
@@ -325,7 +353,7 @@ final class SettingsController extends Controller
             $policy,
         );
 
-        return Response::seeOther('/settings/webhooks?saved=' . $site->id);
+        return Response::seeOther("/settings/sites/{$site->id}?saved=1");
     }
 
     /** Blocked URLs shown per page on the Blocklists page. */

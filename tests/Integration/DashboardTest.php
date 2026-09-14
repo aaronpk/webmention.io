@@ -34,7 +34,7 @@ final class DashboardTest extends IntegrationTestCase
 
     public function testPagesRequireSignIn(): void
     {
-        foreach (['/dashboard', '/settings', '/settings/sites', '/settings/webhooks', '/settings/blocks', '/delete'] as $path) {
+        foreach (['/dashboard', '/settings', '/settings/sites', "/settings/sites/{$this->aliceSite->id}", '/settings/blocks', '/delete'] as $path) {
             $response = $this->request('GET', $path);
             self::assertSame(302, $response->status, $path);
             self::assertSame('/', $response->header('location'));
@@ -84,7 +84,7 @@ final class DashboardTest extends IntegrationTestCase
         $this->createLink($this->aliceSite, 'https://alice.example/post', 'https://bob.example/reply', ['author_name' => 'Bob']);
         $this->signIn($this->alice);
 
-        foreach (['/dashboard', '/settings', '/settings/sites', '/settings/webhooks', '/settings/blocks', '/delete'] as $path) {
+        foreach (['/dashboard', '/settings', '/settings/sites', "/settings/sites/{$this->aliceSite->id}", '/settings/blocks', '/delete'] as $path) {
             $response = $this->request('GET', $path, $path === '/delete' ? ['source' => 'https://bob.example/reply'] : []);
             self::assertSame(200, $response->status, "$path: " . substr($response->body, 0, 500));
             self::assertStringContainsString('alice.example', $response->body, $path);
@@ -227,16 +227,45 @@ final class DashboardTest extends IntegrationTestCase
         self::assertSame('https://alice.example/hook', $this->service(SiteRepository::class)->find($this->aliceSite->id)?->callbackUrl);
     }
 
+    public function testEachSiteHasItsOwnSettingsPage(): void
+    {
+        $this->signIn($this->alice);
+        $id = $this->aliceSite->id;
+
+        // The list links to it and no longer carries the verify form.
+        $list = $this->request('GET', '/settings/sites')->body;
+        self::assertStringContainsString("href=\"/settings/sites/$id\"", $list);
+        self::assertStringNotContainsString('action="/settings/sites/verify"', $list);
+
+        $page = $this->request('GET', "/settings/sites/$id")->body;
+        self::assertStringContainsString('<h2>alice.example', $page);
+        self::assertStringContainsString('value="https://alice.example/hook"', $page);
+        self::assertStringContainsString('name="callback_secret"', $page);
+        self::assertStringContainsString('name="moderation"', $page);
+        self::assertStringContainsString('name="archive_avatars"', $page);
+        self::assertStringContainsString('href="/api#webhooks"', $page);
+        self::assertStringContainsString('Not verified</span>', $page, 'fixture sites start unverified');
+        self::assertStringContainsString('action="/settings/sites/verify"', $page, 'so the page offers Check now');
+
+        // Not someone else's, and the old Web Hooks page just points at the list.
+        self::assertSame(404, $this->request('GET', "/settings/sites/" . $this->mallorySite->id)->status);
+        self::assertSame(404, $this->request('GET', '/settings/sites/999999')->status);
+        self::assertSame('/settings/sites', $this->request('GET', '/settings/webhooks')->header('location'));
+        self::assertStringNotContainsString('Web Hooks', $this->request('GET', '/dashboard')->body);
+    }
+
     public function testConfigureOwnWebhook(): void
     {
         $csrf = $this->signIn($this->alice);
 
-        $this->request('POST', '/webhook/configure', post: [
+        $saved = $this->request('POST', '/webhook/configure', post: [
             'site_id'         => (string) $this->aliceSite->id,
             'callback_url'    => 'https://alice.example/new-hook',
             'callback_secret' => str_repeat('x', 80),
             'csrf'            => $csrf,
         ]);
+        self::assertSame("/settings/sites/{$this->aliceSite->id}?saved=1", $saved->header('location'));
+        self::assertStringContainsString('Saved</span>', $this->request('GET', "/settings/sites/{$this->aliceSite->id}", ['saved' => '1'])->body);
 
         $site = $this->service(SiteRepository::class)->find($this->aliceSite->id);
         self::assertSame('https://alice.example/new-hook', $site?->callbackUrl);
