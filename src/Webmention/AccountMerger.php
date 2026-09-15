@@ -68,7 +68,7 @@ final class AccountMerger
         // ...or redirects to one of this account's verified sites.
         $verified = [];
         foreach ($this->sites->listForAccount($into->id) as $site) {
-            if ($site->isVerified()) {
+            if ($site->isVerified() && !$site->isArchived()) {
                 $verified[] = strtolower((string) $site->domain);
             }
         }

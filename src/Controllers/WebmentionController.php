@@ -114,12 +114,17 @@ final class WebmentionController extends Controller
         }
 
         $targetDomain = Url::host((string) $request->input('target'));
+        $targetSite   = $targetDomain === null ? null : $this->sites->findByAccountAndDomain($account->id, $targetDomain);
 
-        if ($targetDomain === null || $this->sites->findByAccountAndDomain($account->id, $targetDomain) === null) {
+        if ($targetSite === null) {
             return $this->json->respond($request, 404, [
                 'error'             => 'invalid_target',
                 'error_description' => 'target domain not found on this account',
             ]);
+        }
+
+        if ($targetSite->isArchived()) {
+            return $this->archived($request);
         }
 
         return $this->accept($request, $account, $username, 'account');
@@ -143,6 +148,10 @@ final class WebmentionController extends Controller
             ]);
         }
 
+        if ($site->isArchived()) {
+            return $this->archived($request);
+        }
+
         $targetDomain = Url::host((string) $request->input('target'));
 
         if ($targetDomain !== strtolower((string) $site->domain)) {
@@ -153,6 +162,15 @@ final class WebmentionController extends Controller
         }
 
         return $this->accept($request, $account, (string) $account->username, 'site');
+    }
+
+    /** The owner archived the target's site: it keeps its webmentions but takes no new ones. */
+    private function archived(Request $request): Response
+    {
+        return $this->json->respond($request, 404, [
+            'error'             => 'invalid_target',
+            'error_description' => 'target domain is archived on this account',
+        ]);
     }
 
     private function validate(Request $request): ?Response

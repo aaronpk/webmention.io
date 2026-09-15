@@ -21,6 +21,7 @@ use Webmention\Logging\Log;
 use Webmention\Webmention\Job;
 use Webmention\Webmention\Processor;
 use Webmention\Webmention\Queue;
+use Webmention\Webmention\SiteDeleter;
 use Webmention\Webmention\StatusStore;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
@@ -78,8 +79,19 @@ $process = static function (Job $job) use (&$container, $build, $log): string {
 
 $done = 0;
 while (!$stop && $done < $maxJobs) {
+    // A deleted site too large to remove within its request: one batch per
+    // turn, so deletions and webmentions share the workers.
+    $purged = null;
     try {
-        $job = $container->get(Queue::class)->pop(5);
+        $purged = $container->get(SiteDeleter::class)->purgeNext();
+    } catch (Throwable $e) {
+        $log->exception($e, 'Removing a deleted site');
+        $container = $build();
+    }
+
+    try {
+        // Don't sit waiting for a webmention while a deletion has more to do.
+        $job = $container->get(Queue::class)->pop($purged === null ? 5 : 1);
     } catch (Throwable $e) {
         $log->exception($e, 'Reading the queue');
         sleep(2);

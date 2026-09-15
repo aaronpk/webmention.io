@@ -99,6 +99,9 @@ final class Processor
         if ($site === null) {
             return $fail('invalid_target', 'target domain not found on this account');
         }
+        if ($site->isArchived()) {
+            return $fail('invalid_target', 'target domain is archived on this account');
+        }
 
         if ($this->blocks->isSourceBlocked($site->id, $source)) {
             return $fail('blocked', 'source URL is blocked');

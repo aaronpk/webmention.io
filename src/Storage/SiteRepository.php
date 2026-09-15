@@ -38,11 +38,11 @@ final class SiteRepository
         return $row === null ? null : Site::fromRow($row);
     }
 
-    /** The site for a domain, preferring one that has proved it owns it. */
+    /** The site for a domain, preferring a live one, then one that has proved it owns it. */
     public function findByDomain(string $domain): ?Site
     {
         $row = $this->db->one(
-            'SELECT * FROM sites WHERE domain = ? ORDER BY verified_at IS NULL, id LIMIT 1',
+            'SELECT * FROM sites WHERE domain = ? ORDER BY archived_at IS NOT NULL, verified_at IS NULL, id LIMIT 1',
             [$domain],
         );
 
@@ -83,7 +83,7 @@ final class SiteRepository
         return array_map(Site::fromRow(...), $this->db->all(
             'SELECT s.* FROM sites s
                 LEFT JOIN (SELECT site_id, MAX(created_at) AS last_mention FROM links GROUP BY site_id) l ON l.site_id = s.id
-                WHERE s.verified_at IS NULL AND s.domain IS NOT NULL
+                WHERE s.verified_at IS NULL AND s.domain IS NOT NULL AND s.archived_at IS NULL
                 ORDER BY s.verification_checked_at IS NULL DESC, s.verification_checked_at ASC, l.last_mention DESC, s.id DESC
                 LIMIT ?',
             [max(0, $limit)],
@@ -98,7 +98,7 @@ final class SiteRepository
     public function verifiedToRecheck(int $days, int $limit): array
     {
         return array_map(Site::fromRow(...), $this->db->all(
-            'SELECT * FROM sites WHERE verified_at IS NOT NULL AND domain IS NOT NULL
+            'SELECT * FROM sites WHERE verified_at IS NOT NULL AND domain IS NOT NULL AND archived_at IS NULL
                 AND (verification_checked_at IS NULL OR verification_checked_at <= ?)
                 ORDER BY verification_checked_at IS NULL DESC, verification_checked_at ASC, id LIMIT ?',
             [gmdate('Y-m-d H:i:s', time() - $days * 86400), max(0, $limit)],
@@ -117,6 +117,44 @@ final class SiteRepository
             static fn (array $row): string => (string) $row['href'],
             $this->db->all('SELECT href FROM pages WHERE site_id = ? AND href IS NOT NULL ORDER BY id DESC LIMIT ?', [$siteId, $limit]),
         );
+    }
+
+    /**
+     * Archive some of an account's sites. Ids that are not the account's, or
+     * already archived, are left alone.
+     *
+     * @param  list<int> $ids
+     * @return int How many were archived.
+     */
+    public function archive(int $accountId, array $ids): int
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn (int $id): bool => $id > 0)));
+        if ($ids === []) {
+            return 0;
+        }
+
+        $now = Database::now();
+
+        return $this->db->run(
+            'UPDATE sites SET archived_at = ?, updated_at = ? WHERE account_id = ? AND archived_at IS NULL AND id IN (' . Database::placeholders($ids) . ')',
+            [$now, $now, $accountId, ...$ids],
+        )->rowCount();
+    }
+
+    public function unarchive(int $accountId, int $id): bool
+    {
+        return $this->db->run(
+            'UPDATE sites SET archived_at = NULL, updated_at = ? WHERE id = ? AND account_id = ? AND archived_at IS NOT NULL',
+            [Database::now(), $id, $accountId],
+        )->rowCount() > 0;
+    }
+
+    /** When the site last received a webmention. The site index answers MAX(id) without reading rows. */
+    public function lastMentionAt(int $siteId): ?string
+    {
+        $value = $this->db->value('SELECT created_at FROM links WHERE id = (SELECT MAX(id) FROM links WHERE site_id = ?)', [$siteId]);
+
+        return $value === null ? null : (string) $value;
     }
 
     /** @return list<Site> */

@@ -31,6 +31,7 @@ use Webmention\Webmention\Queue;
 use Webmention\Webmention\AccountMerger;
 use Webmention\Webmention\RateLimiter;
 use Webmention\Webmention\SiteActivity;
+use Webmention\Webmention\SiteDeleter;
 use Webmention\Webmention\SiteVerifier;
 use Webmention\Webmention\SourceFetcher;
 use Webmention\Webmention\StatusStore;
@@ -106,6 +107,7 @@ final class Bootstrap
             $c->get(HttpClient::class),
             $c->get(Log::class),
         ));
+        $c->set(SiteDeleter::class, static fn (Container $c): SiteDeleter => new SiteDeleter($c->get(Database::class), $c->get(Redis::class), $c->get(Log::class)));
         $c->set(SiteActivity::class, static fn (Container $c): SiteActivity => new SiteActivity($c->get(Database::class), $c->get(Redis::class)));
         $c->set(Queue::class, static fn (Container $c): Queue => new Queue($c->get(Redis::class)));
         $c->set(RateLimiter::class, static fn (Container $c): RateLimiter => new RateLimiter($c->get(Redis::class), $c->get(Log::class)));
@@ -215,6 +217,7 @@ final class Bootstrap
             $c->get(WebhookDeliveryRepository::class),
             $c->get(SiteActivity::class),
             $c->get(AccountMerger::class),
+            $c->get(SiteDeleter::class),
             $config,
         ));
 
@@ -266,6 +269,10 @@ final class Bootstrap
         $r->post('/settings/sites/new', [SettingsController::class, 'createSite']);
         $r->post('/settings/sites/merge', [SettingsController::class, 'mergePage']);
         $r->post('/settings/sites/verify', [SettingsController::class, 'verifySite']);
+        $r->post('/settings/sites/archive', [SettingsController::class, 'archiveSites']);
+        $r->post('/settings/sites/unarchive', [SettingsController::class, 'unarchiveSite']);
+        $r->post('/settings/sites/delete', [SettingsController::class, 'deleteSite']);
+        $r->get('/settings/sites/{id}/delete', [SettingsController::class, 'confirmDeleteSite']);
         $r->get('/settings/sites/{id}', [SettingsController::class, 'site']);
         $r->get('/settings/webhooks', [SettingsController::class, 'webhooks']);
         $r->post('/webhook/configure', [SettingsController::class, 'configureWebhook']);

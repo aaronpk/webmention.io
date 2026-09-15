@@ -261,7 +261,8 @@ button.secondary,
     border-color: var(--line);
 }
 
-button.danger {
+button.danger,
+.button.danger {
     color: #fff;
     background: var(--danger);
     border-color: var(--danger);
@@ -409,6 +410,8 @@ details summary { cursor: pointer; color: var(--muted); margin: 1rem 0 .5rem; }
 /* Tables */
 
 .table-wrap { overflow-x: auto; }
+.table-wrap + .form-actions { margin-top: 1rem; }
+.data th.check, .data td.check { width: 1.5rem; padding-right: 0; }
 .data td.url { overflow-wrap: anywhere; max-width: 36rem; }
 .data td.nowrap { white-space: nowrap; }
 .pager { display: flex; gap: 1rem; align-items: center; justify-content: space-between; margin-top: 1rem; font-size: .925rem; }

@@ -172,6 +172,12 @@ The indexes can stay; the Ruby app's queries benefit from them too.
   mysql webmention < database/migrations/2026-09-16-webhook-deliveries.sql
   ```
 
+* **Archived sites.** Adds `sites.archived_at`. The Ruby app does not read it, so if it were put back in front of the database, archived sites would accept webmentions again.
+
+  ```bash
+  mysql webmention < database/migrations/2026-09-17-site-archive.sql
+  ```
+
 * **Re-sanitise old GitHub-sourced content.** Before XRay v2.0.1 (fixed and bundled here on 2026-09-13), XRay's GitHub format stored issue and comment bodies as raw HTML in `links.content`. Rows received from `github.com` sources through the hosted XRay may still carry markup that the current parser would strip, and every API format serves `content` as stored. Once traffic is on the new app, run a one-off pass over `links WHERE domain = 'github.com'` that passes `content` through `p3k\XRay\Formats\Format::sanitizeHTML()` and writes back only the rows that change.
 * The `debugs` table, `links.notification_id` and the `accounts.pingback_enabled`, `tiktokbot_*` and `xmpp_*` columns are no longer used. They can be dropped whenever convenient; nothing needs them gone.
 * `bin/worker` exits after 1000 jobs and systemd starts a fresh one, which keeps memory and connections from going stale.

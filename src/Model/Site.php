@@ -19,7 +19,14 @@ final class Site
         public readonly ?string $verificationError = null,
         /** Hold policy for new mentions: null/"off", "first" or "all". See Moderation. */
         public readonly ?string $moderation = null,
+        /** When the owner archived it: it refuses new webmentions but keeps its own. */
+        public readonly ?string $archivedAt = null,
     ) {
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->archivedAt !== null;
     }
 
     /** Whether the site has proved it belongs to its account (see SiteVerifier). */
@@ -44,6 +51,7 @@ final class Site
             verificationCheckedAt: isset($row['verification_checked_at']) ? (string) $row['verification_checked_at'] : null,
             verificationError:     isset($row['verification_error']) ? (string) $row['verification_error'] : null,
             moderation:            isset($row['moderation']) ? (string) $row['moderation'] : null,
+            archivedAt:            isset($row['archived_at']) ? (string) $row['archived_at'] : null,
         );
     }
 }

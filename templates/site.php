@@ -3,7 +3,8 @@
  * One site: verification, web hook, moderation and avatar settings.
  *
  * @var array{id: int, domain: string, pages: int, mentions: int, verified: bool, verified_on: ?string, checked_on: ?string, error: ?string,
- *            callback_url: string, callback_secret: string, archive_avatars: bool, moderation: string} $site
+ *            callback_url: string, callback_secret: string, archive_avatars: bool, moderation: string,
+ *            archived: bool, archived_on: ?string, deleting: bool} $site
  * @var array{months: list<array{month: string, label: string, count: int}>, max: int, total: int} $activity  Received per month, oldest first.
  * @var string      $endpoint
  * @var bool        $saved        The settings form was just saved.
@@ -13,6 +14,8 @@
  * @var bool        $has_mentions The site has a published mention that can be sent as a test.
  * @var bool        $sent         A delivery was just sent by hand.
  * @var string|null $resend_error Why one could not be.
+ * @var string|null $notice       A message from the last action.
+ * @var string|null $export_url   This site's webmentions as a jf2 download; set for an archived site.
  * @var string      $csrf
  */
 // Messages are already escaped; URLs in them are set in <code> so they read as addresses, not missing links.
@@ -20,12 +23,19 @@ $withCode = static fn (string $text): string => (string) preg_replace('#https?:/
 ?>
 <p class="muted small"><a href="/settings/sites">Sites</a> › <?= $site['domain'] ?></p>
 
+<?php if ($notice !== null) { ?>
+    <p class="notice"><?= $notice ?></p>
+<?php } ?>
+
 <section class="card">
     <h2><?= $site['domain'] ?>
         <?php if ($site['verified']) { ?>
             <span class="badge">Verified</span>
         <?php } else { ?>
             <span class="badge badge-error">Not verified</span>
+        <?php } ?>
+        <?php if ($site['archived']) { ?>
+            <span class="badge">Archived</span>
         <?php } ?>
     </h2>
     <dl class="facts">
@@ -56,6 +66,26 @@ $withCode = static fn (string $text): string => (string) preg_replace('#https?:/
         </figcaption>
     </figure>
 </section>
+
+<?php if ($site['archived']) { ?>
+<section class="card">
+    <h2>Archived</h2>
+    <?php if ($site['deleting']) { ?>
+        <p class="alert">This site is being deleted. Its webmentions are being removed in the background, and it will disappear from your Sites list when that is done.</p>
+    <?php } else { ?>
+        <p>Archived<?= $site['archived_on'] !== null ? ' on ' . $site['archived_on'] : '' ?>. It no longer accepts webmentions, and its web hook, moderation and verification are paused.
+            The <?= number_format($site['mentions']) ?> webmentions it received are still in the API and your export.</p>
+        <form action="/settings/sites/unarchive" method="post" class="form-actions">
+            <input type="hidden" name="csrf" value="<?= $csrf ?>">
+            <input type="hidden" name="site_id" value="<?= $site['id'] ?>">
+            <button type="submit">Unarchive</button>
+            <a class="button secondary" href="<?= $export_url ?>" download>Download export</a>
+            <a class="button danger" href="/settings/sites/<?= $site['id'] ?>/delete">Delete this site…</a>
+        </form>
+        <p class="muted small">The export is one jf2 file with every webmention this site received, and can be downloaded once every five minutes.</p>
+    <?php } ?>
+</section>
+<?php } else { ?>
 
 <section class="card">
     <h2>Verification</h2>
@@ -214,5 +244,21 @@ $withCode = static fn (string $text): string => (string) preg_replace('#https?:/
         </div>
         <p class="muted small">The newest 50 deliveries are kept. Re-sending uses the site's current callback URL and secret.</p>
     <?php } ?>
+</section>
+<?php } ?>
+
+<section class="card">
+    <h2>Stop using this site</h2>
+    <p><strong>Archive</strong> it if you no longer use it but want to keep what it received: it stops accepting webmentions,
+        the ones it has stay in the API, and you can unarchive it at any time.
+        <strong>Delete</strong> it to remove the site and every webmention it received, permanently.</p>
+    <form action="/settings/sites/archive" method="post" class="form-actions">
+        <input type="hidden" name="csrf" value="<?= $csrf ?>">
+        <input type="hidden" name="site_id[]" value="<?= $site['id'] ?>">
+        <input type="hidden" name="back" value="site">
+        <button type="submit" class="secondary">Archive this site</button>
+        <a class="button danger" href="/settings/sites/<?= $site['id'] ?>/delete">Delete this site…</a>
+    </form>
+    <p class="muted small">You can export your site's webmentions after it is archived.</p>
 </section>
 <?php } ?>

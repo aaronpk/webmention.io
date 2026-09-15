@@ -147,6 +147,7 @@ CREATE TABLE `sites` (
   `verification_checked_at` datetime DEFAULT NULL,
   `verification_error` varchar(255) DEFAULT NULL,
   `moderation` varchar(16) DEFAULT NULL,
+  `archived_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `account_domain` (`account_id`,`domain`),
   KEY `index_sites_account` (`account_id`),

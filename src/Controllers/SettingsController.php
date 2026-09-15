@@ -26,6 +26,7 @@ use Webmention\Webmention\Moderation;
 use Webmention\Webmention\AccountMerger;
 use Webmention\Webmention\RateLimiter;
 use Webmention\Webmention\SiteActivity;
+use Webmention\Webmention\SiteDeleter;
 use Webmention\Webmention\WebHooks;
 use Webmention\Webmention\SiteVerifier;
 use Webmention\Webmention\TargetResolver;
@@ -54,6 +55,7 @@ final class SettingsController extends Controller
         private readonly WebhookDeliveryRepository $deliveries,
         private readonly SiteActivity $activity,
         private readonly AccountMerger $merger,
+        private readonly SiteDeleter $deleter,
         private readonly Config $config,
     ) {
         parent::__construct($view);
@@ -191,28 +193,149 @@ final class SettingsController extends Controller
             $sites = [$this->sites->find($site->id) ?? $site];
         }
 
-        $rows = [];
+        $rows     = [];
+        $archived = [];
         foreach ($sites as $site) {
-            $checked = $site->verificationCheckedAt === null ? null : date_create_immutable($site->verificationCheckedAt . ' UTC');
+            if ($site->isArchived()) {
+                // No counts here: an account can have hundreds of old sites.
+                $archived[] = [
+                    'id'          => $site->id,
+                    'domain'      => (string) $site->domain,
+                    'archived_on' => self::shortDate($site->archivedAt),
+                    'deleting'    => $this->deleter->isDeleting($site->id),
+                ];
+                continue;
+            }
+
             $rows[] = [
-                'id'         => $site->id,
-                'domain'     => (string) $site->domain,
-                'pages'      => $this->sites->pageCount($site->id),
-                'mentions'   => $this->sites->linkCount($site->id),
-                'verified'   => $site->isVerified(),
-                'checked_on' => $checked === false || $checked === null ? null : $checked->format('M j, Y'),
-                'error'      => $site->verificationError,
+                'id'           => $site->id,
+                'domain'       => (string) $site->domain,
+                'pages'        => $this->sites->pageCount($site->id),
+                'mentions'     => $this->sites->linkCount($site->id),
+                'last_mention' => self::shortDate($this->sites->lastMentionAt($site->id)),
+                'verified'     => $site->isVerified(),
             ];
         }
 
         return $this->page('sites', 'Sites', [
             'sites'    => $rows,
+            'archived' => $archived,
+            'notice'   => $request->query('notice'),
             'endpoint' => $this->config->baseUrl() . '/' . $user->domain . '/webmention',
             'error'    => $request->query('error'),
             'merged'   => $request->query('merged'),
             'merge_error' => $request->query('merge_error'),
             'csrf'     => $this->session->csrfToken(),
         ], $this->nav($user, 'sites'));
+    }
+
+    /**
+     * Archive one or more sites: they refuse new webmentions but keep the
+     * ones they have. From the Sites list's checkboxes or a site's own page.
+     *
+     * @param array<string, string> $params
+     */
+    public function archiveSites(Request $request, array $params): Response
+    {
+        if (($user = $this->currentUser($request)) === null) {
+            return Response::redirect('/');
+        }
+        $this->checkCsrf($request);
+
+        $ids      = array_map('intval', $request->inputList('site_id'));
+        $archived = $this->sites->archive($user->id, $ids);
+
+        if (count($ids) === 1 && $request->post('back') === 'site' && $this->sites->findForAccount($user->id, $ids[0]) !== null) {
+            return Response::seeOther("/settings/sites/{$ids[0]}?notice=" . rawurlencode('Archived. This site no longer accepts webmentions.'));
+        }
+
+        return Response::seeOther('/settings/sites?notice=' . rawurlencode(
+            $archived === 0 ? 'No sites were archived.' : sprintf('Archived %d site%s.', $archived, $archived === 1 ? '' : 's'),
+        ));
+    }
+
+    /** @param array<string, string> $params */
+    public function unarchiveSite(Request $request, array $params): Response
+    {
+        if (($user = $this->currentUser($request)) === null) {
+            return Response::redirect('/');
+        }
+        $this->checkCsrf($request);
+
+        $site = $this->sites->findForAccount($user->id, (int) $request->post('site_id'));
+        if ($site === null) {
+            throw HttpException::notFound('That site is not on your account.');
+        }
+
+        if ($this->deleter->isDeleting($site->id)) {
+            return Response::seeOther("/settings/sites/{$site->id}?notice=" . rawurlencode('This site is being deleted and cannot be unarchived.'));
+        }
+
+        $this->sites->unarchive($user->id, $site->id);
+
+        return Response::seeOther("/settings/sites/{$site->id}?notice=" . rawurlencode('Unarchived. This site accepts webmentions again.'));
+    }
+
+    /**
+     * What deleting a site removes, with a way to keep a copy first.
+     *
+     * @param array<string, string> $params
+     */
+    public function confirmDeleteSite(Request $request, array $params): Response
+    {
+        if (($user = $this->currentUser($request)) === null) {
+            return Response::redirect('/');
+        }
+
+        $site = $this->sites->findForAccount($user->id, (int) ($params['id'] ?? 0));
+        if ($site === null) {
+            throw HttpException::notFound('That site is not on your account.');
+        }
+
+        return $this->page('site-delete', 'Delete ' . $site->domain, [
+            'site' => [
+                'id'       => $site->id,
+                'domain'   => (string) $site->domain,
+                'pages'    => $this->sites->pageCount($site->id),
+                'mentions' => $this->sites->linkCount($site->id),
+            ],
+            'export_url'     => $this->config->baseUrl() . '/api/export.jf2?token=' . rawurlencode($this->tokenFor($user)) . '&domain=' . rawurlencode((string) $site->domain),
+            'sign_in_domain' => strtolower((string) $site->domain) === self::normalizeDomain((string) $user->domain),
+            'error'          => $request->query('error'),
+            'csrf'           => $this->session->csrfToken(),
+        ], $this->nav($user, 'sites'));
+    }
+
+    /** @param array<string, string> $params */
+    public function deleteSite(Request $request, array $params): Response
+    {
+        if (($user = $this->currentUser($request)) === null) {
+            return Response::redirect('/');
+        }
+        $this->checkCsrf($request);
+
+        $site = $this->sites->findForAccount($user->id, (int) $request->post('site_id'));
+        if ($site === null) {
+            throw HttpException::notFound('That site is not on your account.');
+        }
+
+        if (strtolower(trim((string) $request->post('confirm_domain'))) !== strtolower((string) $site->domain)) {
+            return Response::seeOther("/settings/sites/{$site->id}/delete?error=" . rawurlencode('Type the domain name exactly to confirm.'));
+        }
+
+        $mentions = $this->sites->linkCount($site->id);
+
+        return Response::seeOther('/settings/sites?notice=' . rawurlencode($this->deleter->delete($site)
+            ? "Deleted {$site->domain}."
+            : sprintf('Deleting %s. Its %s webmentions are being removed in the background.', $site->domain, number_format($mentions))));
+    }
+
+    /** A stored UTC datetime as "Sep 17, 2026", or null. */
+    private static function shortDate(?string $utc): ?string
+    {
+        $d = $utc === null ? null : date_create_immutable($utc . ' UTC');
+
+        return $d === false || $d === null ? null : $d->format('M j, Y');
     }
 
     /**
@@ -251,7 +374,14 @@ final class SettingsController extends Controller
                 'callback_secret' => (string) $site->callbackSecret,
                 'archive_avatars' => $site->archiveAvatars,
                 'moderation'      => $site->moderation ?? 'off',
+                'archived'        => $site->isArchived(),
+                'archived_on'     => $date($site->archivedAt),
+                'deleting'        => $this->deleter->isDeleting($site->id),
             ],
+            'notice'       => $request->query('notice'),
+            'export_url'   => $site->isArchived()
+                ? $this->config->baseUrl() . '/api/export.jf2?token=' . rawurlencode($this->tokenFor($user)) . '&domain=' . rawurlencode((string) $site->domain)
+                : null,
             'activity'     => self::activity($this->activity->monthlyCounts($site->id)),
             'endpoint'     => $this->config->baseUrl() . '/' . $user->domain . '/webmention',
             'saved'        => $request->query('saved') !== null,
@@ -363,8 +493,11 @@ final class SettingsController extends Controller
             return Response::seeOther('/settings/sites?error=' . rawurlencode('Enter a domain name, like example.com'));
         }
 
-        if ($this->sites->findByAccountAndDomain($user->id, $domain) !== null) {
-            return Response::seeOther('/settings/sites');
+        if (($existing = $this->sites->findByAccountAndDomain($user->id, $domain)) !== null) {
+            // An archived site comes back from its own page, where Unarchive is.
+            return $existing->isArchived()
+                ? Response::seeOther("/settings/sites/{$existing->id}?notice=" . rawurlencode("$domain is already on your account, archived. Unarchive it to receive webmentions again."))
+                : Response::seeOther('/settings/sites');
         }
 
         // The domain has to name this account's endpoint before it can be added.

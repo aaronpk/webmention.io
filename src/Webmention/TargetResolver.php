@@ -134,6 +134,10 @@ final class TargetResolver
         }
 
         $owner = $this->sites->findByAccountAndDomain($site->accountId, $host);
+        if ($owner !== null && $owner->isArchived()) {
+            // An archived site takes no new webmentions, not even by canonical URL.
+            $owner = null;
+        }
         if ($owner === null && Url::sameOwner($host, (string) $site->domain)) {
             // example.com and www.example.com are one site's two names.
             $owner = $site;
