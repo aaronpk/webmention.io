@@ -7,7 +7,8 @@ declare(strict_types=1);
  * Checks sites added before proof of ownership was required, and records
  * which ones advertise their account's webmention endpoint.
  *
- *   tools/verify-sites [--limit=200] [--apply] [--recheck-verified-older-than=DAYS]
+ *   tools/verify-sites [--limit=200] [--apply] [--pause=MS]
+ *                      [--recheck-verified-older-than=DAYS]
  *
  * Without --apply nothing is written. Each site costs up to five fetches
  * (home page over https and http, then up to three recent target pages),
@@ -32,11 +33,14 @@ ErrorHandler::ignoreVendorNoise();
 $limit   = 200;
 $apply   = false;
 $recheck = null;
+$pause   = 250;
 foreach (array_slice($argv, 1) as $arg) {
     if (preg_match('/^--limit=(\d+)$/', $arg, $m) === 1) {
         $limit = (int) $m[1];
     } elseif ($arg === '--apply') {
         $apply = true;
+    } elseif (preg_match('/^--pause=(\d+)$/', $arg, $m) === 1) {
+        $pause = (int) $m[1];
     } elseif (preg_match('/^--recheck-verified-older-than=(\d+)$/', $arg, $m) === 1) {
         $recheck = (int) $m[1];
     } else {
@@ -50,9 +54,10 @@ $recheckRun = new SiteRecheck(
     $container->get(SiteRepository::class),
     $container->get(AccountRepository::class),
     $container->get(SiteVerifier::class),
+    $pause,
 );
 
-printf("%s: checking up to %d sites\n\n", $apply ? 'APPLYING' : 'DRY RUN', $limit);
+printf("%s: checking up to %d sites, pausing %d ms between them\n\n", $apply ? 'APPLYING' : 'DRY RUN', $limit, $pause);
 
 $verified = $failed = 0;
 foreach ($recheckRun->run($limit, dryRun: !$apply, recheckVerifiedOlderThanDays: $recheck) as $line) {

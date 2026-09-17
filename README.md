@@ -388,6 +388,8 @@ composer test
 
 `tools/replay-check LINK_ID...` re-verifies stored webmentions with the current processor, without writing anything, and reports which stored fields would come out differently. Add `--compare-xray=https://xray.p3k.io/parse` to separate parser differences from pages that changed since they were received.
 
+`tools/audit` reports inconsistencies: webmentions or pages whose site or account no longer exists, URLs with more than one page row, aliases and blocked sources pointing at nothing, and a few things it only reports because they need judgement. `tools/repair` puts the repairable ones right, printing what it would do until given `--apply`, one check at a time with `--only=`, and capped with `--limit=`. Both work from the data itself, in batches, and are safe to re-run, so they go straight against production: audit, dry-run repair, compare, then apply.
+
 ### Outgoing requests
 
 Every outgoing request (fetching sources, private webmention tokens, web hooks, Aperture, avatar archiving, IndieAuth discovery, site verification) goes through `SafeTransport`. It only allows http and https, on web ports, to public IP addresses that are not this machine's own; it pins the address it checked for the connection, re-checks every redirect, never follows a redirect for a POST, drops `Authorization` and `Cookie` when a redirect leaves the origin, reads at most 2 MB of any response, and gives the whole redirect chain one time budget. To send webmentions from a local test site, set `ALLOW_PRIVATE_NETWORK=1` in `.env`; never in production.

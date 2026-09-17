@@ -1,0 +1,63 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Reports rows that point at things which no longer exist, URLs with more
+ * than one page row, and other inconsistencies.
+ *
+ *   tools/audit [--samples=N]
+ *
+ * Read-only. Takes a few minutes on a database the size of production; two
+ * of the checks scan the links table. Exits 1 when something repairable was
+ * found, so it can run weekly from cron, and 0 when only the report-only
+ * checks have anything.
+ *
+ * tools/repair fixes what is marked "repairable".
+ */
+
+use Webmention\Bootstrap;
+use Webmention\Logging\ErrorHandler;
+use Webmention\Storage\DataAudit;
+use Webmention\Storage\Database;
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+ErrorHandler::ignoreVendorNoise();
+
+$samples = 3;
+foreach (array_slice($argv, 1) as $arg) {
+    if (preg_match('/^--samples=(\d+)$/', $arg, $m) === 1) {
+        $samples = (int) $m[1];
+    } else {
+        fwrite(STDERR, "Unknown argument $arg\n");
+        exit(2);
+    }
+}
+
+$db = Database::connect(Bootstrap::config());
+
+printf("Auditing \"%s\"\n\n", (string) $db->value('SELECT DATABASE()'));
+
+$repairable = 0;
+foreach ((new DataAudit($db))->run($samples) as $result) {
+    printf("%-58s %9s%s  (%.1fs)\n",
+        $result['label'],
+        number_format($result['count']),
+        $result['count'] > 0 ? ($result['repairable'] ? '  repairable' : '  report only') : '',
+        $result['seconds'],
+    );
+    foreach ($result['samples'] as $sample) {
+        echo '    ', $sample, "\n";
+    }
+    if ($result['repairable']) {
+        $repairable += $result['count'];
+    }
+}
+
+printf("\n%s\n", $repairable === 0
+    ? 'Nothing to repair.'
+    : number_format($repairable) . ' rows can be repaired: run tools/repair to see what it would do, then tools/repair --apply');
+
+exit($repairable === 0 ? 0 : 1);

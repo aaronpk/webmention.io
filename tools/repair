@@ -1,0 +1,70 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Fixes what tools/audit reports as repairable.
+ *
+ *   tools/repair                          # dry run: says what it would do
+ *   tools/repair --apply                  # does it
+ *   tools/repair --only=duplicate_pages   # one check at a time
+ *   tools/repair --apply --limit=500      # cap the work in one run
+ *
+ * Everything is computed from the data, so this runs against production
+ * directly: dry run, compare the counts with tools/audit, then --apply.
+ * Each repair works in batches and is idempotent, so an interrupted run is
+ * finished by running it again and a second run finds nothing to do.
+ */
+
+use Webmention\Bootstrap;
+use Webmention\Logging\ErrorHandler;
+use Webmention\Storage\DataAudit;
+use Webmention\Storage\DataRepair;
+use Webmention\Storage\Database;
+use Webmention\Storage\PageRepository;
+use Webmention\Storage\SiteRepository;
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+ErrorHandler::ignoreVendorNoise();
+
+$apply = false;
+$only  = null;
+$limit = PHP_INT_MAX;
+
+foreach (array_slice($argv, 1) as $arg) {
+    if ($arg === '--apply') {
+        $apply = true;
+    } elseif (preg_match('/^--only=([a-z_,]+)$/', $arg, $m) === 1) {
+        $only = explode(',', $m[1]);
+    } elseif (preg_match('/^--limit=(\d+)$/', $arg, $m) === 1) {
+        $limit = (int) $m[1];
+    } else {
+        fwrite(STDERR, "Unknown argument $arg\n");
+        exit(2);
+    }
+}
+
+foreach ($only ?? [] as $key) {
+    if (!in_array($key, DataAudit::REPAIRABLE, true)) {
+        fwrite(STDERR, "Unknown check \"$key\". Known: " . implode(', ', DataAudit::REPAIRABLE) . "\n");
+        exit(2);
+    }
+}
+
+$db     = Database::connect(Bootstrap::config());
+$repair = new DataRepair($db, new PageRepository($db), new SiteRepository($db));
+
+printf("%s on \"%s\"\n\n", $apply ? 'APPLYING' : 'DRY RUN', (string) $db->value('SELECT DATABASE()'));
+
+$total = 0;
+foreach ($repair->run($apply, $only, $limit) as $result) {
+    printf("%-24s %9s %s\n", $result['key'], number_format($result['fixed']), $apply ? 'repaired' : 'to repair');
+    foreach ($result['notes'] as $note) {
+        echo '    ', $note, "\n";
+    }
+    $total += $result['fixed'];
+}
+
+printf("\n%s rows %s%s\n", number_format($total), $apply ? 'repaired' : 'would be repaired', $apply ? '' : ' (nothing written; add --apply)');
