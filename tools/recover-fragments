@@ -1,0 +1,126 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Recovers which #fragment each old webmention was sent to, from a backup
+ * made before the fragment pages were folded.
+ *
+ * Step one, where the backup is loaded (see docs/cutover.md) as the tables
+ * prefold_links and prefold_pages, writes the map:
+ *
+ *   tools/recover-fragments --export=fragments.tsv
+ *
+ * Step two applies it, against production, dry run first:
+ *
+ *   tools/recover-fragments --map=fragments.tsv
+ *   tools/recover-fragments --map=fragments.tsv --apply
+ *
+ * A webmention is only filled in when it still has no fragment and the
+ * fragment URL from the backup is still an alias of the page it sits on, so
+ * the map cannot put a fragment on the wrong row. Safe to run again; the
+ * second run fills nothing.
+ */
+
+use Webmention\Bootstrap;
+use Webmention\Logging\ErrorHandler;
+use Webmention\Storage\Database;
+use Webmention\Storage\FragmentRecovery;
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+ErrorHandler::ignoreVendorNoise();
+
+$export = null;
+$map    = null;
+$apply  = false;
+
+foreach (array_slice($argv, 1) as $arg) {
+    if (str_starts_with($arg, '--export=')) {
+        $export = substr($arg, 9);
+    } elseif (str_starts_with($arg, '--map=')) {
+        $map = substr($arg, 6);
+    } elseif ($arg === '--apply') {
+        $apply = true;
+    } else {
+        fwrite(STDERR, "Unknown argument $arg\n");
+        exit(2);
+    }
+}
+
+if (($export === null) === ($map === null)) {
+    fwrite(STDERR, "Give either --export=FILE or --map=FILE.\n");
+    exit(2);
+}
+
+$db       = Database::connect(Bootstrap::config());
+$recovery = new FragmentRecovery($db);
+
+if ($export !== null) {
+    $out = fopen($export, 'w') ?: throw new RuntimeException("Could not write $export");
+    $after = 0;
+    $total = 0;
+    while (true) {
+        $rows = $recovery->fromPrefoldTables($after);
+        if ($rows === []) {
+            break;
+        }
+        foreach ($rows as $row) {
+            fwrite($out, $row['id'] . "\t" . $row['fragment'] . "\t" . $row['url'] . "\n");
+            $after = $row['id'];
+            $total++;
+        }
+    }
+    fclose($out);
+
+    printf("%s webmentions were sent to a fragment; map written to %s\n", number_format($total), $export);
+    exit(0);
+}
+
+$handle = fopen((string) $map, 'r') ?: throw new RuntimeException("Could not read $map");
+$totals = ['filled' => 0, 'already' => 0, 'gone' => 0, 'mismatch' => 0];
+$notes  = [];
+$batch  = [];
+
+$flush = static function (array $batch) use ($recovery, $apply, &$totals, &$notes): void {
+    if ($batch === []) {
+        return;
+    }
+    $result = $recovery->apply($batch, $apply);
+    foreach (['filled', 'already', 'gone', 'mismatch'] as $key) {
+        $totals[$key] += $result[$key];
+    }
+    foreach ($result['notes'] as $note) {
+        if (count($notes) < 5) {
+            $notes[] = $note;
+        }
+    }
+};
+
+printf("%s on \"%s\"\n\n", $apply ? 'APPLYING' : 'DRY RUN', (string) $db->value('SELECT DATABASE()'));
+
+while (($line = fgets($handle)) !== false) {
+    [$id, $fragment, $url] = array_pad(explode("\t", rtrim($line, "\n"), 3), 3, '');
+    if (!ctype_digit($id) || $fragment === '' || $url === '') {
+        continue;
+    }
+    $batch[] = ['id' => (int) $id, 'fragment' => $fragment, 'url' => $url];
+
+    if (count($batch) >= FragmentRecovery::BATCH) {
+        $flush($batch);
+        $batch = [];
+    }
+}
+$flush($batch);
+fclose($handle);
+
+printf("%s fragments %s\n", number_format($totals['filled']), $apply ? 'filled in' : 'would be filled in');
+printf("%s already recorded, %s no longer in the database, %s left alone because the page no longer matches\n",
+    number_format($totals['already']), number_format($totals['gone']), number_format($totals['mismatch']));
+foreach ($notes as $note) {
+    echo '    ', $note, "\n";
+}
+if (!$apply) {
+    echo "\nNothing was written; add --apply.\n";
+}

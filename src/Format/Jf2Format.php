@@ -67,6 +67,11 @@ final class Jf2Format
             'wm-protocol'  => $link->protocol,
         ];
 
+        if (!Url::blank($link->targetFragment)) {
+            // Which fragment of wm-target this one was sent to.
+            $jf2['wm-fragment'] = $link->targetFragment;
+        }
+
         if (!Url::blank($link->name)) {
             $jf2['name'] = $link->name;
         }

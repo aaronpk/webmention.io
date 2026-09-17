@@ -18,6 +18,7 @@ final class LinkSearch
      * @param list<string>   $types             Empty means any type (unless includeUnlabelled).
      * @param bool           $includeUnlabelled Also match rows whose type is NULL or not one of
      *                                          Jf2Format::LABELLED_TYPES: everything shown as mention-of.
+     * @param list<string>   $fragments         Only mentions sent to one of these #fragments of the target.
      */
     public function __construct(
         public readonly ?int $accountId = null,
@@ -32,6 +33,7 @@ final class LinkSearch
         public readonly int $offset = 0,
         public readonly bool $includePrivate = false,
         public readonly bool $includeUnlabelled = false,
+        public readonly array $fragments = [],
     ) {
     }
 }

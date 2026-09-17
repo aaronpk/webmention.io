@@ -74,13 +74,14 @@ final class ApiController extends Controller
             ]);
         }
 
-        $pageIds = $this->pages->idsForHrefs($targets);
+        $pageIds   = $this->pages->idsForHrefs($targets);
+        $fragments = self::fragments($request);
 
         // Raw types are passed through, as they always were, except that plain
         // links and rows with no recorded type both count as "mention", so the
         // breakdown adds up to the total.
         $counts = [];
-        foreach ($this->links->typeCountsForPages($pageIds) as $type => $num) {
+        foreach ($this->links->typeCountsForPages($pageIds, false, $fragments) as $type => $num) {
             $key = $type === 'link' || $type === '' ? 'mention' : (string) $type;
             $counts[$key] = ($counts[$key] ?? 0) + $num;
         }
@@ -92,7 +93,7 @@ final class ApiController extends Controller
         }
 
         return $this->json->respond($request, 200, [
-            'count' => $this->links->countForPages($pageIds),
+            'count' => $this->links->countForPages($pageIds, false, $fragments),
             'type'  => $types,
         ]);
     }
@@ -138,6 +139,7 @@ final class ApiController extends Controller
                 'rsvp', 'published', 'updated' => (string) $request->input('sort-by'),
                 default                        => 'created',
             },
+            'fragments'    => self::fragments($request),
             'descending'   => $sortDir === null || $sortDir === 'down',
             'limit'        => $perPage,
             'offset'       => self::offset($page, $perPage),
@@ -446,12 +448,35 @@ final class ApiController extends Controller
      */
     private static function targets(Request $request): array
     {
+        // Kept as sent, fragment and all: the page lookup drops the fragment
+        // itself, and a fragment query needs to know it was asked for.
         $targets = array_values(array_filter(
-            array_map(TargetResolver::key(...), $request->inputList('target')),
+            $request->inputList('target'),
             static fn (string $target): bool => $target !== '' && strlen($target) <= WebmentionController::MAX_URL_BYTES,
         ));
 
         return array_slice(array_values(array_unique($targets)), 0, self::MAX_TARGETS);
+    }
+
+    /**
+     * The fragments a query is asking for, and only when every target names
+     * one: a target without a fragment means everything filed under that
+     * page, which is what it has always meant.
+     *
+     * @return list<string>
+     */
+    private static function fragments(Request $request): array
+    {
+        $fragments = [];
+        foreach (self::targets($request) as $target) {
+            $fragment = TargetResolver::fragment($target);
+            if ($fragment === null) {
+                return [];
+            }
+            $fragments[] = $fragment;
+        }
+
+        return array_values(array_unique($fragments));
     }
 
     /** The token from an `Authorization: Bearer` header, so it can stay out of URLs and access logs. */

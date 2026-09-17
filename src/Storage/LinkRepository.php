@@ -32,11 +32,16 @@ final class LinkRepository
     }
 
     /** Deleted links included: re-sending a deleted webmention must not create a duplicate. */
-    public function findByPageAndHref(int $pageId, string $href): ?Link
+    /**
+     * The row for one source on one page, sent to one fragment of it. A
+     * fragment of its own keeps its own row, so two likes from the same
+     * person to two images on a gallery page stay two likes.
+     */
+    public function findByPageSourceAndFragment(int $pageId, string $href, ?string $fragment): ?Link
     {
         return $this->first(
-            self::SELECT . ' WHERE links.page_id = ? AND links.href = ? ORDER BY links.id LIMIT 1',
-            [$pageId, $href],
+            self::SELECT . ' WHERE links.page_id = ? AND links.href = ? AND links.target_fragment <=> ? ORDER BY links.id LIMIT 1',
+            [$pageId, $href, $fragment],
         );
     }
 
@@ -204,6 +209,10 @@ final class LinkRepository
             $where[] = 'links.page_id IN (' . Database::placeholders($search->pageIds) . ')';
             array_push($params, ...$search->pageIds);
         }
+        if ($search->fragments !== []) {
+            $where[] = 'links.target_fragment IN (' . Database::placeholders($search->fragments) . ')';
+            array_push($params, ...$search->fragments);
+        }
         if ($search->createdAfter !== null) {
             $where[]  = 'links.updated_at > ?';
             $params[] = $search->createdAfter;
@@ -225,33 +234,56 @@ final class LinkRepository
     /**
      * @param list<int> $pageIds
      */
-    public function countForPages(array $pageIds, bool $includePrivate = false): int
+    /** @param list<string> $fragments Only mentions sent to one of these fragments, when given. */
+    public function countForPages(array $pageIds, bool $includePrivate = false, array $fragments = []): int
     {
         if ($pageIds === []) {
             return 0;
         }
 
+        [$clause, $params] = self::fragmentClause($pageIds, $fragments);
+
         return (int) $this->db->value(
             'SELECT COUNT(*) FROM links WHERE page_id IN (' . Database::placeholders($pageIds) . ')
-                AND verified = 1 AND deleted = 0' . ($includePrivate ? '' : ' AND is_private = 0'),
-            $pageIds,
+                AND verified = 1 AND deleted = 0' . ($includePrivate ? '' : ' AND is_private = 0') . $clause,
+            $params,
         );
+    }
+
+    /**
+     * @param  list<int>    $pageIds
+     * @param  list<string> $fragments
+     * @return array{string, list<mixed>}
+     */
+    private static function fragmentClause(array $pageIds, array $fragments): array
+    {
+        if ($fragments === []) {
+            return ['', $pageIds];
+        }
+
+        return [
+            ' AND target_fragment IN (' . Database::placeholders($fragments) . ')',
+            [...$pageIds, ...$fragments],
+        ];
     }
 
     /**
      * @param  list<int>          $pageIds
      * @return array<string, int> type => count; rows with no type are counted under ''
      */
-    public function typeCountsForPages(array $pageIds, bool $includePrivate = false): array
+    /** @param list<string> $fragments Only mentions sent to one of these fragments, when given. */
+    public function typeCountsForPages(array $pageIds, bool $includePrivate = false, array $fragments = []): array
     {
         if ($pageIds === []) {
             return [];
         }
 
+        [$clause, $params] = self::fragmentClause($pageIds, $fragments);
+
         $rows = $this->db->all(
             'SELECT type, COUNT(1) AS num FROM links WHERE page_id IN (' . Database::placeholders($pageIds) . ')
-                AND deleted = 0 AND verified = 1' . ($includePrivate ? '' : ' AND is_private = 0') . ' GROUP BY type',
-            $pageIds,
+                AND deleted = 0 AND verified = 1' . ($includePrivate ? '' : ' AND is_private = 0') . $clause . ' GROUP BY type',
+            $params,
         );
 
         $counts = [];
@@ -339,6 +371,13 @@ final class LinkRepository
                 array_push($params, ...Jf2Format::LABELLED_TYPES);
             }
             $where[] = '(' . implode(' OR ', $typeClauses) . ')';
+        }
+        if ($search->fragments !== []) {
+            // Only rows sent to one of these fragments. Rows received before
+            // the fragment was recorded have NULL and are left out, which is
+            // what asking for a particular fragment means.
+            $where[] = 'links.target_fragment IN (' . Database::placeholders($search->fragments) . ')';
+            array_push($params, ...$search->fragments);
         }
         if ($search->createdAfter !== null) {
             $where[]  = 'links.created_at > ?';

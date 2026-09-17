@@ -4,3 +4,7 @@
 .env
 .env.testing
 .DS_Store
+
+# Local database dumps and the fragment recovery map
+*.sql.gz
+fragments.tsv

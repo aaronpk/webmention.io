@@ -54,6 +54,7 @@ Authorization: Bearer xxxxx</code></pre>
     <p>A mention is filed under the target's canonical URL. When a target is first seen, the service fetches it, follows your site's redirects and honours its <code>rel="canonical"</code>,
         and files the mention under the URL it ends up at, as long as that URL is on one of your sites. A <code>#fragment</code> in the target is ignored.
         Every other form that led to the page is remembered as an alias, so <code>target=</code> queries for any of them return the same mentions, and <code>wm-target</code> is always the canonical URL.
+        A <code>#fragment</code> does not change which page a mention belongs to, but it is kept: see <code>wm-fragment</code> under <a href="#mentions-fields">Fields on a mention</a>.
         Trailing slashes and <code>http</code>/<code>https</code> are not treated as equivalent by rule; your site decides, by redirecting.
         If you move a page later, use "Moved a page?" on the <a href="/settings/sites">Sites</a> page to re-file its mentions once the old URL redirects.</p>
 </section>
@@ -115,7 +116,7 @@ Authorization: Bearer xxxxx</code></pre>
     <div class="table-wrap"><table class="data">
         <thead><tr><th>Parameter</th><th>Meaning</th></tr></thead>
         <tbody>
-            <tr><td><code>target</code></td><td>The page to list mentions of. Repeat as <code>target[]</code> to combine several pages, up to 50, which is useful when a post has had more than one URL. A target with no scheme, such as <code>//example.com/post</code>, matches both http and https.</td></tr>
+            <tr><td><code>target</code></td><td>The page to list mentions of. Repeat as <code>target[]</code> to combine several pages, up to 50, which is useful when a post has had more than one URL. A target with no scheme, such as <code>//example.com/post</code>, matches both http and https. Include a <code>#fragment</code> to get only the mentions sent to that fragment; leave it out for all of them.</td></tr>
             <tr><td><code>domain</code></td><td>Every mention of one of your sites. Needs your <a href="#auth">token</a>.</td></tr>
             <tr><td><code>token</code></td><td>Your token. With no <code>target</code> and no <code>domain</code>, lists everything on your account.</td></tr>
             <tr><td><code>wm-property</code></td><td>Only mentions of one kind: <code>in-reply-to</code>, <code>like-of</code>, <code>repost-of</code>, <code>bookmark-of</code>, <code>mention-of</code> or <code>rsvp</code>. Repeat as <code>wm-property[]</code> for several. <code>mention-of</code> matches everything that is not one of the other kinds, including older mentions stored without a type; <code>rsvp</code> matches every RSVP value.</td></tr>
@@ -179,6 +180,7 @@ Authorization: Bearer xxxxx</code></pre>
             <tr><td><code>wm-received</code></td><td>When webmention.io received it, in UTC.</td></tr>
             <tr><td><code>wm-private</code></td><td><code>true</code> for a private webmention. Only present in token-authenticated listings.</td></tr>
             <tr><td><code>wm-protocol</code></td><td><code>webmention</code> or <code>pingback</code>.</td></tr>
+            <tr><td><code>wm-fragment</code></td><td>The <code>#fragment</code> of your page this one was sent to, without the hash, when it had one. Ask for <code>target=…#that-fragment</code> to get only those. Mentions received before September 2026 have none recorded.</td></tr>
             <tr><td><code>author</code></td><td>An h-card with <code>name</code>, <code>url</code> and <code>photo</code>, any of which may be empty.</td></tr>
             <tr><td><code>url</code></td><td>The post's own permalink. Usually the same as <code>wm-source</code>, but differs for bridged posts, for example a reply sent on behalf of a social media post.</td></tr>
             <tr><td><code>published</code></td><td>The date the post reports, as written, with its own timezone.</td></tr>

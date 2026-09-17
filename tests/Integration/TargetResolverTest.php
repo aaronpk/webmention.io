@@ -60,13 +60,21 @@ final class TargetResolverTest extends IntegrationTestCase
             array_column($pages->aliasesForPage($page->id), 'href'),
         );
 
-        // Every form of the URL returns all four mentions, and wm-target is canonical.
-        foreach (array_keys($targets) as $target) {
+        // Every fragment-less form of the URL returns all four mentions, and wm-target is canonical.
+        foreach (['http://target.example.com/entry-old', 'http://target.example.com/entry-alias', self::ENTRY] as $target) {
             $jf2 = self::json($this->request('GET', '/api/mentions.jf2', ['target' => $target]));
             self::assertCount(4, $jf2['children'], $target);
             self::assertSame([self::ENTRY], array_values(array_unique(array_column($jf2['children'], 'wm-target'))), $target);
             self::assertSame(4, self::json($this->request('GET', '/api/count', ['target' => $target]))['count'], $target);
         }
+
+        // Naming the fragment returns only what was sent to it.
+        $jf2 = self::json($this->request('GET', '/api/mentions.jf2', ['target' => 'http://target.example.com/entry#comments']));
+        self::assertCount(1, $jf2['children']);
+        self::assertSame('http://source.example.org/via-fragment', $jf2['children'][0]['wm-source']);
+        self::assertSame('comments', $jf2['children'][0]['wm-fragment']);
+        self::assertSame(self::ENTRY, $jf2['children'][0]['wm-target'], 'wm-target stays canonical');
+        self::assertSame(1, self::json($this->request('GET', '/api/count', ['target' => 'http://target.example.com/entry#comments']))['count']);
 
         // The web hook and status keep the target as the sender gave it.
         $hook = json_decode((string) $this->http->posts('https://hooks.example.net/webmention')[0]['body'], true);
@@ -212,7 +220,10 @@ final class TargetResolverTest extends IntegrationTestCase
         self::assertSame([], $folder->fragmentPages());
         $post = $pages->findBySiteAndHref($this->site->id, 'http://target.example.com/post');
         self::assertSame(3, (int) $this->db->value('SELECT COUNT(*) FROM links WHERE page_id = ?', [$post->id]));
-        self::assertSame(3, self::json($this->request('GET', '/api/count', ['target' => 'http://target.example.com/post#anything']))['count']);
+        self::assertSame(3, self::json($this->request('GET', '/api/count', ['target' => 'http://target.example.com/post']))['count']);
+        // These rows were filed before the fragment was recorded, so asking
+        // for one finds nothing; tools/recover-fragments fills them in.
+        self::assertSame(0, self::json($this->request('GET', '/api/count', ['target' => 'http://target.example.com/post#anything']))['count']);
         self::assertSame(1, self::json($this->request('GET', '/api/count', ['target' => 'http://target.example.com/other']))['count']);
         self::assertNotNull($pages->findByAlias($this->site->id, 'http://target.example.com/post#comments'));
     }

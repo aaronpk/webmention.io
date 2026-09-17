@@ -45,6 +45,22 @@ final class TargetResolver
         return $hash === false ? $url : substr($url, 0, $hash);
     }
 
+    /**
+     * The "#fragment" of a URL without the hash, or null when it has none or
+     * it is empty. Capped at the column's width.
+     */
+    public static function fragment(string $url): ?string
+    {
+        $hash = strpos($url, '#');
+        if ($hash === false) {
+            return null;
+        }
+
+        $fragment = substr($url, $hash + 1);
+
+        return $fragment === '' ? null : mb_substr($fragment, 0, 255);
+    }
+
     /** The page already filed for this target, by its URL or an alias, without fetching. */
     public function existingPageFor(Site $site, string $target): ?Page
     {

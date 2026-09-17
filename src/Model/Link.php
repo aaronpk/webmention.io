@@ -54,6 +54,8 @@ final class Link
         public readonly ?string $siteCreatedAt,
         /** NULL when published; "pending" while held for review; "hidden" while a mute rule matches. */
         public readonly ?string $status = null,
+        /** The "#fragment" of the target as sent, without the hash; NULL for rows received before it was recorded. */
+        public readonly ?string $targetFragment = null,
     ) {
     }
 
@@ -100,6 +102,7 @@ final class Link
             targetHref:      $str($row['page_href'] ?? null),
             siteCreatedAt:   $str($row['site_created_at'] ?? null),
             status:          $str($row['status'] ?? null),
+            targetFragment:  $str($row['target_fragment'] ?? null),
         );
     }
 

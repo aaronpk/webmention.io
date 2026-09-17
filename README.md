@@ -64,7 +64,7 @@ GET https://webmention.io/api/mentions.jf2?target=https://indieweb.org
 
 ### Which URL a mention is filed under
 
-A mention is filed under the target's canonical URL. When a target is first seen, the service fetches it, follows your site's redirects and honours its `rel="canonical"`, and files the mention under the URL it ends up at, as long as that URL is on one of your sites. A `#fragment` in the target is ignored. Every other form that led to the page (the URL as the sender gave it, an old URL that now redirects, a fragment URL) is remembered as an alias, so `target=` queries for any of them return the same mentions, and `wm-target` is the canonical URL. Trailing slashes and `http`/`https` are not treated as equivalent by rule; your site decides, by redirecting. If you change a page's URL later, use "Moved a page?" on the Sites page to re-file its mentions once the old URL redirects.
+A mention is filed under the target's canonical URL. When a target is first seen, the service fetches it, follows your site's redirects and honours its `rel="canonical"`, and files the mention under the URL it ends up at, as long as that URL is on one of your sites. A `#fragment` in the target is ignored when deciding which page the mention belongs to, but it is recorded: a query for `target=…/post#photo-2` returns only the mentions sent to that fragment, each carrying it as `wm-fragment`, while a query for `…/post` returns all of them. Two mentions from one source to two fragments of a page are two webmentions. Rows received before September 2026 have no fragment recorded and answer only the fragment-less query. Every other form that led to the page (the URL as the sender gave it, an old URL that now redirects, a fragment URL) is remembered as an alias, so `target=` queries for any of them return the same mentions, and `wm-target` is the canonical URL. Trailing slashes and `http`/`https` are not treated as equivalent by rule; your site decides, by redirecting. If you change a page's URL later, use "Moved a page?" on the Sites page to re-file its mentions once the old URL redirects.
 
 ### Count mentions of a page
 
@@ -387,6 +387,8 @@ composer test
 `bin/parity-check TARGET_URL...` compares the API of two deployments (by default the live site and a local server) and reports any differences.
 
 `tools/replay-check LINK_ID...` re-verifies stored webmentions with the current processor, without writing anything, and reports which stored fields would come out differently. Add `--compare-xray=https://xray.p3k.io/parse` to separate parser differences from pages that changed since they were received.
+
+`tools/recover-fragments` fills in `links.target_fragment` for webmentions received before it was recorded, from a map taken out of a backup made before the fragment pages were folded. It writes the map with `--export=FILE` where that backup is loaded, and applies it with `--map=FILE`, dry run until `--apply`. See `docs/cutover.md`.
 
 `tools/audit` reports inconsistencies: webmentions or pages whose site or account no longer exists, URLs with more than one page row, aliases and blocked sources pointing at nothing, and a few things it only reports because they need judgement. `tools/repair` puts the repairable ones right, printing what it would do until given `--apply`, one check at a time with `--only=`, and capped with `--limit=`. Both work from the data itself, in batches, and are safe to re-run, so they go straight against production: audit, dry-run repair, compare, then apply.
 

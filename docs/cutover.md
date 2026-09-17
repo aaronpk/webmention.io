@@ -172,6 +172,22 @@ The indexes can stay; the Ruby app's queries benefit from them too.
   mysql webmention < database/migrations/2026-09-16-webhook-deliveries.sql
   ```
 
+* **Target fragments.** Adds `links.target_fragment`, the fragment a webmention was sent to, so a `target=` query naming one is answered precisely and two fragments of a page keep separate rows.
+
+  ```bash
+  mysql webmention < database/migrations/2026-09-17-link-target-fragment.sql
+  ```
+
+* **Recovering old fragments.** Webmentions received before that column answer only fragment-less queries, but a backup made before `2026-09-15-fold-fragment-pages.php` still knows which fragment each one arrived at, because the fold only rewrote `links.page_id` and link ids never changed. Load the backup's `links` and `pages` into any database as `prefold_links` and `prefold_pages` (their definitions with the secondary indexes stripped load far faster), write the map, then apply it against production:
+
+  ```bash
+  tools/recover-fragments --export=fragments.tsv   # where the backup is loaded
+  tools/recover-fragments --map=fragments.tsv      # against production: dry run
+  tools/recover-fragments --map=fragments.tsv --apply
+  ```
+
+  A row is filled in only when it still has no fragment and the backup's fragment URL is still an alias of the page it sits on, so a map cannot put a fragment on the wrong webmention. Running it again fills nothing. Mentions that arrived between the backup and the fold, and rows the fold deleted as duplicate sources, cannot be recovered.
+
 * **Archived sites.** Adds `sites.archived_at`. The Ruby app does not read it, so if it were put back in front of the database, archived sites would accept webmentions again.
 
   ```bash

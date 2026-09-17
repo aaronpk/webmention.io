@@ -78,6 +78,7 @@ CREATE TABLE `links` (
   `video` text DEFAULT NULL,
   `audio` text DEFAULT NULL,
   `status` varchar(16) DEFAULT NULL,
+  `target_fragment` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `account_status` (`account_id`,`status`),
   KEY `index_links_page` (`page_id`),

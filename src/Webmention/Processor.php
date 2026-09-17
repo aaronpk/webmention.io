@@ -160,14 +160,18 @@ final class Processor
             }
         }
 
-        $link = $this->links->findByPageAndHref($page->id, $source);
+        // A fragment of the target keeps its own row: the page is the same,
+        // but ".../gallery#photo-2" is a different thing to its sender.
+        $fragment = TargetResolver::fragment($target);
+        $link     = $this->links->findByPageSourceAndFragment($page->id, $source, $fragment);
 
         $linkId = $link?->id ?? $this->links->create([
-            'page_id'    => $page->id,
-            'href'       => $source,
-            'site_id'    => $site->id,
-            'account_id' => $site->accountId,
-            'domain'     => $sourceDomain,
+            'page_id'         => $page->id,
+            'href'            => $source,
+            'site_id'         => $site->id,
+            'account_id'      => $site->accountId,
+            'domain'          => $sourceDomain,
+            'target_fragment' => $fragment,
         ]);
 
         $row = [
@@ -228,7 +232,7 @@ final class Processor
     private function removeExisting(Job $job, Site $site): bool
     {
         $page = $this->targets->existingPageFor($site, $job->target);
-        $link = $page === null ? null : $this->links->findByPageAndHref($page->id, $job->source);
+        $link = $page === null ? null : $this->links->findByPageSourceAndFragment($page->id, $job->source, TargetResolver::fragment($job->target));
 
         if ($link === null || $link->deleted) {
             return false;
