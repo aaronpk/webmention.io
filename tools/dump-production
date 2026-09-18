@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+#
+# Dump the production database to a compressed file, for loading somewhere
+# else to analyse. Run this ON the production server.
+#
+#   tools/dump-production                        # everything, to webmention-YYYY-MM-DD.sql.gz
+#   tools/dump-production --out=/tmp/wm.sql.gz
+#   tools/dump-production --schema-only          # structure only, a few kilobytes
+#   tools/dump-production --tables=links,pages   # just these
+#   tools/dump-production --skip-table=links     # everything except these (repeatable)
+#
+# Credentials come from the environment, then from an env file, then from the
+# placeholders below, whichever is set first:
+#
+#   DB_HOST=... DB_NAME=... DB_USER=... DB_PASS=... tools/dump-production
+#   tools/dump-production --env-file=/web/sites/webmention.io/.env
+#
+# The password is written to a temporary defaults file with mode 600 and
+# removed on exit, so it never appears in the process list.
+#
+# Afterwards, copy it over and load it:
+#
+#   scp SERVER:/path/webmention-YYYY-MM-DD.sql.gz /web/sites/webmention-io-php/
+#   mysql -e 'CREATE DATABASE webmention_prod'
+#   zcat webmention-YYYY-MM-DD.sql.gz | mysql --max-allowed-packet=512M webmention_prod
+#
+set -euo pipefail
+
+# ---------------------------------------------------------------- credentials
+# Replace these, or set the matching environment variables, or pass --env-file.
+DB_HOST="${DB_HOST:-REPLACE_WITH_DB_HOST}"          # e.g. 127.0.0.1
+DB_PORT="${DB_PORT:-3306}"
+DB_NAME="${DB_NAME:-REPLACE_WITH_DB_NAME}"          # e.g. webmention
+DB_USER="${DB_USER:-REPLACE_WITH_DB_USER}"
+DB_PASS="${DB_PASS:-REPLACE_WITH_DB_PASSWORD}"
+
+# ---------------------------------------------------------------- options
+out=""
+env_file=""
+schema_only=0
+compress=1
+force=0
+tables=""
+# The Ruby app's debug log. It is not read by anything and can be enormous.
+skip_tables=("debugs")
+
+for arg in "$@"; do
+  case "$arg" in
+    --out=*)        out="${arg#*=}" ;;
+    --env-file=*)   env_file="${arg#*=}" ;;
+    --tables=*)     tables="${arg#*=}" ;;
+    --skip-table=*) skip_tables+=("${arg#*=}") ;;
+    --schema-only)  schema_only=1 ;;
+    --no-compress)  compress=0 ;;
+    --force)        force=1 ;;
+    -h|--help)      sed -n '2,32p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "Unknown argument $arg" >&2; exit 2 ;;
+  esac
+done
+
+# An env file (the app's .env, say) fills in anything still at its placeholder.
+if [[ -n "$env_file" ]]; then
+  [[ -r "$env_file" ]] || { echo "Cannot read $env_file" >&2; exit 2; }
+  while IFS='=' read -r key value; do
+    case "$key" in
+      DB_HOST) [[ "$DB_HOST" == REPLACE_WITH_* ]] && DB_HOST="$value" ;;
+      DB_PORT) [[ "$DB_PORT" == "3306" ]]        && DB_PORT="${value:-3306}" ;;
+      DB_NAME) [[ "$DB_NAME" == REPLACE_WITH_* ]] && DB_NAME="$value" ;;
+      DB_USER) [[ "$DB_USER" == REPLACE_WITH_* ]] && DB_USER="$value" ;;
+      DB_PASS) [[ "$DB_PASS" == REPLACE_WITH_* ]] && DB_PASS="$value" ;;
+    esac
+  done < <(grep -E '^DB_(HOST|PORT|NAME|USER|PASS)=' "$env_file" || true)
+fi
+
+for name in DB_HOST DB_NAME DB_USER DB_PASS; do
+  if [[ "${!name}" == REPLACE_WITH_* ]]; then
+    echo "Set $name: edit the placeholders at the top of this script, export it, or pass --env-file=PATH." >&2
+    exit 2
+  fi
+done
+
+command -v mysqldump >/dev/null || { echo "mysqldump is not installed." >&2; exit 2; }
+
+if [[ -z "$out" ]]; then
+  out="${DB_NAME}-$(date +%Y-%m-%d)$([[ $schema_only -eq 1 ]] && echo '-schema').sql"
+  [[ $compress -eq 1 ]] && out="$out.gz"
+fi
+if [[ -e "$out" && $force -eq 0 ]]; then
+  echo "$out already exists; pass --force to overwrite." >&2
+  exit 2
+fi
+
+# ---------------------------------------------------------------- run
+cnf="$(umask 077 && mktemp)"
+trap 'rm -f "$cnf"' EXIT
+cat > "$cnf" <<CNF
+[client]
+host=$DB_HOST
+port=$DB_PORT
+user=$DB_USER
+password=$DB_PASS
+CNF
+
+args=(
+  "--defaults-extra-file=$cnf"
+  # A consistent snapshot of InnoDB without locking anyone out: the site keeps
+  # serving and receiving webmentions while this runs.
+  --single-transaction
+  --quick
+  # Emoji and other four-byte characters survive the round trip.
+  --default-character-set=utf8mb4
+  --set-charset
+  # Blob columns (content, summary, author_name) can hold bytes that are not
+  # valid UTF-8; hex survives them, where an escaped string may not reload.
+  --hex-blob
+  # Many rows per INSERT, which reloads far faster than one statement each.
+  --extended-insert
+)
+[[ $schema_only -eq 1 ]] && args+=(--no-data)
+
+for t in "${skip_tables[@]}"; do
+  [[ -n "$tables" ]] || args+=("--ignore-table=${DB_NAME}.${t}")
+done
+
+started=$(date +%s)
+echo "Dumping ${DB_NAME} from ${DB_HOST} to ${out}"
+[[ -n "$tables" ]] && echo "  only: ${tables//,/ }"
+[[ -z "$tables" && ${#skip_tables[@]} -gt 0 ]] && echo "  skipping: ${skip_tables[*]}"
+
+if [[ -n "$tables" ]]; then
+  IFS=',' read -r -a table_list <<< "$tables"
+  set -- "$DB_NAME" "${table_list[@]}"
+else
+  set -- "$DB_NAME"
+fi
+
+if [[ $compress -eq 1 ]]; then
+  mysqldump "${args[@]}" "$@" | gzip > "$out"
+else
+  mysqldump "${args[@]}" "$@" > "$out"
+fi
+
+# ---------------------------------------------------------------- check it
+size=$(du -h "$out" | cut -f1)
+elapsed=$(( $(date +%s) - started ))
+
+if [[ $compress -eq 1 ]]; then
+  gzip -t "$out" || { echo "The gzip file is corrupt." >&2; exit 1; }
+  tail_line=$(zcat "$out" | tail -1)
+else
+  tail_line=$(tail -1 "$out")
+fi
+
+if [[ "$tail_line" != *"Dump completed"* ]]; then
+  echo "The dump did not finish; the file has no completion marker. Do not use it." >&2
+  exit 1
+fi
+
+echo "Wrote $out ($size) in ${elapsed}s"
+echo "$tail_line"
