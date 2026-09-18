@@ -17,6 +17,7 @@ use Webmention\Storage\LinkRepository;
 use Webmention\Storage\SiteRepository;
 use Webmention\View\MentionRow;
 use Webmention\View\Template;
+use Webmention\Webmention\AccountOverview;
 use Webmention\Webmention\SourceActivity;
 use Webmention\Webmention\WebHooks;
 
@@ -36,6 +37,7 @@ final class DashboardController extends Controller
         private readonly BlockRepository $blocks,
         private readonly WebHooks $webHooks,
         private readonly SourceActivity $sources,
+        private readonly AccountOverview $overview,
     ) {
         parent::__construct($view);
     }
@@ -72,6 +74,7 @@ final class DashboardController extends Controller
         }
 
         return $this->page('dashboard', 'Dashboard', [
+            'overview'      => $this->overview->recent($user->id),
             'pending'       => array_map(MentionRow::row(...), $this->links->pendingForAccount($user->id, self::PENDING_PREVIEW)),
             'pending_total' => $this->links->countPendingForAccount($user->id),
             'links'         => array_map(MentionRow::row(...), $this->links->recentForAccount($user->id, 40)),
@@ -138,6 +141,9 @@ final class DashboardController extends Controller
                 $this->webHooks->notify($site, $link, (string) $link->href, (string) $link->targetHref, $link->isPrivate);
             }
         }
+        if ($published !== []) {
+            $this->overview->forget($user->id);
+        }
 
         return $this->backTo($request, sprintf('%d webmention%s approved.', count($published), count($published) === 1 ? '' : 's'));
     }
@@ -197,6 +203,7 @@ final class DashboardController extends Controller
 
         $this->links->restore($link->id);
         $this->blocks->unblockSource($link->siteId, (string) $link->href);
+        $this->overview->forget($user->id);
 
         $link = $this->links->find($link->id) ?? $link;
         $site = $this->sites->find($link->siteId);
@@ -269,6 +276,7 @@ final class DashboardController extends Controller
             return Response::redirect('/');
         }
         $this->checkCsrf($request);
+        $this->overview->forget($user->id);
 
         // One webmention: delete it and block its source for that site.
         if (($id = $request->post('id')) !== null) {

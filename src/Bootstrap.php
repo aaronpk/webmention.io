@@ -31,6 +31,7 @@ use Webmention\Webmention\Processor;
 use Webmention\Webmention\Queue;
 use Webmention\Webmention\AccountMerger;
 use Webmention\Webmention\RateLimiter;
+use Webmention\Webmention\AccountOverview;
 use Webmention\Webmention\SiteActivity;
 use Webmention\Webmention\SourceActivity;
 use Webmention\Webmention\SiteDeleter;
@@ -113,6 +114,7 @@ final class Bootstrap
         $c->set(SiteDeleter::class, static fn (Container $c): SiteDeleter => new SiteDeleter($c->get(Database::class), $c->get(Redis::class), $c->get(Log::class)));
         $c->set(SiteActivity::class, static fn (Container $c): SiteActivity => new SiteActivity($c->get(Database::class), $c->get(Redis::class)));
         $c->set(SourceActivity::class, static fn (Container $c): SourceActivity => new SourceActivity($c->get(LinkRepository::class), $c->get(Redis::class)));
+        $c->set(AccountOverview::class, static fn (Container $c): AccountOverview => new AccountOverview($c->get(LinkRepository::class), $c->get(Redis::class)));
         $c->set(Queue::class, static fn (Container $c): Queue => new Queue($c->get(Redis::class)));
         $c->set(RateLimiter::class, static fn (Container $c): RateLimiter => new RateLimiter($c->get(Redis::class), $c->get(Log::class)));
         $c->set(HttpClient::class, static fn (): HttpClient => new HttpClient(
@@ -210,6 +212,7 @@ final class Bootstrap
             $c->get(BlockRepository::class),
             $c->get(WebHooks::class),
             $c->get(SourceActivity::class),
+            $c->get(AccountOverview::class),
         ));
 
         $c->set(MentionsController::class, static fn (Container $c): MentionsController => new MentionsController(

@@ -412,6 +412,15 @@ details summary { cursor: pointer; color: var(--muted); margin: 1rem 0 .5rem; }
 .bulk-actions .grow { flex: 1; }
 .bulk-actions .checkbox { margin: 0; }
 
+/* Dashboard overview */
+.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: .75rem; list-style: none; margin: 0; padding: 0; }
+.stats a { display: grid; gap: .1rem; padding: .75rem .9rem; border: 1px solid var(--line); border-radius: 8px; text-decoration: none; color: inherit; }
+.stats a:hover { border-color: var(--accent); }
+.stats .stat-count { font-size: 1.6rem; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.stats .stat-label { font-weight: 600; }
+.stats .attention a { background: var(--accent-soft); border-color: var(--accent); }
+.overview > p:last-child { margin-bottom: 0; }
+
 /* Mention browser */
 .tabs { display: flex; flex-wrap: wrap; gap: .25rem; margin: 0 0 1rem; border-bottom: 1px solid var(--line); }
 .tabs a { padding: .5rem .8rem; text-decoration: none; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }

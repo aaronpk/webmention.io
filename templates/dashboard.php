@@ -1,5 +1,6 @@
 <?php
 /**
+ * @var array       $overview       See AccountOverview::recent(): days, total, before, kinds[type, label, count, before].
  * @var list<array> $pending        Mentions awaiting review (first page).
  * @var int         $pending_total
  * @var list<array> $links          Recent published mentions.
@@ -11,6 +12,35 @@ $back = '/dashboard';
 <?php if ($notice !== null) { ?>
     <p class="notice"><?= $notice ?></p>
 <?php } ?>
+
+<section class="card overview">
+    <h2>Last <?= $overview['days'] ?> days</h2>
+    <?php if ($overview['total'] === 0 && $overview['before'] === 0 && $pending_total === 0) { ?>
+        <p class="muted">No webmentions in the last <?= $overview['days'] * 2 ?> days. <a href="/mentions">Browse everything you have received</a>.</p>
+    <?php } else { ?>
+        <ul class="stats">
+            <?php foreach ($overview['kinds'] as $k) { ?>
+                <li>
+                    <a href="/mentions?type=<?= $k['type'] ?>">
+                        <span class="stat-count"><?= number_format($k['count']) ?></span>
+                        <span class="stat-label"><?= $k['label'] ?></span>
+                        <span class="stat-before muted small">vs <?= number_format($k['before']) ?> before</span>
+                    </a>
+                </li>
+            <?php } ?>
+            <?php if ($pending_total > 0) { ?>
+                <li class="attention">
+                    <a href="/mentions?status=pending">
+                        <span class="stat-count"><?= number_format($pending_total) ?></span>
+                        <span class="stat-label">Awaiting review</span>
+                        <span class="stat-before muted small">across all time</span>
+                    </a>
+                </li>
+            <?php } ?>
+        </ul>
+        <p class="muted small"><?= number_format($overview['total']) ?> in all, against <?= number_format($overview['before']) ?> in the <?= $overview['days'] ?> days before. Counts refresh every few minutes.</p>
+    <?php } ?>
+</section>
 
 <?php if ($pending !== []) { ?>
     <section class="card review">

@@ -408,6 +408,29 @@ final class LinkRepository
     }
 
     /**
+     * Published mentions the account received in a window, by raw type
+     * (NULL as ""), for the dashboard overview.
+     *
+     * @return array<string, int>
+     */
+    public function countsByTypeBetween(int $accountId, string $from, string $to): array
+    {
+        $rows = $this->db->all(
+            'SELECT type, COUNT(*) AS n FROM links
+                WHERE account_id = ? AND created_at >= ? AND created_at < ? AND verified = 1 AND deleted = 0
+                GROUP BY type',
+            [$accountId, $from, $to],
+        );
+
+        $out = [];
+        foreach ($rows as $row) {
+            $out[(string) ($row['type'] ?? '')] = (int) $row['n'];
+        }
+
+        return $out;
+    }
+
+    /**
      * Source domains that sent the account webmentions since a moment,
      * busiest first, with how many are waiting for review and how many were
      * deleted. Hidden ones count: they were received.
