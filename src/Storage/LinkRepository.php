@@ -91,6 +91,12 @@ final class LinkRepository
         $this->update($id, ['deleted' => 1]);
     }
 
+    /** Bring a deleted mention back as published. */
+    public function restore(int $id): void
+    {
+        $this->update($id, ['deleted' => 0, 'verified' => 1, 'status' => null]);
+    }
+
     public function markDeletedFromDomainForAccount(int $accountId, string $domain): void
     {
         $this->db->run(
@@ -341,7 +347,13 @@ final class LinkRepository
     /** @return array{string, list<mixed>} */
     private static function whereFor(LinkSearch $search): array
     {
-        $where  = ['links.verified = 1', 'links.deleted = 0'];
+        // Which rows count: see Link::$status for the state model.
+        $where = match ($search->status) {
+            LinkSearch::PENDING => ["links.status = 'pending'", 'links.deleted = 0'],
+            LinkSearch::HIDDEN  => ["links.status = 'hidden'", 'links.deleted = 0'],
+            LinkSearch::DELETED => ['links.deleted = 1'],
+            default             => ['links.verified = 1', 'links.deleted = 0'],
+        };
         $params = [];
 
         if (!$search->includePrivate) {
@@ -354,6 +366,10 @@ final class LinkRepository
         if ($search->siteId !== null) {
             $where[]  = 'links.site_id = ?';
             $params[] = $search->siteId;
+        }
+        if ($search->sourceDomain !== null) {
+            $where[]  = 'links.domain = ?';
+            $params[] = $search->sourceDomain;
         }
         if ($search->pageIds !== null) {
             $where[] = 'links.page_id IN (' . Database::placeholders($search->pageIds) . ')';

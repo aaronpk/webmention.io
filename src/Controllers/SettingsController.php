@@ -711,7 +711,7 @@ final class SettingsController extends Controller
 
         $kind    = (string) $request->post('kind');
         $pattern = Mute::normalizePattern((string) $request->post('pattern'));
-        $back    = preg_match('#^/(dashboard|moderation)$#', (string) $request->post('back')) === 1 ? (string) $request->post('back') : '/settings/blocks';
+        $back    = ReturnPath::resolve($request->post('back'), '/settings/blocks');
         $param   = $back === '/settings/blocks' ? 'muted' : 'notice';
 
         if (!in_array($kind, Mute::KINDS, true) || $pattern === null) {

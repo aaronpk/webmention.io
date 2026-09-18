@@ -2,13 +2,16 @@
 /**
  * Every mention awaiting review, paged.
  *
- * @var list<array> $links   See DashboardController::row().
+ * @var list<array> $links   See MentionRow::row().
  * @var int         $total
  * @var int         $page    Zero-based.
  * @var int         $pages
  * @var string      $csrf
  */
 $show_delete = false;
+$bulk        = true;
+$back        = '/moderation' . ($page > 0 ? "?page=$page" : '');
+$pageQuery   = static fn (int $p): string => '/moderation' . ($p > 0 ? "?page=$p" : '');
 ?>
 <section class="card">
     <h2>Awaiting review</h2>
@@ -19,16 +22,12 @@ $show_delete = false;
     <?php if ($links === []) { ?>
         <p class="muted">Nothing to review. <a href="/dashboard">Back to the dashboard</a>.</p>
     <?php } else { ?>
-        <ul class="mention-list">
+        <?php require __DIR__ . '/_bulk.php'; ?>
+
+        <ul class="mention-list selectable">
             <?php foreach ($links as $link) { require __DIR__ . '/_row.php'; } ?>
         </ul>
 
-        <?php if ($pages > 1) { ?>
-            <nav class="pager" aria-label="Review pages">
-                <?php if ($page > 0) { ?><a href="/moderation?page=<?= $page - 1 ?>">&larr; Newer</a><?php } else { ?><span></span><?php } ?>
-                <span class="muted">Page <?= $page + 1 ?> of <?= $pages ?></span>
-                <?php if ($page + 1 < $pages) { ?><a href="/moderation?page=<?= $page + 1 ?>">Older &rarr;</a><?php } else { ?><span></span><?php } ?>
-            </nav>
-        <?php } ?>
+        <?php $pagerLabel = 'Review pages'; require __DIR__ . '/_pager.php'; ?>
     <?php } ?>
 </section>

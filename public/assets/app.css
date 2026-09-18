@@ -405,6 +405,23 @@ details summary { cursor: pointer; color: var(--muted); margin: 1rem 0 .5rem; }
 .mention-row .meta { margin-top: .3rem; overflow-wrap: anywhere; }
 .mention-row.pending { background: var(--accent-soft); border-radius: 8px; padding-left: .6rem; padding-right: .6rem; }
 .review-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
+.mention-row.deleted .body { opacity: .7; }
+.mention-list.selectable .mention-row { grid-template-columns: 1.25rem 2rem 1fr auto; }
+.mention-row .select { width: 1rem; height: 1rem; margin: .5rem 0 0; justify-self: center; }
+.bulk-actions { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; padding: .5rem .75rem; margin: 1rem 0 .25rem; border: 1px solid var(--line); border-radius: 8px; font-size: .925rem; }
+.bulk-actions .grow { flex: 1; }
+.bulk-actions .checkbox { margin: 0; }
+
+/* Mention browser */
+.tabs { display: flex; flex-wrap: wrap; gap: .25rem; margin: 0 0 1rem; border-bottom: 1px solid var(--line); }
+.tabs a { padding: .5rem .8rem; text-decoration: none; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs a:hover { color: var(--ink); }
+.tabs a[aria-current="page"] { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+.filters { display: flex; flex-wrap: wrap; gap: .75rem 1rem; align-items: end; }
+.filters .field { margin: 0; min-width: 9rem; }
+.filters .field.grow { flex: 1; min-width: 12rem; }
+.filters .field .label { font-size: .875rem; font-weight: 600; }
+.filters .form-actions { margin: 0; }
 .nav .count { display: inline-block; min-width: 1.4em; padding: 0 .4em; border-radius: 999px; background: var(--danger); color: #fff; font-size: .75rem; font-weight: 700; text-align: center; line-height: 1.5; vertical-align: text-bottom; }
 
 /* Tables */

@@ -8,6 +8,7 @@ use Redis;
 use Webmention\Controllers\ApiController;
 use Webmention\Controllers\AuthController;
 use Webmention\Controllers\DashboardController;
+use Webmention\Controllers\MentionsController;
 use Webmention\Controllers\HomeController;
 use Webmention\Controllers\SettingsController;
 use Webmention\Controllers\WebmentionController;
@@ -200,6 +201,15 @@ final class Bootstrap
             $c->get(WebHooks::class),
         ));
 
+        $c->set(MentionsController::class, static fn (Container $c): MentionsController => new MentionsController(
+            $c->get(Template::class),
+            $c->get(Session::class),
+            $c->get(AccountRepository::class),
+            $c->get(SiteRepository::class),
+            $c->get(LinkRepository::class),
+            $c->get(MuteRepository::class),
+        ));
+
         $c->set(SettingsController::class, static fn (Container $c): SettingsController => new SettingsController(
             $c->get(Template::class),
             $c->get(Session::class),
@@ -256,8 +266,10 @@ final class Bootstrap
         $r->post('/unblock', [DashboardController::class, 'unblock']);
         $r->post('/unblock-source', [DashboardController::class, 'unblockSource']);
         $r->get('/moderation', [DashboardController::class, 'moderation']);
+        $r->get('/mentions', [MentionsController::class, 'index']);
         $r->post('/approve', [DashboardController::class, 'approve']);
         $r->post('/reject', [DashboardController::class, 'reject']);
+        $r->post('/restore', [DashboardController::class, 'restore']);
         $r->post('/mute', [SettingsController::class, 'mute']);
         $r->post('/unmute-rule', [SettingsController::class, 'unmute']);
 

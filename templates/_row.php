@@ -3,14 +3,24 @@
  * One mention in a list. Included with `require` (not rendered as a partial)
  * so $link, already escaped by the including template, is not escaped twice.
  *
- * @var array       $link         See DashboardController::row().
+ * @var array       $link         See MentionRow::row().
  * @var bool        $show_delete  Show the × delete button (default true).
- * @var string|null $csrf         Needed for the review actions on a pending mention.
+ * @var string|null $csrf         Needed for the review actions on a pending, hidden or deleted mention.
  * @var string|null $back         Where the review actions return to (default /dashboard).
+ * @var bool        $bulk         Give a pending row a checkbox belonging to the form with id "bulk".
  */
-$awaiting = ($link["status"] ?? null) === "pending" && isset($csrf);
+$awaiting = ($link['status'] ?? null) === 'pending' && isset($csrf);
+$hidden   = ($link['status'] ?? null) === 'hidden' && isset($csrf);
+$deleted  = ($link['status'] ?? null) === 'deleted' && isset($csrf);
 ?>
-<li class="mention-row<?= $awaiting ? ' pending' : '' ?>">
+<li class="mention-row<?= $awaiting ? ' pending' : '' ?><?= $deleted ? ' deleted' : '' ?>">
+    <?php if ($bulk ?? false) { ?>
+        <?php if ($awaiting) { ?>
+            <input type="checkbox" class="select" name="id[]" value="<?= $link['id'] ?>" form="bulk" aria-label="Select this webmention">
+        <?php } else { ?>
+            <span class="select"></span>
+        <?php } ?>
+    <?php } ?>
     <?php if ($link['author_url'] !== null) { ?><a href="<?= $link['author_url'] ?>" title="<?= $link['author_name'] ?>" rel="nofollow noopener"><?php } ?>
         <?php if ($link['photo'] !== null) { ?>
             <img class="avatar" src="<?= $link['photo'] ?>" alt="" loading="lazy">
@@ -48,6 +58,8 @@ $awaiting = ($link["status"] ?? null) === "pending" && isset($csrf);
             <?php } ?>
             <?php if ($link['published'] !== null) { ?> · published <?= $link['published'] ?><?php } ?>
             <?php if ($link['received'] !== null) { ?> · received <?= $link['received'] ?><?php } ?>
+            <?php if (($link['deleted_on'] ?? null) !== null) { ?> · deleted <?= $link['deleted_on'] ?><?php } ?>
+            <?php if (($link['rule'] ?? null) !== null) { ?> · hidden by the rule "<?= $link['rule'] ?>"<?php } ?>
         </div>
 
         <?php if ($awaiting) { ?>
@@ -83,7 +95,21 @@ $awaiting = ($link["status"] ?? null) === "pending" && isset($csrf);
         <?php } ?>
     </div>
 
-    <?php if (!$awaiting && ($show_delete ?? true)) { ?>
+    <?php if ($hidden) { ?>
+        <form action="/approve" method="post" class="inline">
+            <input type="hidden" name="id" value="<?= $link['id'] ?>">
+            <input type="hidden" name="back" value="<?= $back ?? '/dashboard' ?>">
+            <input type="hidden" name="csrf" value="<?= $csrf ?>">
+            <button type="submit" class="secondary small" title="Publish this webmention; the mute rule stays">Show</button>
+        </form>
+    <?php } elseif ($deleted) { ?>
+        <form action="/restore" method="post" class="inline">
+            <input type="hidden" name="id" value="<?= $link['id'] ?>">
+            <input type="hidden" name="back" value="<?= $back ?? '/dashboard' ?>">
+            <input type="hidden" name="csrf" value="<?= $csrf ?>">
+            <button type="submit" class="secondary small" title="Publish this webmention again and unblock its source URL">Restore</button>
+        </form>
+    <?php } elseif (!$awaiting && ($show_delete ?? true)) { ?>
         <a class="button secondary small" href="<?= $link['delete_url'] ?>" title="Delete this webmention" aria-label="Delete">×</a>
     <?php } else { ?>
         <span></span>

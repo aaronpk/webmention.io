@@ -143,21 +143,7 @@ $pageQuery = static fn (int $p): string => '/settings/blocks?' . http_build_quer
                 </table>
             </div>
 
-            <?php if ($pages > 1) { ?>
-                <nav class="pager" aria-label="Blocked URL pages">
-                    <?php if ($page > 0) { ?>
-                        <a href="<?= $pageQuery($page - 1) ?>">&larr; Newer</a>
-                    <?php } else { ?>
-                        <span></span>
-                    <?php } ?>
-                    <span class="muted">Page <?= $page + 1 ?> of <?= $pages ?></span>
-                    <?php if ($page + 1 < $pages) { ?>
-                        <a href="<?= $pageQuery($page + 1) ?>">Older &rarr;</a>
-                    <?php } else { ?>
-                        <span></span>
-                    <?php } ?>
-                </nav>
-            <?php } ?>
+            <?php $pagerLabel = 'Blocked URL pages'; require __DIR__ . '/_pager.php'; ?>
         <?php } ?>
     <?php } ?>
 </section>

@@ -194,16 +194,16 @@ final class ModerationTest extends IntegrationTestCase
         $this->signIn($this->account);
 
         $dashboard = $this->request('GET', '/dashboard')->body;
-        self::assertSame(20, substr_count($dashboard, 'action="/reject"'));
+        self::assertSame(20, substr_count($dashboard, '<form action="/reject"'));
         self::assertStringContainsString('See all 55 waiting', $dashboard);
 
         $first = $this->request('GET', '/moderation')->body;
-        self::assertSame(50, substr_count($first, 'action="/reject"'));
+        self::assertSame(50, substr_count($first, '<form action="/reject"'));
         self::assertStringContainsString('Page 1 of 2', $first);
         self::assertStringContainsString('https://many.example/55', $first);
 
         $second = $this->request('GET', '/moderation', ['page' => '1'])->body;
-        self::assertSame(5, substr_count($second, 'action="/reject"'));
+        self::assertSame(5, substr_count($second, '<form action="/reject"'));
         self::assertStringContainsString('https://many.example/1<', $second);
     }
 

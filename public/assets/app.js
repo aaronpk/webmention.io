@@ -14,11 +14,35 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  // Forms that do something irreversible ask first.
-  document.querySelectorAll('form[data-confirm]').forEach(function (form) {
+  // Forms, or particular submit buttons, that do something irreversible ask first.
+  document.querySelectorAll('form').forEach(function (form) {
     form.addEventListener('submit', function (e) {
-      if (!window.confirm(form.getAttribute('data-confirm'))) e.preventDefault();
+      var message = (e.submitter && e.submitter.getAttribute('data-confirm')) || form.getAttribute('data-confirm');
+      if (message && !window.confirm(message)) e.preventDefault();
     });
+  });
+
+  // Bulk moderation: "select all" and the buttons that need a selection.
+  document.querySelectorAll('[data-select-all]').forEach(function (all) {
+    var form = document.getElementById(all.getAttribute('data-select-all'));
+    if (!form) return;
+    var boxes = function () { return Array.prototype.slice.call(document.querySelectorAll('input.select[form="' + form.id + '"]')); };
+    var count = form.querySelector('[data-selected-count]');
+    var update = function () {
+      var checked = boxes().filter(function (b) { return b.checked; }).length;
+      form.querySelectorAll('[data-needs-selection]').forEach(function (button) { button.disabled = checked === 0; });
+      if (count) {
+        count.hidden = checked === 0;
+        count.textContent = checked + ' selected';
+      }
+      all.checked = checked > 0 && checked === boxes().length;
+    };
+    all.addEventListener('change', function () {
+      boxes().forEach(function (b) { b.checked = all.checked; });
+      update();
+    });
+    boxes().forEach(function (b) { b.addEventListener('change', update); });
+    update();
   });
 
   // Copy buttons next to code snippets.
