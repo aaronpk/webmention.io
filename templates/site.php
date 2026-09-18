@@ -12,6 +12,7 @@
  * @var list<array{id: int, when: string, kind: string, ok: bool, result: string, duration: int, source: string, target: string,
  *                 request: string, response: ?string}> $deliveries  Newest first; empty when no callback URL is set.
  * @var bool        $has_mentions The site has a published mention that can be sent as a test.
+ * @var int         $max_attempts How many times a failed delivery is tried in all.
  * @var bool        $sent         A delivery was just sent by hand.
  * @var string|null $resend_error Why one could not be.
  * @var string|null $notice       A message from the last action.
@@ -184,8 +185,16 @@ $withCode = static fn (string $text): string => (string) preg_replace('#https?:/
         <?php } else { ?>
             <p class="alert"><strong>The last delivery, <?= $last['when'] ?>, failed: <?= $last['result'] ?>.</strong>
                 Your endpoint has to answer with a 2xx status within 20 seconds, be reachable from the public internet
-                (not a private or local address), and if it uses https, present a valid certificate. Nothing is retried on its own;
-                once it is fixed, re-send a delivery below to check.</p>
+                (not a private or local address), and if it uses https, present a valid certificate.
+                <?php if ($last['retry_at'] !== null) { ?>
+                    It will be tried again at <?= $last['retry_at'] ?><?= $last['attempt'] > 1 ? ' (this was attempt ' . $last['attempt'] . ' of ' . $max_attempts . ')' : '' ?>.
+                <?php } elseif ($last['kind'] === 'test') { ?>
+                    Deliveries sent by hand are not retried; once it is fixed, send one again to check.
+                <?php } elseif ($last['attempt'] >= $max_attempts) { ?>
+                    That was the last of <?= $max_attempts ?> attempts, so it will not be tried again; once it is fixed, re-send it below.
+                <?php } else { ?>
+                    It will not be tried again, since the endpoint answered and refused it; once it is fixed, re-send it below.
+                <?php } ?></p>
         <?php } ?>
     <?php } ?>
 
@@ -210,8 +219,8 @@ $withCode = static fn (string $text): string => (string) preg_replace('#https?:/
                     <?php foreach ($deliveries as $d) { ?>
                         <tr class="has-detail">
                             <td class="nowrap"><?= $d['when'] ?></td>
-                            <td><?= $d['kind'] ?></td>
-                            <td><span class="badge<?= $d['ok'] ? '' : ' badge-error' ?>"><?= $d['result'] ?></span></td>
+                            <td class="nowrap"><?= $d['kind'] ?><?php if ($d['attempt'] > 1) { ?> <span class="muted small">attempt <?= $d['attempt'] ?></span><?php } ?></td>
+                            <td class="nowrap"><span class="badge<?= $d['ok'] ? '' : ' badge-error' ?>"><?= $d['result'] ?></span><?php if ($d['retry_at'] !== null) { ?> <span class="muted small">retry at <?= $d['retry_at'] ?></span><?php } ?></td>
                             <td class="num nowrap"><?= number_format($d['duration']) ?> ms</td>
                             <td class="url small"><code><?= $d['source'] ?></code> → <code><?= $d['target'] ?></code></td>
                             <td class="actions">
@@ -242,7 +251,9 @@ $withCode = static fn (string $text): string => (string) preg_replace('#https?:/
                 </tbody>
             </table>
         </div>
-        <p class="muted small">The newest 50 deliveries are kept. Re-sending uses the site's current callback URL and secret.</p>
+        <p class="muted small">The newest 50 deliveries are kept. A webmention or deletion the endpoint did not take (no answer, a 5xx, 408 or 429)
+            is tried again after 1 minute, 5 minutes, 30 minutes, 2 hours and 12 hours; other 4xx answers are final.
+            Re-sending uses the site's current callback URL and secret.</p>
     <?php } ?>
 </section>
 <?php } ?>

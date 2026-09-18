@@ -388,8 +388,9 @@ final class SettingsController extends Controller
             'endpoint'     => $this->config->baseUrl() . '/' . $user->domain . '/webmention',
             'saved'        => $request->query('saved') !== null,
             'checked'      => $request->query('checked'),
-            'deliveries'   => Url::blank($site->callbackUrl) ? [] : array_map(self::deliveryRow(...), $this->deliveries->recentForSite($site->id)),
+            'deliveries'   => Url::blank($site->callbackUrl) ? [] : $this->deliveryRows($site->id),
             'has_mentions' => $this->links->latestPublishedForSite($site->id) !== null,
+            'max_attempts' => WebHooks::MAX_ATTEMPTS,
             'sent'         => $request->query('sent') !== null,
             'resend_error' => $request->query('resend_error'),
             'csrf'         => $this->session->csrfToken(),
@@ -409,6 +410,26 @@ final class SettingsController extends Controller
         return ['months' => $months, 'max' => max(1, ...$counts), 'total' => array_sum($counts)];
     }
 
+
+    /**
+     * The site's recent deliveries, newest first, each saying whether the
+     * workers will try it again and when.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function deliveryRows(int $siteId): array
+    {
+        $retries = $this->webHooks->pendingRetries($siteId);
+        $rows    = [];
+        foreach ($this->deliveries->recentForSite($siteId) as $d) {
+            $row = self::deliveryRow($d);
+            $due = $retries[$d->id] ?? null;
+            $row['retry_at'] = $due === null ? null : gmdate('M j, Y H:i', $due) . ' UTC';
+            $rows[] = $row;
+        }
+
+        return $rows;
+    }
     /**
      * A delivery as the site page shows it.
      *
@@ -429,6 +450,7 @@ final class SettingsController extends Controller
             'ok'       => $d->succeeded(),
             'result'   => $d->result(),
             'duration' => $d->durationMs,
+            'attempt'  => $d->attempt,
             'source'   => is_array($payload) ? (string) ($payload['source'] ?? '') : '',
             'target'   => is_array($payload) ? (string) ($payload['target'] ?? '') : '',
             'request'  => $pretty === false ? $d->requestBody : $pretty,

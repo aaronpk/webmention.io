@@ -38,6 +38,7 @@ use Webmention\Webmention\SiteVerifier;
 use Webmention\Webmention\SourceFetcher;
 use Webmention\Webmention\StatusStore;
 use Webmention\Webmention\TargetResolver;
+use Webmention\Webmention\WebhookRetries;
 use Webmention\Webmention\WebHooks;
 
 /**
@@ -132,7 +133,14 @@ final class Bootstrap
             $c->get(Log::class),
         ));
         $c->set(WebhookDeliveryRepository::class, static fn (Container $c): WebhookDeliveryRepository => new WebhookDeliveryRepository($c->get(Database::class)));
-        $c->set(WebHooks::class, static fn (Container $c): WebHooks => new WebHooks($c->get(HttpClient::class), $c->get(Log::class), $c->get(WebhookDeliveryRepository::class)));
+        $c->set(WebhookRetries::class, static fn (Container $c): WebhookRetries => new WebhookRetries($c->get(Redis::class)));
+        $c->set(WebHooks::class, static fn (Container $c): WebHooks => new WebHooks(
+            $c->get(HttpClient::class),
+            $c->get(Log::class),
+            $c->get(WebhookDeliveryRepository::class),
+            $c->get(SiteRepository::class),
+            $c->get(WebhookRetries::class),
+        ));
 
         $c->set(Processor::class, static fn (Container $c): Processor => new Processor(
             $c->get(AccountRepository::class),

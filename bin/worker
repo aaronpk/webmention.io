@@ -23,6 +23,7 @@ use Webmention\Webmention\Processor;
 use Webmention\Webmention\Queue;
 use Webmention\Webmention\SiteDeleter;
 use Webmention\Webmention\StatusStore;
+use Webmention\Webmention\WebHooks;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -89,9 +90,18 @@ while (!$stop && $done < $maxJobs) {
         $container = $build();
     }
 
+    // Web hook deliveries that failed earlier and are due another try.
+    $retried = 0;
     try {
-        // Don't sit waiting for a webmention while a deletion has more to do.
-        $job = $container->get(Queue::class)->pop($purged === null ? 5 : 1);
+        $retried = $container->get(WebHooks::class)->retryDue();
+    } catch (Throwable $e) {
+        $log->exception($e, 'Retrying web hooks');
+        $container = $build();
+    }
+
+    try {
+        // Don't sit waiting for a webmention while a deletion or retries have more to do.
+        $job = $container->get(Queue::class)->pop($purged === null && $retried === 0 ? 5 : 1);
     } catch (Throwable $e) {
         $log->exception($e, 'Reading the queue');
         sleep(2);

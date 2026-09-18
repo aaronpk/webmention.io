@@ -74,6 +74,7 @@ final class SiteDeleter
         }
         $this->db->run('DELETE FROM sites WHERE id = ?', [$siteId]);
         $this->redis->del(self::FLAG . $siteId);
+        (new WebhookRetries($this->redis))->forgetSite($siteId);
         $this->log->info("Deleted site $siteId");
 
         return true;

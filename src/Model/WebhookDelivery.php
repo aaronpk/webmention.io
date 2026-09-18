@@ -7,7 +7,8 @@ namespace Webmention\Model;
 /**
  * One POST to a site's callback URL: what was sent and what came back
  * (issue 231). kind is "mention", "deleted" or "test" (sent by hand from
- * the site's settings page).
+ * the site's settings page). A failed mention or deletion is tried again
+ * (see WebHooks); every try is its own row.
  */
 final class WebhookDelivery
 {
@@ -23,6 +24,8 @@ final class WebhookDelivery
         public readonly string $requestBody,
         public readonly ?string $responseBody,
         public readonly string $createdAt,
+        /** 1 for the first try; retries of a failed mention or deletion count up from there. */
+        public readonly int $attempt = 1,
     ) {
     }
 
@@ -41,6 +44,7 @@ final class WebhookDelivery
             requestBody:  (string) $row['request_body'],
             responseBody: $row['response_body'] === null ? null : (string) $row['response_body'],
             createdAt:    (string) $row['created_at'],
+            attempt:      max(1, (int) ($row['attempt'] ?? 1)),
         );
     }
 

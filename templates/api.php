@@ -303,8 +303,14 @@ X-Webmention-Signature: sha256=2f7e…
   "private": false,
   "deleted": true
 }</code></pre>
-    <p>Deliveries are not retried on their own. Each site's settings page lists its last 50 deliveries with the status or error, the time taken, and the request and response bodies, and can re-send any of them or send the newest webmention as a test.
-        If your endpoint was down for longer, fetch what it missed from <a href="#mentions">List mentions</a> with <code>since_id</code> and from <a href="#deleted">Deleted mentions</a>; both return the same data the web hook carries.</p>
+    <h3 id="webhooks-retries"><a href="#webhooks-retries">Retries</a></h3>
+    <p>Your endpoint should answer with a 2xx status within 20 seconds. A delivery it did not take, because it did not answer, or answered with a 5xx, 408 or 429, is tried again
+        after 1 minute, 5 minutes, 30 minutes, 2 hours and 12 hours, then given up. Any other 4xx is taken as a refusal and is not retried.
+        Retries carry the same body, signed with the site's secret at the time of sending. Delivery is therefore at least once: an endpoint that took a delivery but
+        answered too slowly can receive it again, so treat <code>post.wm-id</code> (or <code>source</code> and <code>target</code> for a deletion) as the key to update rather than insert.
+        Retries stop if you change or clear the callback URL, or archive or delete the site.</p>
+    <p>Each site's settings page lists its last 50 deliveries with the status or error, the attempt number, the time taken, and the request and response bodies, and can re-send any of them or send the newest webmention as a test.
+        If your endpoint was down for longer than the retries cover, fetch what it missed from <a href="#mentions">List mentions</a> with <code>since_id</code> and from <a href="#deleted">Deleted mentions</a>; both return the same data the web hook carries.</p>
 </section>
 
 <link rel="stylesheet" href="/assets/webmention-render.css">

@@ -19,7 +19,7 @@ final class WebhookDeliveryRepository
     }
 
     /** @param array<string, mixed> $response p3k\HTTP's response array (code, body, error). */
-    public function record(int $siteId, ?int $linkId, string $kind, string $url, array $response, int $durationMs, string $requestBody): WebhookDelivery
+    public function record(int $siteId, ?int $linkId, string $kind, string $url, array $response, int $durationMs, string $requestBody, int $attempt = 1): WebhookDelivery
     {
         $code  = (int) ($response['code'] ?? 0);
         $body  = $response['body'] ?? null;
@@ -41,6 +41,7 @@ final class WebhookDeliveryRepository
             'request_body'  => $requestBody,
             'response_body' => $body === null || $body === '' ? null : mb_substr((string) $body, 0, self::RESPONSE_EXCERPT),
             'created_at'    => Database::now(),
+            'attempt'       => max(1, $attempt),
         ]);
 
         $this->prune($siteId);

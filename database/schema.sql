@@ -167,6 +167,7 @@ CREATE TABLE `webhook_deliveries` (
   `request_body` mediumtext NOT NULL,
   `response_body` text DEFAULT NULL,
   `created_at` datetime NOT NULL,
+  `attempt` tinyint unsigned NOT NULL DEFAULT 1,
   PRIMARY KEY (`id`),
   KEY `site_created` (`site_id`, `id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

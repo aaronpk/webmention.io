@@ -194,6 +194,12 @@ The indexes can stay; the Ruby app's queries benefit from them too.
   mysql webmention < database/migrations/2026-09-17-site-archive.sql
   ```
 
+* **Web hook retries.** Adds `webhook_deliveries.attempt`, so each retry of a failed delivery is its own numbered row. Retries themselves wait in Redis (`webmention:webhook-retries`) and are sent by the workers; nothing else is needed.
+
+  ```bash
+  mysql webmention < database/migrations/2026-09-18-webhook-delivery-attempt.sql
+  ```
+
 * **Re-sanitising stored content is no longer harmful, but still not worth it.** An earlier note here proposed passing old `links.content` through `p3k\XRay\Formats\Format::sanitizeHTML()`, for rows the hosted XRay stored before v2.0.1. Measured on a copy of production, 12% of rows changed, and the change was mostly the removal of `rel="nofollow"`, because XRay's HTMLPurifier configuration allowed no `rel` attribute at all. XRay v2.0.2 fixes that upstream by keeping the link-level values (`nofollow`, `noopener`, `ugc`, `sponsored`) and still dropping page-wide ones such as `author` and `canonical`. So a pass would no longer strip nofollow from roughly 70,000 rows. It is still not worth running: only 50 stored rows come from github.com, which was the original reason.
 * **Audit and repair.** `tools/audit` reports rows pointing at things that no longer exist and URLs with more than one page row; `tools/repair` fixes the repairable ones (dry run by default, `--apply` to write). Both are computed from the data, so they run against production directly. Run the audit after the cutover, and weekly from cron.
 * **Verification backlog.** `tools/verify-sites --limit=4000 --apply --pause=250` clears the sites that were never checked; it takes a few hours, so run it overnight, then install the nightly cron line above.

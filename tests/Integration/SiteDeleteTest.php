@@ -13,6 +13,7 @@ use Webmention\Storage\PageRepository;
 use Webmention\Storage\SiteRepository;
 use Webmention\Tests\Support\IntegrationTestCase;
 use Webmention\Webmention\SiteDeleter;
+use Webmention\Webmention\WebhookRetries;
 
 /**
  * Deleting a site removes it and everything it received.
@@ -71,6 +72,9 @@ final class SiteDeleteTest extends IntegrationTestCase
         $this->service(PageRepository::class)->addAlias($this->old->id, 'https://old.example/a-old', (int) $page?->id);
         $this->db->insert('blocklists', ['site_id' => $this->old->id, 'source' => 'https://spam.example/', 'created_at' => '2026-01-01 00:00:00']);
         $this->db->insert('webhook_deliveries', ['site_id' => $this->old->id, 'kind' => 'mention', 'url' => 'https://hook.example/', 'request_body' => '{}', 'created_at' => '2026-01-01 00:00:00']);
+        $retries = $this->service(WebhookRetries::class);
+        $retries->schedule(['site_id' => $this->old->id, 'delivery_id' => 1, 'link_id' => $a, 'kind' => 'mention', 'url' => 'https://hook.example/', 'attempt' => 1, 'body' => '{}'], time() + 60);
+        $retries->schedule(['site_id' => $this->live->id, 'delivery_id' => 2, 'link_id' => $keep, 'kind' => 'mention', 'url' => 'https://hook.example/', 'attempt' => 1, 'body' => '{}'], time() + 60);
         $csrf = $this->signIn($this->alice);
 
         $response = $this->request('POST', '/settings/sites/delete', post: ['site_id' => (string) $this->old->id, 'confirm_domain' => ' OLD.example ', 'csrf' => $csrf]);
@@ -83,6 +87,8 @@ final class SiteDeleteTest extends IntegrationTestCase
         }
         self::assertNull($this->service(LinkRepository::class)->find($a));
         self::assertFalse($this->service(SiteDeleter::class)->isDeleting($this->old->id));
+        self::assertSame([], $retries->forSite($this->old->id), 'its pending web hook retries go too');
+        self::assertCount(1, $retries->forSite($this->live->id));
 
         // Other sites, including another account's site for the same domain, are untouched.
         self::assertNotNull($this->service(LinkRepository::class)->find($keep));
