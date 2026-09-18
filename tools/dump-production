@@ -26,7 +26,7 @@
 #
 set -Eeuo pipefail
 
-VERSION=2   # bump when changing this script; --version prints it
+VERSION=3   # bump when changing this script; --version prints it
 
 # Nothing here may fail quietly: without this, an unexpected non-zero status
 # ends the script with no output at all.
@@ -71,7 +71,9 @@ done
 
 # An env file (the app's .env, say) fills in anything still at its placeholder.
 DB_PORT_SET=""
-[[ "${DB_PORT}" != "3306" ]] && DB_PORT_SET=1
+if [[ "${DB_PORT}" != "3306" ]]; then
+  DB_PORT_SET=1
+fi
 if [[ -n "$env_file" ]]; then
   [[ -r "$env_file" ]] || { echo "Cannot read $env_file" >&2; exit 2; }
   while IFS='=' read -r key value; do
@@ -88,7 +90,9 @@ fi
 for name in DB_HOST DB_NAME DB_USER DB_PASS; do
   if [[ "${!name}" == REPLACE_WITH_* ]]; then
     hint="edit the placeholders at the top of this script, export it, or pass --env-file=PATH"
-    [[ "$name" == "DB_PASS" ]] && hint="$hint. For a user with no password, set DB_PASS= (empty)"
+    if [[ "$name" == "DB_PASS" ]]; then
+      hint="$hint. For a user with no password, set DB_PASS= (empty)"
+    fi
     echo "Set $name: $hint." >&2
     exit 2
   fi
@@ -97,8 +101,14 @@ done
 command -v mysqldump >/dev/null || { echo "mysqldump is not installed." >&2; exit 2; }
 
 if [[ -z "$out" ]]; then
-  out="${DB_NAME}-$(date +%Y-%m-%d)$([[ $schema_only -eq 1 ]] && echo '-schema').sql"
-  [[ $compress -eq 1 ]] && out="$out.gz"
+  suffix=""
+  if [[ $schema_only -eq 1 ]]; then
+    suffix="-schema"
+  fi
+  out="${DB_NAME}-$(date +%Y-%m-%d)${suffix}.sql"
+  if [[ $compress -eq 1 ]]; then
+    out="$out.gz"
+  fi
 fi
 if [[ -e "$out" && $force -eq 0 ]]; then
   echo "$out already exists; pass --force to overwrite." >&2
@@ -115,7 +125,9 @@ trap 'rm -f "$cnf"' EXIT
   echo "user=$DB_USER"
   # Omitted entirely when blank: the client then connects without one, and
   # never stops to prompt.
-  [[ -n "$DB_PASS" ]] && echo "password=$DB_PASS"
+  if [[ -n "$DB_PASS" ]]; then
+    echo "password=$DB_PASS"
+  fi
 } > "$cnf"
 
 args=(
@@ -133,16 +145,23 @@ args=(
   # Many rows per INSERT, which reloads far faster than one statement each.
   --extended-insert
 )
-[[ $schema_only -eq 1 ]] && args+=(--no-data)
+if [[ $schema_only -eq 1 ]]; then
+  args+=(--no-data)
+fi
 
-for t in "${skip_tables[@]}"; do
-  [[ -n "$tables" ]] || args+=("--ignore-table=${DB_NAME}.${t}")
-done
+if [[ -z "$tables" ]]; then
+  for t in "${skip_tables[@]}"; do
+    args+=("--ignore-table=${DB_NAME}.${t}")
+  done
+fi
 
 started=$(date +%s)
 echo "Dumping ${DB_NAME} from ${DB_HOST} to ${out}"
-[[ -n "$tables" ]] && echo "  only: ${tables//,/ }"
-[[ -z "$tables" && ${#skip_tables[@]} -gt 0 ]] && echo "  skipping: ${skip_tables[*]}"
+if [[ -n "$tables" ]]; then
+  echo "  only: ${tables//,/ }"
+elif [[ ${#skip_tables[@]} -gt 0 ]]; then
+  echo "  skipping: ${skip_tables[*]}"
+fi
 
 if [[ -n "$tables" ]]; then
   IFS=',' read -r -a table_list <<< "$tables"
