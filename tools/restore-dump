@@ -1,0 +1,236 @@
+#!/usr/bin/env bash
+#
+# Load a production dump into a local database, for analysis. This DESTROYS
+# whatever is in the target database first.
+#
+#   tools/restore-dump webmention-2026-09-18.sql.gz
+#   tools/restore-dump dump.sql.gz --database=webmention_prod
+#   tools/restore-dump dump.sql.gz --yes          # no confirmation prompt
+#   tools/restore-dump dump.sql.gz --keep-tables  # load over what is there
+#
+# Credentials work exactly as in tools/dump-production: environment first,
+# then --env-file (default ./.env), then the placeholders below.
+#
+# It refuses a non-local host unless --allow-remote is given, so a dump cannot
+# be loaded over production by mistake.
+#
+set -Eeuo pipefail
+
+VERSION=1   # bump when changing this script; --version prints it
+
+trap 'status=$?; echo "restore-dump: failed at line $LINENO: $BASH_COMMAND (exit $status)" >&2; exit $status' ERR
+
+# ---------------------------------------------------------------- credentials
+DB_HOST="${DB_HOST-REPLACE_WITH_DB_HOST}"           # e.g. 127.0.0.1
+DB_PORT="${DB_PORT-3306}"
+DB_NAME="${DB_NAME-REPLACE_WITH_DB_NAME}"           # the target, e.g. webmention
+DB_USER="${DB_USER-REPLACE_WITH_DB_USER}"
+# Blank is allowed: a user that connects without a password leaves this empty.
+DB_PASS="${DB_PASS-REPLACE_WITH_DB_PASSWORD}"
+
+# ---------------------------------------------------------------- options
+file=""
+env_file=".env"
+target=""
+assume_yes=0
+keep_tables=0
+allow_remote=0
+batch=500
+
+for arg in "$@"; do
+  case "$arg" in
+    --database=*)   target="${arg#*=}" ;;
+    --env-file=*)   env_file="${arg#*=}" ;;
+    --batch=*)      batch="${arg#*=}" ;;
+    --yes|-y)       assume_yes=1 ;;
+    --keep-tables)  keep_tables=1 ;;
+    --allow-remote) allow_remote=1 ;;
+    --debug)        set -x ;;
+    --version)      echo "restore-dump version $VERSION"; exit 0 ;;
+    -h|--help)      sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -*)             echo "Unknown option $arg" >&2; exit 2 ;;
+    *)              file="$arg" ;;
+  esac
+done
+
+if [[ -z "$file" ]]; then
+  echo "Give the dump file to load. See --help." >&2
+  exit 2
+fi
+if [[ ! -r "$file" ]]; then
+  echo "Cannot read $file" >&2
+  exit 2
+fi
+
+if [[ -n "$env_file" && -r "$env_file" ]]; then
+  while IFS='=' read -r key value; do
+    case "$key" in
+      DB_HOST) if [[ "$DB_HOST" == REPLACE_WITH_* ]]; then DB_HOST="$value"; fi ;;
+      DB_PORT) if [[ "$DB_PORT" == "3306" ]]; then DB_PORT="${value:-3306}"; fi ;;
+      DB_NAME) if [[ "$DB_NAME" == REPLACE_WITH_* ]]; then DB_NAME="$value"; fi ;;
+      DB_USER) if [[ "$DB_USER" == REPLACE_WITH_* ]]; then DB_USER="$value"; fi ;;
+      DB_PASS) if [[ "$DB_PASS" == REPLACE_WITH_* ]]; then DB_PASS="$value"; fi ;;
+    esac
+  done < <(grep -E '^DB_(HOST|PORT|NAME|USER|PASS)=' "$env_file" || true)
+fi
+
+if [[ -z "$target" ]]; then
+  target="$DB_NAME"
+fi
+
+for name in DB_HOST DB_USER DB_PASS; do
+  if [[ "${!name}" == REPLACE_WITH_* ]]; then
+    echo "Set $name: export it, pass --env-file=PATH, or edit the placeholders in this script." >&2
+    exit 2
+  fi
+done
+if [[ "$target" == REPLACE_WITH_* || -z "$target" ]]; then
+  echo "Set the target database with --database=NAME or DB_NAME." >&2
+  exit 2
+fi
+
+# A dump belongs in a local copy. Loading one over a remote database would
+# destroy it, so that needs saying out loud.
+case "$DB_HOST" in
+  localhost|127.0.0.1|::1|"") ;;
+  *)
+    if [[ $allow_remote -eq 0 ]]; then
+      echo "restore-dump: $DB_HOST is not local, and this deletes everything in $target." >&2
+      echo "  Pass --allow-remote if you really mean it." >&2
+      exit 2
+    fi ;;
+esac
+
+command -v mysql >/dev/null || { echo "The mysql client is not installed." >&2; exit 2; }
+
+reader="cat"
+case "$file" in
+  *.gz) reader="zcat" ;;
+esac
+
+# ---------------------------------------------------------------- check the file first
+# Never wipe the target and then find out the dump was truncated.
+echo "Checking $file"
+if [[ "$reader" == "zcat" ]]; then
+  if ! gzip -t "$file" 2>/dev/null; then
+    echo "restore-dump: $file is not a readable gzip file; it is corrupt or was cut short in transfer." >&2
+    exit 1
+  fi
+fi
+set +e
+last_line=$($reader "$file" | tail -1)
+read_status=$?
+set -e
+if [[ $read_status -ne 0 ]]; then
+  echo "restore-dump: could not read $file to the end; it is corrupt." >&2
+  exit 1
+fi
+if [[ "$last_line" != *"Dump completed"* ]]; then
+  echo "restore-dump: $file does not end with mysqldump's completion marker, so it is truncated." >&2
+  echo "  Last line: $last_line" >&2
+  exit 1
+fi
+source_db=$($reader "$file" | sed -n 's/^-- Host:.*Database: \(.*\)$/\1/p' | head -1 || true)
+echo "  from database \"${source_db:-unknown}\", $last_line"
+
+# ---------------------------------------------------------------- credentials file
+cnf="$(umask 077 && mktemp)"
+trap 'rm -f "$cnf"' EXIT
+{
+  echo "[client]"
+  echo "host=$DB_HOST"
+  echo "port=$DB_PORT"
+  echo "user=$DB_USER"
+  if [[ -n "$DB_PASS" ]]; then
+    echo "password=$DB_PASS"
+  fi
+} > "$cnf"
+
+mysql_run() { mysql --defaults-extra-file="$cnf" --max-allowed-packet=512M "$@"; }
+
+if ! mysql_run -e "SELECT 1" >/dev/null 2>&1; then
+  echo "restore-dump: cannot connect to $DB_HOST as $DB_USER." >&2
+  exit 1
+fi
+
+mysql_run -e "CREATE DATABASE IF NOT EXISTS \`$target\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+
+existing=$(mysql_run -N -D "$target" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '$target'")
+
+# ---------------------------------------------------------------- confirm
+echo
+echo "About to load into ${target} on ${DB_HOST}"
+if [[ "$existing" -gt 0 ]]; then
+  echo "  it currently holds $existing tables, which will be DROPPED:"
+  mysql_run -N -D "$target" -e "
+    SELECT CONCAT('    ', table_name, ' (', COALESCE(table_rows, 0), ' rows)')
+    FROM information_schema.tables WHERE table_schema = '$target' ORDER BY table_rows DESC LIMIT 8"
+fi
+if [[ $keep_tables -eq 1 ]]; then
+  echo "  --keep-tables given: nothing will be dropped, the dump loads over the top"
+fi
+
+if [[ $assume_yes -eq 0 ]]; then
+  read -r -p "Type the database name to continue: " answer
+  if [[ "$answer" != "$target" ]]; then
+    echo "Nothing was changed."
+    exit 1
+  fi
+fi
+
+# ---------------------------------------------------------------- load
+started=$(date +%s)
+
+if [[ $keep_tables -eq 0 && "$existing" -gt 0 ]]; then
+  echo "Dropping $existing tables"
+  drops=$(mysql_run -N -D "$target" -e "
+    SELECT CONCAT('DROP ', IF(table_type = 'VIEW', 'VIEW', 'TABLE'), ' IF EXISTS \`', table_name, '\`;')
+    FROM information_schema.tables WHERE table_schema = '$target'")
+  printf 'SET foreign_key_checks=0;\n%s\n' "$drops" | mysql_run -D "$target"
+fi
+
+echo "Loading (a commit every $batch statements, which is far quicker than one each)"
+
+progress() {
+  awk -v batch="$batch" '
+    { print }
+    /^INSERT INTO/ { inserts++ }
+    # Only at a statement boundary: a single INSERT spans many lines, and a
+    # COMMIT dropped inside its value list is a syntax error.
+    /;[[:space:]]*$/ {
+      statements++
+      if (statements % batch == 0) {
+        print "COMMIT;"
+      }
+    }
+    inserts > 0 && inserts % 2000 == 0 && inserts != last {
+      printf("  %d insert statements\n", inserts) > "/dev/stderr"
+      last = inserts
+    }
+    END { print "COMMIT;" }
+  '
+}
+
+{
+  # Index maintenance and per-statement durability are what make a restore
+  # crawl; the dump is a single consistent snapshot, so neither is needed.
+  echo "SET autocommit=0; SET unique_checks=0; SET foreign_key_checks=0; SET sql_mode='NO_AUTO_VALUE_ON_ZERO';"
+  $reader "$file" | progress
+} | mysql_run -D "$target"
+
+elapsed=$(( $(date +%s) - started ))
+
+# ---------------------------------------------------------------- report
+tables=$(mysql_run -N -D "$target" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '$target'")
+if [[ "$tables" -eq 0 ]]; then
+  echo "restore-dump: nothing was loaded; $target has no tables." >&2
+  exit 1
+fi
+
+echo
+echo "Loaded $tables tables into $target in ${elapsed}s"
+mysql_run -N -D "$target" -e "
+  SELECT CONCAT('  ', table_name, ': ', FORMAT(COALESCE(table_rows, 0), 0), ' rows (estimated)')
+  FROM information_schema.tables WHERE table_schema = '$target' ORDER BY table_rows DESC LIMIT 10"
+echo
+echo "Row estimates come from the table statistics; count exactly if it matters."
