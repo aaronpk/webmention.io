@@ -24,15 +24,24 @@
 #   mysql -e 'CREATE DATABASE webmention_prod'
 #   zcat webmention-YYYY-MM-DD.sql.gz | mysql --max-allowed-packet=512M webmention_prod
 #
-set -euo pipefail
+set -Eeuo pipefail
+
+VERSION=2   # bump when changing this script; --version prints it
+
+# Nothing here may fail quietly: without this, an unexpected non-zero status
+# ends the script with no output at all.
+trap 'status=$?; echo "dump-production: failed at line $LINENO: $BASH_COMMAND (exit $status)" >&2; exit $status' ERR
 
 # ---------------------------------------------------------------- credentials
 # Replace these, or set the matching environment variables, or pass --env-file.
-DB_HOST="${DB_HOST:-REPLACE_WITH_DB_HOST}"          # e.g. 127.0.0.1
-DB_PORT="${DB_PORT:-3306}"
-DB_NAME="${DB_NAME:-REPLACE_WITH_DB_NAME}"          # e.g. webmention
-DB_USER="${DB_USER:-REPLACE_WITH_DB_USER}"
-DB_PASS="${DB_PASS:-REPLACE_WITH_DB_PASSWORD}"
+DB_HOST="${DB_HOST-REPLACE_WITH_DB_HOST}"           # e.g. 127.0.0.1
+DB_PORT="${DB_PORT-3306}"
+DB_NAME="${DB_NAME-REPLACE_WITH_DB_NAME}"           # e.g. webmention
+DB_USER="${DB_USER-REPLACE_WITH_DB_USER}"
+# Blank is allowed here: a user that connects without a password should leave
+# this empty rather than deleting the line. Note the single dash above and
+# below, which keeps an exported empty value instead of replacing it.
+DB_PASS="${DB_PASS-REPLACE_WITH_DB_PASSWORD}"
 
 # ---------------------------------------------------------------- options
 out=""
@@ -53,18 +62,22 @@ for arg in "$@"; do
     --schema-only)  schema_only=1 ;;
     --no-compress)  compress=0 ;;
     --force)        force=1 ;;
+    --debug)        set -x ;;
+    --version)      echo "dump-production version $VERSION"; exit 0 ;;
     -h|--help)      sed -n '2,32p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "Unknown argument $arg" >&2; exit 2 ;;
   esac
 done
 
 # An env file (the app's .env, say) fills in anything still at its placeholder.
+DB_PORT_SET=""
+[[ "${DB_PORT}" != "3306" ]] && DB_PORT_SET=1
 if [[ -n "$env_file" ]]; then
   [[ -r "$env_file" ]] || { echo "Cannot read $env_file" >&2; exit 2; }
   while IFS='=' read -r key value; do
     case "$key" in
       DB_HOST) [[ "$DB_HOST" == REPLACE_WITH_* ]] && DB_HOST="$value" ;;
-      DB_PORT) [[ "$DB_PORT" == "3306" ]]        && DB_PORT="${value:-3306}" ;;
+      DB_PORT) [[ -z "${DB_PORT_SET:-}" ]] && DB_PORT="${value:-3306}" ;;
       DB_NAME) [[ "$DB_NAME" == REPLACE_WITH_* ]] && DB_NAME="$value" ;;
       DB_USER) [[ "$DB_USER" == REPLACE_WITH_* ]] && DB_USER="$value" ;;
       DB_PASS) [[ "$DB_PASS" == REPLACE_WITH_* ]] && DB_PASS="$value" ;;
@@ -74,7 +87,9 @@ fi
 
 for name in DB_HOST DB_NAME DB_USER DB_PASS; do
   if [[ "${!name}" == REPLACE_WITH_* ]]; then
-    echo "Set $name: edit the placeholders at the top of this script, export it, or pass --env-file=PATH." >&2
+    hint="edit the placeholders at the top of this script, export it, or pass --env-file=PATH"
+    [[ "$name" == "DB_PASS" ]] && hint="$hint. For a user with no password, set DB_PASS= (empty)"
+    echo "Set $name: $hint." >&2
     exit 2
   fi
 done
@@ -93,13 +108,15 @@ fi
 # ---------------------------------------------------------------- run
 cnf="$(umask 077 && mktemp)"
 trap 'rm -f "$cnf"' EXIT
-cat > "$cnf" <<CNF
-[client]
-host=$DB_HOST
-port=$DB_PORT
-user=$DB_USER
-password=$DB_PASS
-CNF
+{
+  echo "[client]"
+  echo "host=$DB_HOST"
+  echo "port=$DB_PORT"
+  echo "user=$DB_USER"
+  # Omitted entirely when blank: the client then connects without one, and
+  # never stops to prompt.
+  [[ -n "$DB_PASS" ]] && echo "password=$DB_PASS"
+} > "$cnf"
 
 args=(
   "--defaults-extra-file=$cnf"
@@ -134,27 +151,60 @@ else
   set -- "$DB_NAME"
 fi
 
+stats="$(mktemp)"
+trap 'rm -f "$cnf" "$stats"' EXIT
+
+# awk counts as the dump streams past, so a multi-gigabyte file never has to
+# be read a second time to find out what is in it.
+count_stream() {
+  awk -v stats="$stats" '
+    /^CREATE TABLE/            { tables++ }
+    /^INSERT INTO/             { inserts++ }
+    /^-- Dump completed/       { completed = 1 }
+    { print }
+    END { printf "%d %d %d\n", tables + 0, inserts + 0, completed + 0 > stats }
+  '
+}
+
+trap - ERR
+set +e
 if [[ $compress -eq 1 ]]; then
-  mysqldump "${args[@]}" "$@" | gzip > "$out"
+  mysqldump "${args[@]}" "$@" | count_stream | gzip > "$out"
 else
-  mysqldump "${args[@]}" "$@" > "$out"
+  mysqldump "${args[@]}" "$@" | count_stream > "$out"
 fi
+stages=("${PIPESTATUS[@]}")
+set -e
+trap 'status=$?; echo "dump-production: failed at line $LINENO: $BASH_COMMAND (exit $status)" >&2; exit $status' ERR
+
+if [[ ${stages[0]} -ne 0 ]]; then
+  echo "dump-production: mysqldump failed (exit ${stages[0]}); its message is above." >&2
+  echo "  Common causes: the database name is wrong, the user cannot see it, or the host refused the connection." >&2
+  exit 1
+fi
+for i in "${!stages[@]}"; do
+  [[ ${stages[$i]} -eq 0 ]] || { echo "dump-production: stage $i of the pipeline failed (exit ${stages[$i]}); the file is incomplete." >&2; exit 1; }
+done
 
 # ---------------------------------------------------------------- check it
 size=$(du -h "$out" | cut -f1)
+bytes=$(stat -c %s "$out")
 elapsed=$(( $(date +%s) - started ))
+read -r table_count insert_count completed < "$stats"
 
-if [[ $compress -eq 1 ]]; then
-  gzip -t "$out" || { echo "The gzip file is corrupt." >&2; exit 1; }
-  tail_line=$(zcat "$out" | tail -1)
-else
-  tail_line=$(tail -1 "$out")
-fi
-
-if [[ "$tail_line" != *"Dump completed"* ]]; then
-  echo "The dump did not finish; the file has no completion marker. Do not use it." >&2
+fail() {
+  echo "dump-production: $1" >&2
+  echo "  wrote $out ($size), $table_count tables, $insert_count insert statements" >&2
+  echo "  the file is not usable; delete it and fix the cause above" >&2
   exit 1
+}
+
+[[ $bytes -gt 0 ]]      || fail "the output file is empty: mysqldump produced nothing at all"
+[[ $completed -eq 1 ]]  || fail "the dump stopped before the end, so the data is incomplete"
+[[ $table_count -gt 0 ]] || fail "no tables were exported: check the database name ($DB_NAME), that the user can see it, and that --tables/--skip-table did not exclude everything"
+
+if [[ $schema_only -eq 0 && $insert_count -eq 0 ]]; then
+  fail "no data was exported: $table_count tables came out but every one of them was empty. Check that $DB_USER has SELECT on $DB_NAME, and that you are pointed at the live database rather than an empty one"
 fi
 
-echo "Wrote $out ($size) in ${elapsed}s"
-echo "$tail_line"
+echo "Wrote $out ($size) in ${elapsed}s: $table_count tables, $insert_count insert statements"
