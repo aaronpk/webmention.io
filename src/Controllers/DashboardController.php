@@ -17,6 +17,7 @@ use Webmention\Storage\LinkRepository;
 use Webmention\Storage\SiteRepository;
 use Webmention\View\MentionRow;
 use Webmention\View\Template;
+use Webmention\Webmention\SourceActivity;
 use Webmention\Webmention\WebHooks;
 
 /**
@@ -34,6 +35,7 @@ final class DashboardController extends Controller
         private readonly LinkRepository $links,
         private readonly BlockRepository $blocks,
         private readonly WebHooks $webHooks,
+        private readonly SourceActivity $sources,
     ) {
         parent::__construct($view);
     }
@@ -245,7 +247,8 @@ final class DashboardController extends Controller
 
         $link    = $id === null ? null : $this->links->findForAccount($user->id, (int) $id);
         $matches = $source === '' ? [] : $this->links->fromSourceForAccount($user->id, $source);
-        $domain  = $link?->domain ?? ($source === '' ? null : Url::host($source));
+        // A domain on its own (from the Sources page) offers only the block.
+        $domain  = $link?->domain ?? ($source === '' ? MentionsController::domain($request->query('domain')) : Url::host($source));
 
         return $this->page('delete', 'Delete', [
             'link'         => $link === null ? null : MentionRow::row($link),
@@ -253,6 +256,8 @@ final class DashboardController extends Controller
             'links'        => array_map(MentionRow::row(...), $matches),
             'domain'       => $domain,
             'domain_count' => $domain === null ? 0 : $this->links->countFromDomainForAccount($user->id, $domain),
+            'blocked'      => $domain !== null && $this->blocks->isDomainBlocked($user->id, $domain),
+            'back'         => ReturnPath::resolve($request->query('back')),
             'csrf'         => $this->session->csrfToken(),
         ], $this->nav($user, 'dashboard'));
     }
@@ -294,9 +299,12 @@ final class DashboardController extends Controller
             if (!$this->blocks->isDomainBlocked($user->id, $domain)) {
                 $this->blocks->blockDomain($user->id, $domain);
             }
+            $this->sources->forget($user->id);
+
+            return $this->backTo($request, "Blocked $domain and deleted every webmention from it.");
         }
 
-        return Response::seeOther('/dashboard');
+        return Response::seeOther(ReturnPath::resolve($request->post('back')));
     }
 
     /** @param array<string, string> $params */

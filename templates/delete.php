@@ -5,11 +5,13 @@
  * @var list<array> $links        Undeleted webmentions from that source.
  * @var string|null $domain
  * @var int         $domain_count
+ * @var bool        $blocked      Whether the domain is already blocked.
+ * @var string      $back         Where to go afterwards.
  * @var string      $csrf
  */
 $show_delete = false;
 ?>
-<?php if ($link === null && $links === []) { ?>
+<?php if ($link === null && $links === [] && $domain === null) { ?>
     <section class="card narrow">
         <h1>Nothing to delete</h1>
         <p>No webmentions were found from that source.</p>
@@ -27,6 +29,7 @@ $show_delete = false;
             </ul>
             <form action="/delete" method="post" class="form-actions">
                 <input type="hidden" name="id" value="<?= $link['id'] ?>">
+                <input type="hidden" name="back" value="<?= $back ?>">
                 <input type="hidden" name="csrf" value="<?= $csrf ?>">
                 <button type="submit" class="danger">Delete</button>
             </form>
@@ -43,13 +46,21 @@ $show_delete = false;
             </ul>
             <form action="/delete" method="post" class="form-actions">
                 <input type="hidden" name="source" value="<?= $source ?>">
+                <input type="hidden" name="back" value="<?= $back ?>">
                 <input type="hidden" name="csrf" value="<?= $csrf ?>">
                 <button type="submit" class="danger">Delete all</button>
             </form>
         </section>
     <?php } ?>
 
-    <?php if ($domain !== null) { ?>
+    <?php if ($domain !== null && $blocked) { ?>
+        <section class="card">
+            <h2>Domain already blocked</h2>
+            <p><code><?= $domain ?></code> is blocked on your account; webmentions from it are refused.
+                You can unblock it under <a href="/settings/blocks">Blocklists</a>.</p>
+            <p><a href="<?= $back ?>">Back</a></p>
+        </section>
+    <?php } elseif ($domain !== null) { ?>
         <section class="card danger">
             <h2>Block this domain</h2>
             <p><code><?= $domain ?></code></p>
@@ -57,8 +68,10 @@ $show_delete = false;
                 Blocking it deletes all of them and refuses any future webmentions from it to your account.</p>
             <form action="/delete" method="post" class="form-actions" data-confirm="Block <?= $domain ?> and delete every webmention from it?">
                 <input type="hidden" name="domain" value="<?= $domain ?>">
+                <input type="hidden" name="back" value="<?= $back ?>">
                 <input type="hidden" name="csrf" value="<?= $csrf ?>">
                 <button type="submit" class="danger">Block and delete</button>
+                <a class="button secondary" href="<?= $back ?>">Cancel</a>
             </form>
         </section>
     <?php } ?>

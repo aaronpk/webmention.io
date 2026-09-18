@@ -8,6 +8,7 @@ $nav = $nav ?? null;
 $links = [
     'dashboard' => ['/dashboard', 'Dashboard'],
     'mentions'  => ['/mentions', 'Mentions'],
+    'sources'   => ['/sources', 'Sources'],
     'sites'     => ['/settings/sites', 'Sites'],
     'blocks'    => ['/settings/blocks', 'Blocklists'],
     'settings'  => ['/settings', 'Settings'],

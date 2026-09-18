@@ -32,6 +32,7 @@ use Webmention\Webmention\Queue;
 use Webmention\Webmention\AccountMerger;
 use Webmention\Webmention\RateLimiter;
 use Webmention\Webmention\SiteActivity;
+use Webmention\Webmention\SourceActivity;
 use Webmention\Webmention\SiteDeleter;
 use Webmention\Webmention\SiteVerifier;
 use Webmention\Webmention\SourceFetcher;
@@ -110,6 +111,7 @@ final class Bootstrap
         ));
         $c->set(SiteDeleter::class, static fn (Container $c): SiteDeleter => new SiteDeleter($c->get(Database::class), $c->get(Redis::class), $c->get(Log::class)));
         $c->set(SiteActivity::class, static fn (Container $c): SiteActivity => new SiteActivity($c->get(Database::class), $c->get(Redis::class)));
+        $c->set(SourceActivity::class, static fn (Container $c): SourceActivity => new SourceActivity($c->get(LinkRepository::class), $c->get(Redis::class)));
         $c->set(Queue::class, static fn (Container $c): Queue => new Queue($c->get(Redis::class)));
         $c->set(RateLimiter::class, static fn (Container $c): RateLimiter => new RateLimiter($c->get(Redis::class), $c->get(Log::class)));
         $c->set(HttpClient::class, static fn (): HttpClient => new HttpClient(
@@ -199,6 +201,7 @@ final class Bootstrap
             $c->get(LinkRepository::class),
             $c->get(BlockRepository::class),
             $c->get(WebHooks::class),
+            $c->get(SourceActivity::class),
         ));
 
         $c->set(MentionsController::class, static fn (Container $c): MentionsController => new MentionsController(
@@ -208,6 +211,8 @@ final class Bootstrap
             $c->get(SiteRepository::class),
             $c->get(LinkRepository::class),
             $c->get(MuteRepository::class),
+            $c->get(BlockRepository::class),
+            $c->get(SourceActivity::class),
         ));
 
         $c->set(SettingsController::class, static fn (Container $c): SettingsController => new SettingsController(
@@ -229,6 +234,7 @@ final class Bootstrap
             $c->get(AccountMerger::class),
             $c->get(SiteDeleter::class),
             $config,
+            $c->get(SourceActivity::class),
         ));
 
         return $c;
@@ -267,6 +273,7 @@ final class Bootstrap
         $r->post('/unblock-source', [DashboardController::class, 'unblockSource']);
         $r->get('/moderation', [DashboardController::class, 'moderation']);
         $r->get('/mentions', [MentionsController::class, 'index']);
+        $r->get('/sources', [MentionsController::class, 'sources']);
         $r->post('/approve', [DashboardController::class, 'approve']);
         $r->post('/reject', [DashboardController::class, 'reject']);
         $r->post('/restore', [DashboardController::class, 'restore']);

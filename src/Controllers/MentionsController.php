@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Webmention\Controllers;
 
+use DateTimeImmutable;
 use Webmention\Format\Url;
 use Webmention\Http\Request;
 use Webmention\Http\Response;
@@ -12,17 +13,19 @@ use Webmention\Model\Account;
 use Webmention\Model\Link;
 use Webmention\Model\Site;
 use Webmention\Storage\AccountRepository;
+use Webmention\Storage\BlockRepository;
 use Webmention\Storage\LinkRepository;
 use Webmention\Storage\LinkSearch;
 use Webmention\Storage\MuteRepository;
 use Webmention\Storage\SiteRepository;
 use Webmention\View\MentionRow;
 use Webmention\View\Template;
+use Webmention\Webmention\SourceActivity;
 
 /**
  * Every mention on the account, paged and filtered: by site, by kind, by
  * source domain, and by state (published, awaiting review, hidden by a mute
- * rule, deleted).
+ * rule, deleted). And the source domains behind them, busiest first.
  */
 final class MentionsController extends Controller
 {
@@ -47,6 +50,8 @@ final class MentionsController extends Controller
         private readonly SiteRepository $sites,
         private readonly LinkRepository $links,
         private readonly MuteRepository $mutes,
+        private readonly BlockRepository $blocks,
+        private readonly SourceActivity $sources,
     ) {
         parent::__construct($view);
     }
@@ -145,6 +150,51 @@ final class MentionsController extends Controller
             'notice' => $request->query('notice'),
             'csrf'   => $this->session->csrfToken(),
         ], $this->nav($user, 'mentions'));
+    }
+
+    /**
+     * The source domains of the last SourceActivity::DAYS days, with what
+     * the owner has already done about each.
+     *
+     * @param array<string, string> $params
+     */
+    public function sources(Request $request, array $params): Response
+    {
+        if (($user = $this->currentUser($request)) === null) {
+            return Response::redirect('/');
+        }
+
+        $blocked = array_fill_keys($this->blocks->domainsForAccount($user->id), true);
+        $rules   = $this->mutes->forAccount($user->id);
+
+        $rows = [];
+        foreach ($this->sources->recent($user->id) as $row) {
+            $muted = null;
+            foreach ($rules as $rule) {
+                // A source rule on the domain, or on a URL prefix at it; author rules depend on each mention.
+                if ($rule->kind === 'source' && $rule->matches('https://' . $row['domain'] . '/', null)) {
+                    $muted = $rule->describe();
+                    break;
+                }
+            }
+            $rows[] = [
+                ...$row,
+                'last_seen'  => (new DateTimeImmutable($row['last_seen']))->format('M j, Y'),
+                'blocked'    => isset($blocked[$row['domain']]),
+                'muted'      => $muted,
+                'browse_url' => '/mentions?' . http_build_query(['domain' => $row['domain']]),
+                'review_url' => '/mentions?' . http_build_query(['status' => 'pending', 'domain' => $row['domain']]),
+                'block_url'  => '/delete?' . http_build_query(['domain' => $row['domain'], 'back' => '/sources']),
+            ];
+        }
+
+        return $this->page('sources', 'Sources', [
+            'sources' => $rows,
+            'days'    => SourceActivity::DAYS,
+            'limit'   => SourceActivity::LIMIT,
+            'notice'  => $request->query('notice'),
+            'csrf'    => $this->session->csrfToken(),
+        ], $this->nav($user, 'sources'));
     }
 
     /** A hostname from what was typed: "Example.com", "https://example.com/x" and " example.com " all give "example.com". */

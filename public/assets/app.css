@@ -450,7 +450,8 @@ table.data td {
 }
 
 table.data th { font-size: .8rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
-table.data td.num { font-variant-numeric: tabular-nums; }
+table.data th.num, table.data td.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.data td.actions form.inline { display: inline; }
 table.data td.actions { text-align: right; }
 table.data tr.has-detail td { border-bottom: 0; padding-bottom: .15rem; }
 table.data tr.detail td { padding-top: 0; }

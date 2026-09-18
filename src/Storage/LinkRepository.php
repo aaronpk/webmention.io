@@ -408,6 +408,34 @@ final class LinkRepository
     }
 
     /**
+     * Source domains that sent the account webmentions since a moment,
+     * busiest first, with how many are waiting for review and how many were
+     * deleted. Hidden ones count: they were received.
+     *
+     * @return list<array{domain: string, total: int, pending: int, deleted: int, last_seen: string}>
+     */
+    public function sourceDomainsSince(int $accountId, string $since, int $limit): array
+    {
+        $rows = $this->db->all(
+            "SELECT domain, COUNT(*) AS total,
+                    SUM(status = 'pending' AND deleted = 0) AS pending,
+                    SUM(deleted = 1) AS deleted,
+                    MAX(created_at) AS last_seen
+                FROM links WHERE account_id = ? AND created_at >= ?
+                GROUP BY domain ORDER BY total DESC, domain LIMIT ?",
+            [$accountId, $since, max(1, $limit)],
+        );
+
+        return array_map(static fn (array $r): array => [
+            'domain'    => (string) $r['domain'],
+            'total'     => (int) $r['total'],
+            'pending'   => (int) $r['pending'],
+            'deleted'   => (int) $r['deleted'],
+            'last_seen' => (string) $r['last_seen'],
+        ], $rows);
+    }
+
+    /**
      * A slice of an account's published mentions in id order, for the export:
      * everything after $afterId, private ones included.
      *

@@ -26,6 +26,7 @@ use Webmention\Webmention\Moderation;
 use Webmention\Webmention\AccountMerger;
 use Webmention\Webmention\RateLimiter;
 use Webmention\Webmention\SiteActivity;
+use Webmention\Webmention\SourceActivity;
 use Webmention\Webmention\SiteDeleter;
 use Webmention\Webmention\WebHooks;
 use Webmention\Webmention\SiteVerifier;
@@ -57,6 +58,7 @@ final class SettingsController extends Controller
         private readonly AccountMerger $merger,
         private readonly SiteDeleter $deleter,
         private readonly Config $config,
+        private readonly SourceActivity $sourceActivity,
     ) {
         parent::__construct($view);
     }
@@ -720,6 +722,7 @@ final class SettingsController extends Controller
 
         $rule   = $this->mutes->add($user->id, $kind, $pattern);
         $hidden = $this->links->hideMatching($user->id, $rule);
+        $this->sourceActivity->forget($user->id);
 
         return Response::seeOther("$back?$param=" . rawurlencode(sprintf(
             'Muted %s. %d existing webmention%s hidden; new ones will be too.',
