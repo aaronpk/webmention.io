@@ -16,7 +16,7 @@
 #
 set -Eeuo pipefail
 
-VERSION=1   # bump when changing this script; --version prints it
+VERSION=2   # bump when changing this script; --version prints it
 
 trap 'status=$?; echo "restore-dump: failed at line $LINENO: $BASH_COMMAND (exit $status)" >&2; exit $status' ERR
 
@@ -191,6 +191,25 @@ fi
 
 echo "Loading (a commit every $batch statements, which is far quicker than one each)"
 
+# mysqldump writes views, and any triggers, with the definer they had on the
+# server: DEFINER=`root`@`127.0.0.1` SQL SECURITY DEFINER. Recreating those as
+# anyone else needs the SET USER privilege, which a local app user has no
+# business holding, so the load failed on the first view. Strip the definer and
+# let the view run as whoever queries it.
+#
+# Only DDL lines are touched. A data row can legitimately contain the text
+# DEFINER=`root`@`localhost`, for instance a stored post about MySQL, and
+# links.html is mediumtext so it is not hex-encoded. mysqldump starts view and
+# trigger definitions with a /*! conditional comment or CREATE at the start of
+# the line; data rows start with INSERT INTO or an open bracket.
+strip_definers() {
+  sed -E '\%^(/\*!|CREATE )% {
+      s/DEFINER=`[^`]*`@`[^`]*`[[:space:]]*//g
+      s/DEFINER=@[[:space:]]*//g
+      s/SQL SECURITY DEFINER/SQL SECURITY INVOKER/g
+    }'
+}
+
 progress() {
   awk -v batch="$batch" '
     { print }
@@ -211,12 +230,23 @@ progress() {
   '
 }
 
+trap - ERR
+set +e
 {
   # Index maintenance and per-statement durability are what make a restore
   # crawl; the dump is a single consistent snapshot, so neither is needed.
   echo "SET autocommit=0; SET unique_checks=0; SET foreign_key_checks=0; SET sql_mode='NO_AUTO_VALUE_ON_ZERO';"
-  $reader "$file" | progress
+  $reader "$file" | strip_definers | progress
 } | mysql_run -D "$target"
+load_status=${PIPESTATUS[1]}
+set -e
+trap 'status=$?; echo "restore-dump: failed at line $LINENO: $BASH_COMMAND (exit $status)" >&2; exit $status' ERR
+
+if [[ $load_status -ne 0 ]]; then
+  echo "restore-dump: the load failed (mysql exit $load_status); its error is above." >&2
+  echo "  The database is now half loaded. Fix the cause and run this again; it starts by dropping everything." >&2
+  exit 1
+fi
 
 elapsed=$(( $(date +%s) - started ))
 
