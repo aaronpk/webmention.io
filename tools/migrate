@@ -1,0 +1,103 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Applies database/migrations through the app's own database connection,
+ * so it needs no mysql client and uses the credentials in .env.
+ *
+ *   tools/migrate                   # what is applied, what is pending
+ *   tools/migrate --apply           # apply the pending .sql migrations, in order
+ *   tools/migrate --mark=NAME       # record a .php migration you ran by hand (repeatable)
+ *   tools/migrate --baseline=NAME   # record everything up to NAME as applied, without running
+ *
+ * Run --apply as part of every deploy, before the workers restart. Applied
+ * migrations are remembered in schema_migrations. A file whose first
+ * statement finds its change already there was applied by hand and is
+ * recorded without running the rest, so a hand-migrated database comes
+ * under this tool on its first --apply; --baseline does the same explicitly.
+ */
+
+use Webmention\Bootstrap;
+use Webmention\Logging\ErrorHandler;
+use Webmention\Storage\Database;
+use Webmention\Storage\Migrator;
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+ErrorHandler::ignoreVendorNoise();
+
+$apply    = false;
+$marks    = [];
+$baseline = null;
+
+foreach (array_slice($argv, 1) as $arg) {
+    if ($arg === '--apply') {
+        $apply = true;
+    } elseif (preg_match('/^--mark=([\w.\-]+)$/', $arg, $m) === 1) {
+        $marks[] = $m[1];
+    } elseif (preg_match('/^--baseline=([\w.\-]+)$/', $arg, $m) === 1) {
+        $baseline = $m[1];
+    } else {
+        fwrite(STDERR, "Unknown argument $arg\n");
+        exit(2);
+    }
+}
+
+$db       = Database::connect(Bootstrap::config());
+$migrator = new Migrator($db, dirname(__DIR__) . '/database/migrations');
+
+printf("Database \"%s\"\n\n", (string) $db->value('SELECT DATABASE()'));
+
+try {
+    if ($baseline !== null) {
+        $recorded = $migrator->baseline($baseline);
+        printf("Recorded %d migration%s as applied, through %s.\n", count($recorded), count($recorded) === 1 ? '' : 's', $baseline);
+    }
+    foreach ($marks as $mark) {
+        $migrator->mark($mark);
+        echo "Recorded $mark as applied.\n";
+    }
+} catch (InvalidArgumentException $e) {
+    fwrite(STDERR, $e->getMessage() . "\n");
+    exit(2);
+}
+
+if ($apply) {
+    try {
+        $applied = $migrator->apply();
+    } catch (RuntimeException $e) {
+        fwrite(STDERR, "FAILED: " . $e->getMessage() . "\n");
+        fwrite(STDERR, "Migrations before it were recorded; fix the cause and run again.\n");
+        exit(1);
+    }
+    foreach ($applied as $a) {
+        if ($a['by_hand']) {
+            printf("applied  %s (already applied by hand; recorded, nothing run)\n", $a['name']);
+        } else {
+            printf("applied  %s (%d of %d statement%s run)\n", $a['name'], $a['ran'], $a['statements'], $a['statements'] === 1 ? '' : 's');
+        }
+    }
+    if ($applied === []) {
+        echo "Nothing to apply.\n";
+    }
+    echo "\n";
+}
+
+$pending = 0;
+foreach ($migrator->status() as $m) {
+    if ($m['applied_at'] !== null) {
+        printf("applied  %s  (%s)\n", $m['name'], $m['applied_at']);
+    } elseif ($m['kind'] === 'php') {
+        printf("by hand  %s  run: php database/migrations/%s, then tools/migrate --mark=%1\$s\n", $m['name'], $m['name']);
+    } else {
+        printf("pending  %s\n", $m['name']);
+        $pending++;
+    }
+}
+
+if ($pending > 0 && !$apply) {
+    printf("\n%d pending. Apply with: tools/migrate --apply\n", $pending);
+}
+exit(0);

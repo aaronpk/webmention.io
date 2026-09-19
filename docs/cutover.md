@@ -133,6 +133,9 @@ The indexes can stay; the Ruby app's queries benefit from them too.
 
 ## Afterwards
 
+Every `.sql` file below can be applied with `tools/migrate --apply` instead of the `mysql` lines; it uses the app's `.env` credentials, records what it applied in `schema_migrations`, and treats a column, index or table that is already there as applied, so it is safe on a database that was migrated by hand. The `.php` migrations stay by hand; record them afterwards with `tools/migrate --mark=NAME`. Run `tools/migrate --apply` on every deploy before restarting the workers.
+
+
 * **Fold duplicate sites and add the unique index.** Production has hundreds of `sites` rows that repeat a domain on the same account (the Ruby add-site form never checked). Dry-run, review, apply, then add the index; the index migration fails harmlessly if any duplicates remain.
 
   ```bash

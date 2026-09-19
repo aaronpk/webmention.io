@@ -349,6 +349,7 @@ Requirements: PHP 8.2 with the curl, mbstring, pdo_mysql, redis and xmlwriter ex
 composer install
 cp .env.example .env        # then fill it in
 mysql webmention < database/schema.sql
+tools/migrate --baseline=$(ls database/migrations | tail -1)   # schema.sql already includes every migration
 php -S 127.0.0.1:8080 -t public public/index.php
 bin/worker                  # in another terminal
 ```
@@ -412,7 +413,22 @@ Each site records whether it has proved this (`sites.verified_at`). Sites added 
 
 ### Migrations
 
-Schema changes live in `database/migrations/` and are applied by hand, in date order. Most are `.sql` files for `mysql`; a `.php` file is a data migration run with `php`, and its header says whether something must run before or after it. `database/schema.sql` is the full current schema.
+Schema changes live in `database/migrations/`, one dated file each, and `database/schema.sql` is the full current schema. Every change is additive (a new column with a default, a new index, a new table), so the old app keeps working alongside.
+
+`tools/migrate` applies them through the app's own database connection, using the credentials in `.env`, and records what it applied in the `schema_migrations` table:
+
+```bash
+tools/migrate                   # what is applied, what is pending
+tools/migrate --apply           # apply the pending .sql files, in date order
+tools/migrate --mark=NAME       # record a .php migration you ran by hand (repeatable)
+tools/migrate --baseline=NAME   # record everything through NAME as applied, running nothing
+```
+
+Run `tools/migrate --apply` on every deploy, before restarting the workers: code that expects a column the database does not have yet fails in the worker, where nobody sees it.
+
+A `.php` file is a data migration with its own dry run and `--apply`; `tools/migrate` lists it with the command to run and never runs it itself. Its header says whether something must run before or after it. Record it with `--mark` once done.
+
+A database that was migrated by hand comes under the tool on its first `--apply`: a file whose first schema statement finds its column, index or table already there counts as applied by hand and the rest of the file is skipped rather than repeated, which matters for the files that follow their DDL with a data statement. A later statement that is already there is skipped on its own; any other error stops the run at that file and names the statement, with the files before it recorded. A fresh database loaded from `schema.sql` already contains every migration, so record them with `--baseline` (the setup steps above do this).
 
 
 ## License
