@@ -313,5 +313,5 @@ X-Webmention-Signature: sha256=2f7e…
         If your endpoint was down for longer than the retries cover, fetch what it missed from <a href="#mentions">List mentions</a> with <code>since_id</code> and from <a href="#deleted">Deleted mentions</a>; both return the same data the web hook carries.</p>
 </section>
 
-<link rel="stylesheet" href="/assets/webmention-render.css">
-<script src="/js/webmention-render.js" defer></script>
+<link rel="stylesheet" href="<?= $view->asset('/assets/webmention-render.css') ?>">
+<script src="<?= $view->asset('/js/webmention-render.js') ?>" defer></script>

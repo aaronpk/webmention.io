@@ -58,7 +58,8 @@ final class DashboardTest extends IntegrationTestCase
         $this->signIn($this->alice);
         $signedIn = $this->request('GET', '/api', headers: ['cookie' => Session::COOKIE . '=test']);
         self::assertSame(200, $signedIn->status);
-        self::assertStringContainsString('href="/api" aria-current="page"', $signedIn->body);
+        self::assertStringContainsString('Sign out', $signedIn->body, 'the account nav appears on the public docs when signed in');
+        self::assertStringNotContainsString('>API</a>', substr($signedIn->body, 0, (int) strpos($signedIn->body, '</header>')), 'the docs are linked from the footer, not the account nav');
 
         // The home page now points at the docs instead of carrying them.
         $home = $this->request('GET', '/')->body;

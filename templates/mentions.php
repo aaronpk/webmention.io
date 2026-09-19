@@ -13,7 +13,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= $account !== null ? $account . ' — ' : '' ?>Mentions</title>
-    <link rel="stylesheet" href="/assets/mentions.css">
+    <link rel="stylesheet" href="<?= $view->asset('/assets/mentions.css') ?>">
 </head>
 <body>
 <div class="mentions h-feed">

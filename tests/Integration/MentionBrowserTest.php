@@ -48,6 +48,8 @@ final class MentionBrowserTest extends IntegrationTestCase
         self::assertStringContainsString('4 published webmentions.', $all->body);
         self::assertStringContainsString('<label for="menu" class="menu-button">', $all->body, 'the collapsing menu, for narrow screens');
         self::assertStringContainsString('<nav class="nav" id="account-nav"', $all->body);
+        self::assertMatchesRegularExpression('#<link rel="stylesheet" href="/assets/app\.css\?v=\d{10}">#', $all->body, 'assets carry their mtime, against stale caches');
+        self::assertMatchesRegularExpression('#<script src="/assets/app\.js\?v=\d{10}"></script>#', $all->body);
         self::assertStringContainsString('<a href="/mentions" aria-current="page">Mentions</a>', $all->body);
         self::assertStringNotContainsString('bob.example/other', $all->body, "another account's mention");
         self::assertStringContainsString('<option value="' . $this->photos->id . '">photos.alice.example</option>', $all->body);

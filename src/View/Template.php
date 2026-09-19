@@ -70,6 +70,19 @@ final class Template
         return new Raw($this->render($name, $vars));
     }
 
+    /**
+     * A URL for a file under public/ with its modification time as a query
+     * string, so a changed stylesheet or script is fetched afresh instead of
+     * served from a browser's cache.
+     */
+    public function asset(string $path): string
+    {
+        $file  = dirname($this->directory) . '/public' . $path;
+        $mtime = is_file($file) ? filemtime($file) : false;
+
+        return $mtime === false ? $path : $path . '?v=' . $mtime;
+    }
+
     private function escape(mixed $value): mixed
     {
         if ($value instanceof Raw) {

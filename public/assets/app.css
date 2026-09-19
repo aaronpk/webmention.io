@@ -90,10 +90,12 @@ pre code { background: none; padding: 0; overflow-wrap: normal; }
     border-bottom: 1px solid var(--line);
 }
 
+/* Two rows: the brand and the account on the first, the links on their own
+   row beneath, so they never have to share width with a long domain name. */
 .bar {
     max-width: 60rem;
     margin: 0 auto;
-    padding: .75rem 1.25rem;
+    padding: .75rem 1.25rem .5rem;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -113,7 +115,10 @@ pre code { background: none; padding: 0; overflow-wrap: normal; }
     display: flex;
     flex-wrap: wrap;
     gap: .25rem;
-    flex: 1;
+    flex-basis: 100%;
+    margin-top: .25rem;
+    padding-top: .4rem;
+    border-top: 1px solid var(--line);
 }
 
 .nav a {
@@ -131,6 +136,7 @@ pre code { background: none; padding: 0; overflow-wrap: normal; }
     display: flex;
     gap: .75rem;
     align-items: center;
+    margin-left: auto;
     font-size: .925rem;
 }
 
@@ -173,9 +179,9 @@ pre code { background: none; padding: 0; overflow-wrap: normal; }
     .nav, .account { display: none; width: 100%; }
     .menu-toggle:checked ~ .nav,
     .menu-toggle:checked ~ .account { display: flex; }
-    .nav { flex-direction: column; gap: .1rem; padding-top: .5rem; border-top: 1px solid var(--line); }
+    .nav { order: 2; flex-direction: column; gap: .1rem; margin-top: 0; padding-top: .5rem; }
     .nav a { padding: .55rem .6rem; font-size: 1rem; }
-    .account { justify-content: space-between; padding: .5rem 0 .25rem; border-top: 1px solid var(--line); }
+    .account { order: 3; margin-left: 0; justify-content: space-between; padding: .5rem 0 .25rem; border-top: 1px solid var(--line); }
 }
 
 /* Layout */
@@ -291,6 +297,7 @@ button,
     background: var(--accent);
     border: 1px solid var(--accent);
     border-radius: 6px;
+    line-height: 1.4;
     cursor: pointer;
     text-decoration: none;
     white-space: nowrap;
@@ -331,7 +338,7 @@ button.icon:hover { color: var(--danger); background: var(--danger-soft); filter
 
 .inline-field .grow { flex: 1; min-width: 0; margin: 0; }
 
-.button.small { padding: .2rem .6rem; font-size: .875rem; }
+button.small, .button.small { padding: .2rem .6rem; font-size: .875rem; }
 
 form.inline { display: inline; margin: 0; }
 button.link {

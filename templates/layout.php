@@ -12,7 +12,6 @@ $links = [
     'sites'     => ['/settings/sites', 'Sites'],
     'blocks'    => ['/settings/blocks', 'Blocklists'],
     'settings'  => ['/settings', 'Settings'],
-    'api'       => ['/api', 'API'],
 ];
 ?>
 <!doctype html>
@@ -21,7 +20,7 @@ $links = [
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= $title ?></title>
-    <link rel="stylesheet" href="/assets/app.css">
+    <link rel="stylesheet" href="<?= $view->asset('/assets/app.css') ?>">
     <link rel="icon" href="/favicon.ico">
     <link rel="manifest" href="/manifest.json">
 </head>
@@ -35,11 +34,6 @@ $links = [
             <?php if ($nav !== null) { ?>
                 <input type="checkbox" id="menu" class="menu-toggle" aria-label="Menu" aria-controls="account-nav">
                 <label for="menu" class="menu-button"><span class="bars" aria-hidden="true"></span>Menu<?php if (($nav['pending'] ?? 0) > 0) { ?> <span class="count" title="Awaiting review"><?= $nav['pending'] ?></span><?php } ?></label>
-                <nav class="nav" id="account-nav" aria-label="Account">
-                    <?php foreach ($links as $key => [$href, $label]) { ?>
-                        <a href="<?= $href ?>"<?= $nav['active'] === $key ? ' aria-current="page"' : '' ?>><?= $label ?><?php if ($key === 'dashboard' && ($nav['pending'] ?? 0) > 0) { ?> <span class="count" title="Awaiting review"><?= $nav['pending'] ?></span><?php } ?></a>
-                    <?php } ?>
-                </nav>
                 <div class="account">
                     <span class="muted"><?= $nav['domain'] ?></span>
                     <form action="/logout" method="post" class="inline">
@@ -47,6 +41,11 @@ $links = [
                         <button type="submit" class="link">Sign out</button>
                     </form>
                 </div>
+                <nav class="nav" id="account-nav" aria-label="Account">
+                    <?php foreach ($links as $key => [$href, $label]) { ?>
+                        <a href="<?= $href ?>"<?= $nav['active'] === $key ? ' aria-current="page"' : '' ?>><?= $label ?><?php if ($key === 'dashboard' && ($nav['pending'] ?? 0) > 0) { ?> <span class="count" title="Awaiting review"><?= $nav['pending'] ?></span><?php } ?></a>
+                    <?php } ?>
+                </nav>
             <?php } ?>
         </div>
     </header>
@@ -65,6 +64,6 @@ $links = [
         <a href="https://indieweb.org/webmention.io">indieweb.org/webmention.io</a>
     </footer>
 
-    <script src="/assets/app.js"></script>
+    <script src="<?= $view->asset('/assets/app.js') ?>"></script>
 </body>
 </html>
