@@ -25,6 +25,36 @@ final class SafeTransportTest extends TestCase
         }
         self::$servers = [];
         self::$origins = [];
+        self::setOwnAddresses(null);
+    }
+
+    /** @param list<string>|null $addresses Pretend these are this machine's interfaces (null: look them up again). */
+    private static function setOwnAddresses(?array $addresses): void
+    {
+        $property = new \ReflectionProperty(SafeTransport::class, 'ownAddresses');
+        $property->setValue(null, $addresses === null ? null : array_map(static fn (string $ip): string => (string) inet_pton($ip), $addresses));
+    }
+
+    public function testThisServersOwnPublicAddressIsAllowedOnTheWebPortsOnly(): void
+    {
+        self::setOwnAddresses(['93.184.216.34', '2606:2800:220:1:248:1893:25c8:1946']);
+        $transport = new SafeTransport();
+
+        // Another site on the same server, such as an IndieAuth server, is as reachable as it is for anyone else.
+        self::assertNull($transport->blockedReason('https://93.184.216.34/s/abc/metadata'));
+        self::assertNull($transport->blockedReason('http://93.184.216.34/'));
+        self::assertNull($transport->blockedReason('https://[2606:2800:220:1:248:1893:25c8:1946]/'));
+
+        // Anything else on this box is not.
+        self::assertSame("Refusing to connect to this server's own address on port 8080", $transport->blockedReason('http://93.184.216.34:8080/'));
+        self::assertSame("Refusing to connect to this server's own address on port 6379", $transport->blockedReason('http://[2606:2800:220:1:248:1893:25c8:1946]:6379/'));
+        self::assertSame(SafeTransport::BLOCKED, $transport->get('http://93.184.216.34:8080/')['error']);
+
+        // Loopback and private ranges are refused as before, on any port.
+        self::assertSame('Refusing to connect to a non-public address for 127.0.0.1', $transport->blockedReason('http://127.0.0.1/'));
+        self::assertSame('Refusing to connect to a non-public address for 10.0.0.5', $transport->blockedReason('https://10.0.0.5/'));
+
+        self::setOwnAddresses(null);
     }
 
     /** @return iterable<string, array{string}> */

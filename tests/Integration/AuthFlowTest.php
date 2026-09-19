@@ -185,6 +185,40 @@ final class AuthFlowTest extends IntegrationTestCase
         self::assertStringContainsString('(HTTP 404)', $response->body);
     }
 
+    public function testAnUnreadableMetadataDocumentIsNamedRatherThanBlamedOnTheIssuer(): void
+    {
+        $log = sys_get_temp_dir() . '/webmention-test.log';
+        @unlink($log);
+        $this->http->respond('GET', 'https://kim.example/', 200, '<html><head><link rel="indieauth-metadata" href="https://ids.example/s/kim/metadata"></head><body>Hi</body></html>', ['Content-Type' => 'text/html']);
+
+        // The server could not be fetched at all (what a blocked address looks like).
+        $this->http->respond('GET', 'https://ids.example/s/kim/metadata', 0, '', [], 'blocked');
+        $response = $this->request('POST', '/auth/start', post: ['me' => 'https://kim.example/'], headers: self::SAME_ORIGIN);
+        self::assertSame(400, $response->status);
+        self::assertStringContainsString('metadata at https://ids.example/s/kim/metadata could not be read (Simulated blocked).', $response->body);
+        self::assertStringNotContainsString('No issuer found', $response->body);
+        self::assertStringContainsString('Sign-in failed (indieauth) for https://kim.example/: invalid_issuer: Your IndieAuth server\'s metadata at https://ids.example/s/kim/metadata could not be read (Simulated blocked).', (string) @file_get_contents($log));
+
+        // A server error.
+        self::resetIndieAuthClient();
+        $this->http->respond('GET', 'https://ids.example/s/kim/metadata', 503, 'down', ['Content-Type' => 'text/html']);
+        $response = $this->request('POST', '/auth/start', post: ['me' => 'https://kim.example/'], headers: self::SAME_ORIGIN);
+        self::assertStringContainsString('could not be read (HTTP 503).', $response->body);
+
+        // Reachable, but not JSON.
+        self::resetIndieAuthClient();
+        $this->http->respond('GET', 'https://ids.example/s/kim/metadata', 200, '<html>not json</html>', ['Content-Type' => 'text/html']);
+        $response = $this->request('POST', '/auth/start', post: ['me' => 'https://kim.example/'], headers: self::SAME_ORIGIN);
+        self::assertStringContainsString('could not be read (it is not a JSON document with an issuer).', $response->body);
+
+        // And when it is fine, sign-in proceeds to the authorization endpoint it names.
+        self::resetIndieAuthClient();
+        $this->http->respond('GET', 'https://ids.example/s/kim/metadata', 200, json_encode(['issuer' => 'https://ids.example/s/kim/', 'authorization_endpoint' => 'https://ids.example/s/kim/auth', 'token_endpoint' => 'https://ids.example/token']), ['Content-Type' => 'application/json']);
+        $response = $this->request('POST', '/auth/start', post: ['me' => 'https://kim.example/'], headers: self::SAME_ORIGIN);
+        self::assertSame(302, $response->status);
+        self::assertStringStartsWith('https://ids.example/s/kim/auth?', (string) $response->header('location'));
+    }
+
     public function testIndieloginFallbackCanBeTurnedOff(): void
     {
         // A host no other test fetched: the library caches pages per process.

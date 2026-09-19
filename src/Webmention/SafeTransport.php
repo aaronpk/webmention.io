@@ -14,10 +14,13 @@ use Webmention\Format\Url;
  * Webmention sources, token endpoints and callback URLs are chosen by
  * strangers, and this runs next to Redis and the database. So every request,
  * and every redirect, must be http or https, on a web port, to a public
- * address that is not one of this machine's own. The address that was checked
- * is pinned for the connection, so DNS can't answer differently between the
- * check and the connect, and the address curl actually connected to is
- * checked again afterwards.
+ * address. This machine's own public address is allowed on ports 80 and 443
+ * only: there it is the web server anyone on the internet can reach, and
+ * other sites hosted on the same server (an IndieAuth server, say) must stay
+ * reachable; on any other port it could be an internal service, so it is
+ * refused. The address that was checked is pinned for the connection, so DNS
+ * can't answer differently between the check and the connect, and the
+ * address curl actually connected to is checked again afterwards.
  *
  * Responses are bounded: a body larger than maxBytes, or a transfer that
  * overruns its time budget across all redirects, is a failure. POST and PUT
@@ -394,8 +397,11 @@ final class SafeTransport implements Transport
         }
 
         foreach ($addresses as $address) {
-            if (!self::publicAddress($address) || self::isOwnAddress($address)) {
+            if (!self::publicAddress($address)) {
                 return $blocked("Refusing to connect to a non-public address for $host");
+            }
+            if (self::isOwnAddress($address) && $port !== 80 && $port !== 443) {
+                return $blocked("Refusing to connect to this server's own address on port $port");
             }
         }
 

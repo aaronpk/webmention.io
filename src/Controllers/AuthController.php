@@ -92,6 +92,18 @@ final class AuthController extends Controller
         [$authorizationUrl, $error] = Client::begin($normalized);
 
         if ($error) {
+            // The library says "no issuer" whenever the metadata document it
+            // fetched did not parse, including when the fetch itself failed.
+            if (($error['error'] ?? '') === 'invalid_issuer' && str_starts_with((string) ($error['error_description'] ?? ''), 'No issuer found')) {
+                $metadataUrl = (string) Client::discoverMetadataEndpoint($normalized); // cached by the library; no new fetch
+                $reason      = $http->lastFailure() ?? 'it is not a JSON document with an issuer';
+
+                return $this->failure([
+                    'error'             => 'invalid_issuer',
+                    'error_description' => "Your IndieAuth server's metadata at $metadataUrl could not be read ($reason).",
+                ], me: $normalized, via: 'indieauth');
+            }
+
             if (($error['error'] ?? '') === 'missing_authorization_endpoint') {
                 // The library says the same thing whether the page had no
                 // endpoint or could not be fetched at all; the transport

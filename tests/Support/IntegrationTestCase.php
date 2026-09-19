@@ -34,8 +34,26 @@ abstract class IntegrationTestCase extends TestCase
     protected Database $db;
     protected Redis $redis;
 
+    /**
+     * The IndieAuth client caches fetched pages and metadata in statics for
+     * the life of the process, which is one request in production and the
+     * whole run here. Called before every test; a test that starts sign-in
+     * more than once calls it between attempts, as a new request would.
+     */
+    protected static function resetIndieAuthClient(): void
+    {
+        $client = new \ReflectionClass(\IndieAuth\Client::class);
+        foreach ($client->getProperties(\ReflectionProperty::IS_STATIC) as $property) {
+            if (str_starts_with($property->getName(), '_')) {
+                $property->setValue(null, $property->getDefaultValue());
+            }
+        }
+    }
+
     protected function setUp(): void
     {
+        self::resetIndieAuthClient();
+
         $root    = Bootstrap::root();
         $envFile = $root . '/.env.testing';
 
