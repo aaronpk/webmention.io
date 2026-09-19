@@ -33,7 +33,9 @@ $links = [
                 <span>Webmention.io</span>
             </a>
             <?php if ($nav !== null) { ?>
-                <nav class="nav" aria-label="Account">
+                <input type="checkbox" id="menu" class="menu-toggle" aria-label="Menu" aria-controls="account-nav">
+                <label for="menu" class="menu-button"><span class="bars" aria-hidden="true"></span>Menu<?php if (($nav['pending'] ?? 0) > 0) { ?> <span class="count" title="Awaiting review"><?= $nav['pending'] ?></span><?php } ?></label>
+                <nav class="nav" id="account-nav" aria-label="Account">
                     <?php foreach ($links as $key => [$href, $label]) { ?>
                         <a href="<?= $href ?>"<?= $nav['active'] === $key ? ' aria-current="page"' : '' ?>><?= $label ?><?php if ($key === 'dashboard' && ($nav['pending'] ?? 0) > 0) { ?> <span class="count" title="Awaiting review"><?= $nav['pending'] ?></span><?php } ?></a>
                     <?php } ?>

@@ -46,6 +46,9 @@ final class MentionBrowserTest extends IntegrationTestCase
         $all = $this->request('GET', '/mentions');
         self::assertSame(200, $all->status);
         self::assertStringContainsString('4 published webmentions.', $all->body);
+        self::assertStringContainsString('<label for="menu" class="menu-button">', $all->body, 'the collapsing menu, for narrow screens');
+        self::assertStringContainsString('<nav class="nav" id="account-nav"', $all->body);
+        self::assertStringContainsString('<a href="/mentions" aria-current="page">Mentions</a>', $all->body);
         self::assertStringNotContainsString('bob.example/other', $all->body, "another account's mention");
         self::assertStringContainsString('<option value="' . $this->photos->id . '">photos.alice.example</option>', $all->body);
         // Newest first.
