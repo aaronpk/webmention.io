@@ -231,7 +231,195 @@ final class AuthFlowTest extends IntegrationTestCase
         }
 
         self::assertSame(400, $response->status);
-        self::assertStringContainsString('Could not find your authorization endpoint', $response->body);
+        self::assertStringContainsString('Your website does not link to an IndieAuth server', $response->body);
+        self::assertStringContainsString('<li class="stage ok">', $response->body);
+        self::assertStringContainsString('no rel=&quot;indieauth-metadata&quot; and no rel=&quot;authorization_endpoint&quot; link', $response->body);
+        self::assertStringContainsString('<li class="stage failed">', $response->body);
+        self::assertStringContainsString('Add &lt;link rel=&quot;indieauth-metadata&quot;', $response->body, 'the hint for that stage');
+    }
+
+    /** Between sign-ins in one test: the library caches discovery per process, and production sees one sign-in per request. */
+    private function fresh(): void
+    {
+        self::resetIndieAuthClient();
+        Client::setMetadata('about:blank', 'null');
+    }
+
+    /** @return list<string> The state of each stage on the page, in order. */
+    private static function stageStates(string $body): array
+    {
+        preg_match_all('/<li class="stage (ok|failed|skipped)">/', $body, $m);
+
+        return $m[1];
+    }
+
+    public function testDiscoveryFailuresNameTheStageAndTheEvidence(): void
+    {
+        // The site cannot be fetched at all.
+        $this->http->respond('GET', 'https://nx.example/', 0, '', [], 'dns_error');
+        $body = $this->request('POST', '/auth/start', post: ['me' => 'https://nx.example/'], headers: self::SAME_ORIGIN)->body;
+        self::assertSame(['failed', 'skipped', 'skipped', 'skipped'], self::stageStates($body));
+        self::assertStringContainsString('Your website could not be fetched (Simulated dns_error)', $body, 'the transport error, not HTTP 0');
+        self::assertStringContainsString('Could not fetch https://nx.example/: Simulated dns_error.', $body);
+        self::assertStringContainsString('<dt>Request</dt><dd><code>GET https://nx.example/</code></dd>', $body);
+
+        // The site answers 404.
+        $this->fresh();
+        $this->http->respond('GET', 'https://gone.example/', 404, '<html>nope</html>', ['Content-Type' => 'text/html']);
+        $body = $this->request('POST', '/auth/start', post: ['me' => 'https://gone.example/'], headers: self::SAME_ORIGIN)->body;
+        self::assertSame(['failed', 'skipped', 'skipped', 'skipped'], self::stageStates($body));
+        self::assertStringContainsString('Could not fetch https://gone.example/: HTTP 404.', $body);
+
+        // Metadata link present but the document is a 500.
+        $this->fresh();
+        $this->http->respond('GET', 'https://m500.example/', 200, '<html><head><link rel="indieauth-metadata" href="https://ids.example/m500/metadata"></head></html>', ['Content-Type' => 'text/html']);
+        $this->http->respond('GET', 'https://ids.example/m500/metadata', 500, 'down', ['Content-Type' => 'text/plain']);
+        $body = $this->request('POST', '/auth/start', post: ['me' => 'https://m500.example/'], headers: self::SAME_ORIGIN)->body;
+        self::assertSame(['ok', 'ok', 'failed', 'skipped'], self::stageStates($body));
+        self::assertStringContainsString('<dt>rel=&quot;indieauth-metadata&quot;</dt><dd><code>https://ids.example/m500/metadata</code></dd>', $body);
+        self::assertStringContainsString('Could not fetch https://ids.example/m500/metadata: HTTP 500.', $body);
+        self::assertStringContainsString('The metadata document must be JSON', $body);
+
+        // Not JSON.
+        $this->fresh();
+        $this->http->respond('GET', 'https://mhtml.example/', 200, '<html><head><link rel="indieauth-metadata" href="https://ids.example/mhtml/metadata"></head></html>', ['Content-Type' => 'text/html']);
+        $this->http->respond('GET', 'https://ids.example/mhtml/metadata', 200, '<html>hi</html>', ['Content-Type' => 'text/html']);
+        $body = $this->request('POST', '/auth/start', post: ['me' => 'https://mhtml.example/'], headers: self::SAME_ORIGIN)->body;
+        self::assertSame(['ok', 'ok', 'failed', 'skipped'], self::stageStates($body));
+        self::assertStringContainsString('https://ids.example/mhtml/metadata is not a JSON document.', $body);
+        self::assertStringContainsString('<dt>Answer</dt><dd><code>HTTP 200, text/html, 15 bytes in ', $body);
+
+        // JSON without an issuer.
+        $this->fresh();
+        $this->http->respond('GET', 'https://noiss.example/', 200, '<html><head><link rel="indieauth-metadata" href="https://ids.example/noiss/metadata"></head></html>', ['Content-Type' => 'text/html']);
+        $this->http->respond('GET', 'https://ids.example/noiss/metadata', 200, '{"authorization_endpoint":"https://ids.example/auth"}', ['Content-Type' => 'application/json']);
+        $body = $this->request('POST', '/auth/start', post: ['me' => 'https://noiss.example/'], headers: self::SAME_ORIGIN)->body;
+        self::assertSame(['ok', 'ok', 'failed', 'skipped'], self::stageStates($body));
+        self::assertStringContainsString('The metadata document has no issuer.', $body);
+        self::assertStringContainsString('<dt>issuer</dt><dd><code>(missing)</code></dd>', $body);
+
+        // Issuer with a query string.
+        $this->fresh();
+        $this->http->respond('GET', 'https://qiss.example/', 200, '<html><head><link rel="indieauth-metadata" href="https://ids.example/qiss/metadata"></head></html>', ['Content-Type' => 'text/html']);
+        $this->http->respond('GET', 'https://ids.example/qiss/metadata', 200, '{"issuer":"https://ids.example/qiss/?x=1","authorization_endpoint":"https://ids.example/auth"}', ['Content-Type' => 'application/json']);
+        $body = $this->request('POST', '/auth/start', post: ['me' => 'https://qiss.example/'], headers: self::SAME_ORIGIN)->body;
+        self::assertSame(['ok', 'ok', 'failed', 'skipped'], self::stageStates($body));
+        self::assertStringContainsString('The issuer is not valid: it must not have a query string or fragment.', $body);
+
+        // Issuer that is not a prefix of the document URL.
+        $this->fresh();
+        $this->http->respond('GET', 'https://piss.example/', 200, '<html><head><link rel="indieauth-metadata" href="https://ids.example/piss/metadata"></head></html>', ['Content-Type' => 'text/html']);
+        $this->http->respond('GET', 'https://ids.example/piss/metadata', 200, '{"issuer":"https://other.example/","authorization_endpoint":"https://ids.example/auth"}', ['Content-Type' => 'application/json']);
+        $body = $this->request('POST', '/auth/start', post: ['me' => 'https://piss.example/'], headers: self::SAME_ORIGIN)->body;
+        self::assertSame(['ok', 'ok', 'failed', 'skipped'], self::stageStates($body));
+        self::assertStringContainsString("it must be a prefix of the metadata document&apos;s URL, https://ids.example/piss/metadata", $body);
+
+        // The legacy link, no metadata: stage 3 reads as not needed, and the page carries the Try again link.
+        $this->fresh();
+        $this->fakeProfile('legacy.example');
+        $this->http->respond('POST', 'https://auth.example/auth', 500, 'oops', ['Content-Type' => 'text/plain']);
+        parse_str((string) parse_url($this->startSignIn('https://legacy.example/'), PHP_URL_QUERY), $params);
+        $body = $this->request('GET', '/auth/callback', ['code' => 'secret-code', 'state' => $params['state']])->body;
+        self::assertSame(['ok', 'ok', 'ok', 'ok', 'ok', 'failed', 'skipped'], self::stageStates($body));
+        self::assertStringContainsString('<dt>rel=&quot;authorization_endpoint&quot;</dt><dd><code>https://auth.example/auth</code></dd>', $body);
+        self::assertStringContainsString('Not needed: the endpoint was given directly.', $body);
+        self::assertStringContainsString('href="/?me=https%3A%2F%2Flegacy.example%2F">Try again</a>', $body);
+    }
+
+    public function testReturnAndExchangeFailuresShowWhatCameBackWithoutSecrets(): void
+    {
+        $log = sys_get_temp_dir() . '/webmention-test.log';
+        @unlink($log);
+
+        // The server sent an error back instead of a code.
+        $this->fakeProfile('denied.example');
+        $this->startSignIn('https://denied.example/');
+        $body = $this->request('GET', '/auth/callback', ['error' => 'access_denied', 'error_description' => 'You said no'])->body;
+        self::assertSame(['ok', 'ok', 'ok', 'ok', 'failed', 'skipped', 'skipped'], self::stageStates($body));
+        self::assertStringContainsString('sent back an error instead of a code: access_denied (You said no).', $body);
+
+        // A forged state: the stage says so and the value never appears.
+        $this->fresh();
+        $this->fakeProfile('forged.example');
+        $this->startSignIn('https://forged.example/');
+        $body = $this->request('GET', '/auth/callback', ['code' => 'x', 'state' => 'forged-value-123'])->body;
+        self::assertSame(['ok', 'ok', 'ok', 'ok', 'failed', 'skipped', 'skipped'], self::stageStates($body));
+        self::assertStringContainsString('The state value that came back is not the one this sign-in started with.', $body);
+        self::assertStringNotContainsString('forged-value-123', $body);
+
+        // A wrong iss, with a metadata server: expected and received are shown.
+        $this->fresh();
+        $this->http->respond('GET', 'https://iss.example/', 200, '<html><head><link rel="indieauth-metadata" href="https://ids.example/iss/metadata"></head></html>', ['Content-Type' => 'text/html']);
+        $this->http->respond('GET', 'https://ids.example/iss/metadata', 200, '{"issuer":"https://ids.example/iss/","authorization_endpoint":"https://ids.example/iss/auth","token_endpoint":"https://ids.example/token"}', ['Content-Type' => 'application/json']);
+        parse_str((string) parse_url($this->startSignIn('https://iss.example/'), PHP_URL_QUERY), $params);
+        $body = $this->request('GET', '/auth/callback', ['code' => 'x', 'state' => $params['state'], 'iss' => 'https://evil.example/'])->body;
+        self::assertSame(['ok', 'ok', 'ok', 'ok', 'failed', 'skipped', 'skipped'], self::stageStates($body));
+        self::assertStringContainsString('<dt>Expected iss</dt><dd><code>https://ids.example/iss/</code></dd>', $body);
+        self::assertStringContainsString('<dt>Received iss</dt><dd><code>https://evil.example/</code></dd>', $body);
+        self::assertStringContainsString('The metadata document was read and its issuer matches its URL.', $body);
+        self::assertStringContainsString('<dt>token_endpoint</dt><dd><code>https://ids.example/token</code></dd>', $body);
+
+        // The exchange answers 500 with HTML and a token that must not leak.
+        $this->fresh();
+        $this->fakeProfile('five.example');
+        parse_str((string) parse_url($this->startSignIn('https://five.example/'), PHP_URL_QUERY), $params);
+        $this->http->respond('POST', 'https://auth.example/auth', 500, '{"access_token":"secret123","error":"server_error","error_description":"boom"}', ['Content-Type' => 'application/json']);
+        $body = $this->request('GET', '/auth/callback', ['code' => 'secret-code', 'state' => $params['state']])->body;
+        self::assertSame(['ok', 'ok', 'ok', 'ok', 'ok', 'failed', 'skipped'], self::stageStates($body));
+        self::assertStringContainsString('did not answer with your profile URL (HTTP 500 from https://auth.example/auth).', $body);
+        self::assertStringContainsString('<dt>answer</dt><dd><code>HTTP 500, application/json</code></dd>', $body);
+        self::assertStringContainsString('<dt>server error</dt><dd><code>server_error: boom</code></dd>', $body);
+        self::assertStringContainsString('<dt>profile URL in the answer</dt><dd><code>none</code></dd>', $body);
+        self::assertStringContainsString('&quot;access_token&quot;:&quot;…&quot;', $body);
+        self::assertStringNotContainsString('secret123', $body);
+        self::assertStringNotContainsString('secret-code', $body);
+        self::assertStringContainsString('Your authorization server has to answer the code exchange with JSON', $body);
+
+        $written = (string) @file_get_contents($log);
+        self::assertStringContainsString('{site=ok discovery=ok metadata=ok authorize=ok return=ok exchange=failed profile=-; The code was sent', $written);
+        self::assertStringContainsString('body "{"access_token":"…"', $written, 'the log excerpt is scrubbed too');
+        self::assertStringNotContainsString('secret123', $written);
+        self::assertStringNotContainsString('secret-code', $written);
+        self::assertStringNotContainsString('forged-value-123', $written);
+    }
+
+    public function testProfileRefusalAndTheTokenEndpointRetryShowBothAttempts(): void
+    {
+        // The returned profile URL has a query string: everything up to the exchange is fine.
+        $this->fakeProfile('query.example');
+        parse_str((string) parse_url($this->startSignIn('https://query.example/'), PHP_URL_QUERY), $params);
+        $this->http->respond('POST', 'https://auth.example/auth', 200, '{"me":"https://query.example/?user=1"}', ['Content-Type' => 'application/json']);
+        $body = $this->request('GET', '/auth/callback', ['code' => 'x', 'state' => $params['state']])->body;
+        self::assertSame(['ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'failed'], self::stageStates($body), 'the discovery stages survive the round trip through the session');
+        self::assertStringContainsString('<dt>Returned profile URL</dt><dd><code>https://query.example/?user=1</code></dd>', $body);
+        self::assertStringContainsString("must be your own site without a query string", $body);
+
+        // The authorization endpoint answers 303 and the token endpoint refuses: both attempts are listed.
+        $this->fresh();
+        $this->http->respond('GET', 'https://two.example/', 200, '<html><head><link rel="authorization_endpoint" href="https://old.example/authorization"><link rel="token_endpoint" href="https://old.example/token"></head></html>', ['Content-Type' => 'text/html']);
+        parse_str((string) parse_url($this->startSignIn('https://two.example/'), PHP_URL_QUERY), $params);
+        $this->http->respond('POST', 'https://old.example/authorization', 303, '', ['Location' => 'https://old.example/']);
+        $this->http->respond('POST', 'https://old.example/token', 400, '{"error":"invalid_grant"}', ['Content-Type' => 'application/json']);
+        $body = $this->request('GET', '/auth/callback', ['code' => 'x', 'state' => $params['state']])->body;
+        self::assertSame(['ok', 'ok', 'ok', 'ok', 'ok', 'failed', 'skipped'], self::stageStates($body));
+        self::assertStringContainsString('HTTP 303 from https://old.example/authorization; HTTP 400 from https://old.example/token', $body);
+        self::assertStringContainsString('<dt>Attempt 1: endpoint</dt><dd><code>https://old.example/authorization</code></dd>', $body);
+        self::assertStringContainsString('<dt>Attempt 2: server error</dt><dd><code>invalid_grant</code></dd>', $body);
+    }
+
+    public function testIndieloginFailuresReadTheSameWay(): void
+    {
+        $this->http->respond('GET', 'https://relme.example/', 200, '<html><head><link rel="me" href="https://github.com/relme"></head><body>Hi</body></html>', ['Content-Type' => 'text/html']);
+        parse_str((string) parse_url($this->startSignIn('https://relme.example/'), PHP_URL_QUERY), $params);
+        $this->http->respond('POST', 'https://indielogin.com/token', 400, '{"error":"invalid_request","error_description":"Code expired"}', ['Content-Type' => 'application/json']);
+
+        $body = $this->request('GET', '/auth/callback', ['code' => 'x', 'state' => $params['state']])->body;
+
+        self::assertSame(['ok', 'ok', 'skipped', 'ok', 'ok', 'failed', 'skipped'], self::stageStates($body));
+        self::assertStringContainsString('so indielogin.com signs you in with your rel=&quot;me&quot; links', $body);
+        self::assertStringContainsString('You were sent to https://indielogin.com.', $body);
+        self::assertStringContainsString('https://indielogin.com did not confirm the sign-in: Code expired', $body);
+        self::assertStringContainsString('<dt>endpoint</dt><dd><code>https://indielogin.com/token</code></dd>', $body);
     }
 
     public function testLegacyEndpointAnsweringFormEncodedSignsIn(): void

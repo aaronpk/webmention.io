@@ -463,6 +463,19 @@ details summary { cursor: pointer; color: var(--muted); margin: 1rem 0 .5rem; }
 .bulk-actions .grow { flex: 1; }
 .bulk-actions .checkbox { margin: 0; }
 
+/* Sign-in failure, stage by stage */
+.stages { list-style: none; margin: 0; padding: 0; }
+.stage { display: grid; grid-template-columns: 1.5rem 1fr; gap: .5rem; padding: .6rem 0; border-top: 1px solid var(--line); }
+.stage .mark { font-weight: 700; text-align: center; line-height: 1.5; }
+.stage.ok .mark { color: var(--accent); }
+.stage.failed .mark { color: var(--danger); }
+.stage.skipped { color: var(--muted); }
+.stage .head { display: flex; gap: .5rem; align-items: baseline; }
+.stage .summary { margin: .15rem 0 0; }
+.stage .hint { margin: .35rem 0 0; padding: .5rem .75rem; background: var(--accent-soft); border-radius: 6px; font-size: .925rem; }
+.stage details { margin-top: .35rem; font-size: .9rem; }
+.stage .facts dd code { overflow-wrap: anywhere; white-space: pre-wrap; }
+
 /* Dashboard overview */
 .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: .75rem; list-style: none; margin: 0; padding: 0; }
 .stats a { display: grid; gap: .1rem; padding: .75rem .9rem; border: 1px solid var(--line); border-radius: 8px; text-decoration: none; color: inherit; }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Webmention\Controllers;
 
 use IndieAuth\Client;
+use Webmention\Auth\SignInReport;
 use Webmention\Config;
 use Webmention\Http\HttpException;
 use Webmention\Http\Request;
@@ -89,6 +90,15 @@ final class AuthController extends Controller
         $this->session->start($request);
         $http = $this->configureClient();
 
+        // A fresh start. The library leaves its keys behind when a callback
+        // fails its state or iss check, and a stale indieauth_issuer would
+        // make the next sign-in, with a server that sends no iss, fail too.
+        foreach (array_keys($_SESSION) as $key) {
+            if (str_starts_with((string) $key, 'indieauth_') || str_starts_with((string) $key, 'indielogin_')) {
+                unset($_SESSION[$key]);
+            }
+        }
+
         [$authorizationUrl, $error] = Client::begin($normalized);
 
         if ($error) {
@@ -97,11 +107,10 @@ final class AuthController extends Controller
             if (($error['error'] ?? '') === 'invalid_issuer' && str_starts_with((string) ($error['error_description'] ?? ''), 'No issuer found')) {
                 $metadataUrl = (string) Client::discoverMetadataEndpoint($normalized); // cached by the library; no new fetch
                 $reason      = $http->lastFailure() ?? 'it is not a JSON document with an issuer';
-
-                return $this->failure([
+                $error       = [
                     'error'             => 'invalid_issuer',
                     'error_description' => "Your IndieAuth server's metadata at $metadataUrl could not be read ($reason).",
-                ], me: $normalized, via: 'indieauth');
+                ];
             }
 
             if (($error['error'] ?? '') === 'missing_authorization_endpoint') {
@@ -110,21 +119,27 @@ final class AuthController extends Controller
                 // remembers how the fetch went.
                 $status = $http->firstStatus();
                 if ($status === null || $status < 200 || $status >= 400) {
-                    return $this->failure([
+                    $error = [
                         'error'             => 'unreachable',
-                        'error_description' => 'Your website could not be fetched' . ($status ? " (HTTP $status)" : '') . '. Check the address and that the site is up, then try again.',
-                    ], me: $normalized, via: 'indieauth');
-                }
-
-                // A site with no IndieAuth endpoint at all: let indielogin.com
-                // sign them in by their rel="me" links, as the old site did.
-                if (($indielogin = $this->indieloginUrl()) !== null) {
-                    return $this->startIndielogin($indielogin, $normalized);
+                        'error_description' => 'Your website could not be fetched (' . ($http->lastFailure() ?? "HTTP $status") . '). Check the address and that the site is up, then try again.',
+                    ];
+                } elseif (($indielogin = $this->indieloginUrl()) !== null) {
+                    // A site with no IndieAuth endpoint at all: let indielogin.com
+                    // sign them in by their rel="me" links, as the old site did.
+                    return $this->startIndielogin($indielogin, $normalized, SignInReport::discovery($normalized, $http, null));
+                } else {
+                    $error = [
+                        'error'             => 'missing_authorization_endpoint',
+                        'error_description' => 'Your website does not link to an IndieAuth server, so there is nowhere to sign you in.',
+                    ];
                 }
             }
 
-            return $this->failure($error, me: $normalized, via: 'indieauth');
+            return $this->failure($error, me: $normalized, via: 'indieauth', report: SignInReport::discovery($normalized, $http, $error));
         }
+
+        // Kept for the page shown if the rest of the sign-in fails.
+        $_SESSION['indieauth_report'] = SignInReport::discovery($normalized, $http, null);
 
         return Response::redirect((string) $authorizationUrl);
     }
@@ -141,30 +156,42 @@ final class AuthController extends Controller
         $this->configureClient();
         // The library clears its session data on failure, so note now which
         // endpoint the code is about to be redeemed at (for the log) and the
-        // PKCE verifier (for a second attempt at the token endpoint).
+        // PKCE verifier (for a second attempt at the token endpoint), and
+        // what the start of the sign-in found, for the page if this fails.
         $entered  = isset($_SESSION['indieauth_entered_url']) ? (string) $_SESSION['indieauth_entered_url'] : null;
         $authEndpoint = isset($_SESSION['indieauth_authorization_endpoint']) ? (string) $_SESSION['indieauth_authorization_endpoint'] : null;
         $endpoint = isset($_SESSION['indieauth_token_endpoint']) ? (string) $_SESSION['indieauth_token_endpoint'] : $authEndpoint;
         $verifier = isset($_SESSION['indieauth_code_verifier']) ? (string) $_SESSION['indieauth_code_verifier'] : null;
+        $issuer   = isset($_SESSION['indieauth_issuer']) ? (string) $_SESSION['indieauth_issuer'] : null;
+        $started  = is_array($_SESSION['indieauth_report'] ?? null) ? $_SESSION['indieauth_report'] : [];
+        unset($_SESSION['indieauth_report']);
 
         [$response, $error] = Client::complete($request->query);
 
         if ($error) {
+            $attempts = $endpoint !== null && isset($error['debug']) ? [['endpoint' => $endpoint, 'debug' => is_array($error['debug']) ? $error['debug'] : null]] : [];
+
             // The exchange happened (state checked, code sent) but the
             // authorization endpoint did not answer with a profile URL. Some
             // older servers only redeem codes at their token endpoint; try
             // there before giving up.
             if (isset($error['debug']) && $entered !== null && $authEndpoint !== null && $verifier !== null && $endpoint === $authEndpoint) {
-                $retried = $this->redeemAtTokenEndpoint($request, $entered, $authEndpoint, $verifier, $error);
+                $retried = $this->redeemAtTokenEndpoint($request, $entered, $authEndpoint, $verifier, $error, $started, $issuer, $attempts);
                 if ($retried !== null) {
                     return $retried;
                 }
             }
 
-            return $this->failure($error, me: $entered, via: 'indieauth', endpoint: $endpoint);
+            // The library may have refused a profile URL the server did return.
+            $returned = is_array($error['debug']['response'] ?? null) && is_string($error['debug']['response']['me'] ?? null) ? (string) $error['debug']['response']['me'] : null;
+            $report   = SignInReport::exchange($started, $request->query, $issuer, $attempts, $error, $returned, $entered);
+
+            return $this->failure($error, me: $entered, via: 'indieauth', endpoint: $endpoint, report: $report);
         }
 
-        return $this->signInAs((string) $response['me'], 'indieauth');
+        $report = SignInReport::exchange($started, $request->query, $issuer, [['endpoint' => (string) $endpoint, 'debug' => null]], null, (string) $response['me'], $entered);
+
+        return $this->signInAs((string) $response['me'], 'indieauth', $report);
     }
 
     /**
@@ -173,8 +200,10 @@ final class AuthController extends Controller
      * when there is no such endpoint, so the original failure stands.
      *
      * @param array<string, mixed> $original The failure from the first attempt.
+     * @param list<array>          $started  The sign-in's stages so far, for the page if this fails too.
+     * @param list<array>          $attempts The first attempt, for the same page.
      */
-    private function redeemAtTokenEndpoint(Request $request, string $entered, string $authEndpoint, string $verifier, array $original): ?Response
+    private function redeemAtTokenEndpoint(Request $request, string $entered, string $authEndpoint, string $verifier, array $original, array $started, ?string $issuer, array $attempts): ?Response
     {
         $tokenEndpoint = Client::discoverTokenEndpoint($entered);
         if (!is_string($tokenEndpoint) || $tokenEndpoint === '' || $tokenEndpoint === $authEndpoint) {
@@ -190,13 +219,17 @@ final class AuthController extends Controller
             'code_verifier' => $verifier,
         ]);
 
+        $attempts[] = ['endpoint' => $tokenEndpoint, 'debug' => $data];
+
         $me = $data['response']['me'] ?? null;
         if (!is_string($me) || $me === '') {
-            return $this->failure([
+            $error = [
                 'error'             => (string) ($data['response']['error'] ?? 'indieauth_error'),
                 'error_description' => (string) ($data['response']['error_description'] ?? 'The authorization server did not return a valid response'),
                 'debug'             => $data,
-            ], me: $entered, via: 'indieauth', endpoint: $tokenEndpoint);
+            ];
+
+            return $this->failure($error, me: $entered, via: 'indieauth', endpoint: $tokenEndpoint, report: SignInReport::exchange($started, $request->query, $issuer, $attempts, $error, null, $entered));
         }
 
         // As the library does: a different profile URL than was entered must
@@ -204,13 +237,15 @@ final class AuthController extends Controller
         // vouch for anyone's URL.
         $me = (string) Client::normalizeMeURL($me);
         if ($me !== $entered && Client::discoverAuthorizationEndpoint($me) !== $authEndpoint) {
-            return $this->failure([
+            $error = [
                 'error'             => 'invalid_authorization_endpoint',
                 'error_description' => 'The authorization server of the returned profile URL did not match the initial authorization server',
-            ], me: $entered, via: 'indieauth', endpoint: $tokenEndpoint);
+            ];
+
+            return $this->failure($error, me: $entered, via: 'indieauth', endpoint: $tokenEndpoint, report: SignInReport::exchange($started, $request->query, $issuer, $attempts, $error, $me, $entered));
         }
 
-        return $this->signInAs($me, 'indieauth');
+        return $this->signInAs($me, 'indieauth', SignInReport::exchange($started, $request->query, $issuer, $attempts, null, $me, $entered));
     }
 
     /**
@@ -218,7 +253,8 @@ final class AuthController extends Controller
      * authorization server. indielogin wants client_id to be the app's home
      * page, on the same host as redirect_uri.
      */
-    private function startIndielogin(string $indielogin, string $me): Response
+    /** @param list<array> $started The discovery stages that led here, kept for the page if this fails. */
+    private function startIndielogin(string $indielogin, string $me, array $started): Response
     {
         $state    = Client::generateStateParameter();
         $verifier = Client::generatePKCECodeVerifier();
@@ -227,6 +263,7 @@ final class AuthController extends Controller
         $_SESSION['indielogin_state']         = $state;
         $_SESSION['indielogin_code_verifier'] = $verifier;
         $_SESSION['indielogin_me']            = $me;
+        $_SESSION['indielogin_report']        = $started;
 
         $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
 
@@ -246,9 +283,15 @@ final class AuthController extends Controller
         $me         = (string) ($_SESSION['indielogin_me'] ?? '');
         $state      = (string) ($_SESSION['indielogin_state'] ?? '');
         $verifier   = (string) ($_SESSION['indielogin_code_verifier'] ?? '');
-        unset($_SESSION['indielogin_state'], $_SESSION['indielogin_code_verifier'], $_SESSION['indielogin_me']);
+        $started    = is_array($_SESSION['indielogin_report'] ?? null) ? $_SESSION['indielogin_report'] : [];
+        unset($_SESSION['indielogin_state'], $_SESSION['indielogin_code_verifier'], $_SESSION['indielogin_me'], $_SESSION['indielogin_report']);
 
-        $fail = fn (string $code, string $description): Response => $this->failure(['error' => $code, 'error_description' => $description], me: $me, via: 'indielogin');
+        $response = null;
+        $fail     = function (string $code, string $description) use (&$response, $started, $indielogin, $request, $me): Response {
+            $error = ['error' => $code, 'error_description' => $description];
+
+            return $this->failure($error, me: $me, via: 'indielogin', report: SignInReport::indielogin($started, $indielogin, $request->query, $response, $error));
+        };
 
         if ($request->query('error') !== null) {
             return $fail((string) $request->query('error'), (string) ($request->query('error_description') ?? 'indielogin.com reported an error.'));
@@ -280,7 +323,7 @@ final class AuthController extends Controller
             );
         }
 
-        return $this->signInAs($data['me'], 'indielogin');
+        return $this->signInAs($data['me'], 'indielogin', SignInReport::indielogin($started, $indielogin, $request->query, $response, null));
     }
 
     /** Where to send people whose site has no IndieAuth endpoint; null when turned off. */
@@ -295,28 +338,28 @@ final class AuthController extends Controller
      * The profile URL an authorization server (or indielogin.com) vouched
      * for becomes the account.
      */
-    private function signInAs(string $me, string $via): Response
+    /** @param list<array> $report The sign-in's stages so far, shown if the profile URL is refused. */
+    private function signInAs(string $me, string $via, array $report = []): Response
     {
         if (parse_url($me, PHP_URL_QUERY) !== null) {
-            $this->log->warning("Sign-in failed ($via) for $me: profile URL has a query string");
+            $why = "Sorry, you can't use this service if your IndieAuth URL contains a query string. You signed in as $me. "
+                . 'If you want to host your website at a subfolder, make sure your root domain redirects with a temporary HTTP 302 redirect.';
 
-            return $this->page('message', 'Sign-in failed', [
-                'heading' => 'Sign-in failed',
-                'message' => "Sorry, you can't use this service if your IndieAuth URL contains a query string. You signed in as $me. "
-                    . 'If you want to host your website at a subfolder, make sure your root domain redirects with a temporary HTTP 302 redirect.',
-            ], status: 400);
+            return $this->failure(['error' => 'invalid_profile_url', 'error_description' => $why], me: $me, via: $via, report: SignInReport::profileRefused($report, $me, 'The profile URL has a query string.'));
         }
 
         // The server may return a different profile URL than was entered; it
         // has to meet the same rules.
         $normalized = self::normalizeMe($me);
         if (is_array($normalized)) {
-            return $this->failure($normalized, me: $me, via: $via);
+            return $this->failure($normalized, me: $me, via: $via, report: SignInReport::profileRefused($report, $me, $normalized['error_description']));
         }
 
         $domain = self::domainFor($normalized);
         if (strlen($domain) > self::MAX_ACCOUNT_NAME_BYTES) {
-            return $this->failure(['error_description' => 'Sorry, that profile URL is too long to use as an account name.'], me: $me, via: $via);
+            $why = 'Sorry, that profile URL is too long to use as an account name.';
+
+            return $this->failure(['error_description' => $why], me: $me, via: $via, report: SignInReport::profileRefused($report, $me, $why));
         }
 
         $account = $this->accounts->findByDomain($domain);
@@ -446,8 +489,8 @@ final class AuthController extends Controller
                 $parts[] = 'type ' . trim($m[1]);
             }
 
-            $body = trim((string) preg_replace('/\s+/', ' ', (string) ($debug['raw_response'] ?? '')));
-            $parts[] = $body === '' ? 'empty body' : 'body "' . mb_strimwidth($body, 0, 300, '…') . '"';
+            $body = SignInReport::excerpt((string) ($debug['raw_response'] ?? ''));
+            $parts[] = $body === '' ? 'empty body' : 'body "' . $body . '"';
         }
 
         return ' [' . implode('; ', $parts) . ']';
@@ -470,22 +513,36 @@ final class AuthController extends Controller
      *
      * @param array<string, mixed> $error
      */
-    private function failure(array $error, int $status = 400, ?string $me = null, string $via = 'indieauth', ?string $endpoint = null): Response
+    /**
+     * @param array<string, mixed> $error
+     * @param list<array>|null     $report The stages, when the failure came after discovery began; see SignInReport.
+     */
+    private function failure(array $error, int $status = 400, ?string $me = null, string $via = 'indieauth', ?string $endpoint = null, ?array $report = null): Response
     {
         $description = trim((string) ($error['error_description'] ?? '') ?: (string) ($error['error'] ?? 'Unknown error'));
 
         $this->log->warning(sprintf(
-            'Sign-in failed (%s) for %s: %s%s%s',
+            'Sign-in failed (%s) for %s: %s%s%s%s',
             $via,
             $me ?? '(no profile URL)',
             isset($error['error']) ? $error['error'] . ': ' : '',
             $description,
             self::describeExchange($error['debug'] ?? null, $endpoint),
+            $report === null ? '' : SignInReport::logLine($report),
         ));
 
-        return $this->page('message', 'Sign-in failed', [
+        if ($report === null) {
+            return $this->page('message', 'Sign-in failed', [
+                'heading' => 'Sign-in failed',
+                'message' => $description,
+            ], status: $status);
+        }
+
+        return $this->page('sign-in-failed', 'Sign-in failed', [
             'heading' => 'Sign-in failed',
             'message' => $description,
+            'stages'  => $report,
+            'me'      => $me,
         ], status: $status);
     }
 }
