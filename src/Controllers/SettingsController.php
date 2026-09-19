@@ -26,6 +26,7 @@ use Webmention\Webmention\Moderation;
 use Webmention\Webmention\AccountMerger;
 use Webmention\Webmention\RateLimiter;
 use Webmention\Webmention\SiteActivity;
+use Webmention\Webmention\SiteOwnership;
 use Webmention\Webmention\SourceActivity;
 use Webmention\Webmention\SiteDeleter;
 use Webmention\Webmention\WebHooks;
@@ -59,6 +60,7 @@ final class SettingsController extends Controller
         private readonly SiteDeleter $deleter,
         private readonly Config $config,
         private readonly SourceActivity $sourceActivity,
+        private readonly SiteOwnership $ownership,
     ) {
         parent::__construct($view);
     }
@@ -183,14 +185,27 @@ final class SettingsController extends Controller
             return Response::redirect('/');
         }
 
-        $sites = $this->sites->listForAccount($user->id);
+        $sites    = $this->sites->listForAccount($user->id);
+        $conflict = null;
 
-        // New accounts start with the domain they signed in with, which
-        // IndieAuth has already proved is theirs.
+        // New accounts start with the domain they signed in with. Signing in
+        // proved the domain is theirs, so normally it is verified on the spot.
+        // Not when another account already has the domain verified: then the
+        // domain's own pages decide where its webmentions go, and they point
+        // at that account, so this row is checked like any added site and
+        // stays unverified until the pages say otherwise.
         if ($sites === [] && ($domain = self::normalizeDomain((string) $user->domain)) !== null) {
-            $site = $this->sites->findOrCreate($user->id, $domain);
+            $site  = $this->sites->findOrCreate($user->id, $domain);
+            $other = $this->sites->verifiedOnAnotherAccount($user->id, $domain);
             if (!$site->isVerified()) {
-                $this->sites->markVerified($site->id);
+                if ($other === null) {
+                    $this->sites->markVerified($site->id);
+                } else {
+                    $this->ownership->check($site, $user);
+                }
+            }
+            if ($other !== null && !($this->sites->find($site->id)?->isVerified() ?? false)) {
+                $conflict = ['domain' => $domain, 'account' => $this->accounts->find($other->accountId)?->domain];
             }
             $sites = [$this->sites->find($site->id) ?? $site];
         }
@@ -223,6 +238,7 @@ final class SettingsController extends Controller
             'sites'    => $rows,
             'archived' => $archived,
             'notice'   => $request->query('notice'),
+            'conflict' => $conflict,
             'endpoint' => $this->config->baseUrl() . '/' . $user->domain . '/webmention',
             'error'    => $request->query('error'),
             'merged'   => $request->query('merged'),
@@ -563,15 +579,16 @@ final class SettingsController extends Controller
             return Response::seeOther("/settings/sites/{$site->id}?checked=" . rawurlencode('Too many checks in a row; try again in a minute.'));
         }
 
-        $problem = $this->verifier->verify($user, (string) $site->domain, $this->sites->recentPageHrefs($site->id));
+        $problem = $this->ownership->check($site, $user, $this->sites->recentPageHrefs($site->id));
 
         if ($problem === null) {
-            $this->sites->markVerified($site->id);
-
             return Response::seeOther("/settings/sites/{$site->id}?checked=" . rawurlencode("{$site->domain} is verified."));
         }
 
-        $this->sites->markChecked($site->id, $problem);
+        $now = $this->sites->find($site->id) ?? $site;
+        if ($site->isVerified() && !$now->isVerified()) {
+            return Response::seeOther("/settings/sites/{$site->id}?checked=" . rawurlencode("{$site->domain} is no longer verified here. " . $now->verificationError));
+        }
 
         return Response::seeOther("/settings/sites/{$site->id}?checked=" . rawurlencode("{$site->domain} could not be verified. $problem"));
     }

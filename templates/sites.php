@@ -3,6 +3,7 @@
  * @var list<array{id: int, domain: string, pages: int, mentions: int, last_mention: ?string, verified: bool}> $sites  Live sites.
  * @var list<array{id: int, domain: string, archived_on: ?string, deleting: bool}> $archived
  * @var string|null $notice       A message from the last action.
+ * @var array{domain: string, account: ?string}|null $conflict  The sign-in domain is verified on another account.
  * @var string      $endpoint
  * @var string|null $error
  * @var string|null $merged       Result of re-filing a moved page.
@@ -15,6 +16,16 @@
 
     <?php if ($notice !== null) { ?>
         <p class="notice"><?= $notice ?></p>
+    <?php } ?>
+
+    <?php if ($conflict !== null) { $who = $conflict['account'] ?? 'another account'; ?>
+        <div class="alert">
+            <p><strong><?= $conflict['domain'] ?> is already set up on the account <?= $who ?></strong>, and its pages advertise that account's
+                webmention endpoint, so webmentions for it go there. It is listed below but not verified here.</p>
+            <p>If that account is also yours, sign out, sign in as <?= $who ?>, and use "Moved to a new domain?" on its Settings page
+                to bring this account into it. If <?= $conflict['domain'] ?> has moved here, change its
+                <code>rel="webmention"</code> link to this account's endpoint and check the site again.</p>
+        </div>
     <?php } ?>
 
     <?php if ($sites === [] && $archived === []) { ?>

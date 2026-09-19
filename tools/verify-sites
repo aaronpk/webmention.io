@@ -13,7 +13,8 @@ declare(strict_types=1);
  * Without --apply nothing is written. Each site costs up to five fetches
  * (home page over https and http, then up to three recent target pages),
  * with a short pause between sites. Verified sites are left alone unless
- * --recheck-verified-older-than is given, and are never downgraded.
+ * --recheck-verified-older-than is given, and are downgraded only when the
+ * domain now advertises another account's endpoint (the domain moved).
  *
  * Meant for cron, e.g. nightly with --limit=500 --apply, which works
  * through the backlog in about a week.
@@ -24,7 +25,7 @@ use Webmention\Logging\ErrorHandler;
 use Webmention\Storage\AccountRepository;
 use Webmention\Storage\SiteRepository;
 use Webmention\Webmention\SiteRecheck;
-use Webmention\Webmention\SiteVerifier;
+use Webmention\Webmention\SiteOwnership;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -53,7 +54,7 @@ $container = Bootstrap::container(Bootstrap::config());
 $recheckRun = new SiteRecheck(
     $container->get(SiteRepository::class),
     $container->get(AccountRepository::class),
-    $container->get(SiteVerifier::class),
+    $container->get(SiteOwnership::class),
     $pause,
 );
 

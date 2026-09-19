@@ -39,6 +39,43 @@ final class SiteRepository
     }
 
     /** The site for a domain, preferring a live one, then one that has proved it owns it. */
+    /**
+     * Another account's live, verified site for this domain, if there is one:
+     * the domain's pages advertise that account's endpoint, so it is where
+     * webmentions for the domain go.
+     */
+    public function verifiedOnAnotherAccount(int $accountId, string $domain): ?Site
+    {
+        return $this->verifiedOnOtherAccounts($accountId, $domain)[0] ?? null;
+    }
+
+    /** @return list<Site> Every other account's live, verified site for this domain, oldest first. */
+    public function verifiedOnOtherAccounts(int $accountId, string $domain): array
+    {
+        return array_map(
+            Site::fromRow(...),
+            $this->db->all(
+                'SELECT * FROM sites WHERE domain = ? AND account_id <> ? AND verified_at IS NOT NULL AND archived_at IS NULL ORDER BY id',
+                [$domain, $accountId],
+            ),
+        );
+    }
+
+    /**
+     * Take a verification away: the domain's pages now name another
+     * account's endpoint, so webmentions for it go there (see SiteOwnership).
+     */
+    public function unverify(int $id, string $error): void
+    {
+        $now = Database::now();
+        $this->db->update('sites', $id, [
+            'verified_at'             => null,
+            'verification_checked_at' => $now,
+            'verification_error'      => mb_strcut($error, 0, 255, 'UTF-8'),
+            'updated_at'              => $now,
+        ]);
+    }
+
     public function findByDomain(string $domain): ?Site
     {
         $row = $this->db->one(

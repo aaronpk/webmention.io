@@ -16,15 +16,16 @@ use Webmention\Storage\SiteRepository;
  * A site that advertises its account's endpoint on its home page or one of
  * its recently mentioned pages is marked verified; otherwise the failure is
  * recorded and it is tried again on a later run. Verified sites are only
- * re-checked when asked, and are never downgraded automatically: a site
- * that is down for a day should not lose its standing.
+ * re-checked when asked, and are not downgraded for being down or missing
+ * the tag; the one exception, a domain that now names another account's
+ * endpoint, is SiteOwnership's.
  */
 final class SiteRecheck
 {
     public function __construct(
         private readonly SiteRepository $sites,
         private readonly AccountRepository $accounts,
-        private readonly SiteVerifier $verifier,
+        private readonly SiteOwnership $ownership,
         private readonly int $pauseMs = 250,
     ) {
     }
@@ -60,18 +61,15 @@ final class SiteRecheck
             return "$label: no account; skipped";
         }
 
-        $problem = $this->verifier->verify($account, $site->domain, $this->sites->recentPageHrefs($site->id));
+        $problem = $this->ownership->check($site, $account, $this->sites->recentPageHrefs($site->id), $dryRun);
 
         if ($problem === null) {
-            if (!$dryRun) {
-                $this->sites->markVerified($site->id);
-            }
-
             return "$label: verified";
         }
 
-        if (!$dryRun) {
-            $this->sites->markChecked($site->id, $problem);
+        $now = $dryRun ? $site : ($this->sites->find($site->id) ?? $site);
+        if ($site->isVerified() && !$now->isVerified()) {
+            return "$label: unverified: " . $now->verificationError;
         }
 
         return "$label: not verified: $problem";

@@ -128,6 +128,18 @@ final class DataAudit
             'format' => 'site %d (%s) holds %3$d webmentions',
         ],
         [
+            // Only the owner can say which account should keep the domain;
+            // the merge form on Settings is the fix.
+            'key'    => 'domain_verified_on_several_accounts',
+            'label'  => 'Domains verified on more than one account',
+            'count'  => 'SELECT COUNT(*) FROM (SELECT domain FROM sites WHERE verified_at IS NOT NULL AND archived_at IS NULL
+                GROUP BY domain HAVING COUNT(DISTINCT account_id) > 1) d',
+            'sample' => "SELECT domain, GROUP_CONCAT(CONCAT('#', id, ' (account ', account_id, ')') ORDER BY id SEPARATOR ', ') rows_
+                FROM sites WHERE verified_at IS NOT NULL AND archived_at IS NULL
+                GROUP BY domain HAVING COUNT(DISTINCT account_id) > 1 LIMIT ?",
+            'format' => '%s: sites %s',
+        ],
+        [
             'key'    => 'alias_missing_page',
             'label'  => 'Page aliases whose page no longer exists',
             'count'  => 'SELECT COUNT(*) FROM page_aliases x LEFT JOIN pages p ON p.id = x.page_id WHERE p.id IS NULL',

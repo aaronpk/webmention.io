@@ -33,6 +33,7 @@ use Webmention\Webmention\AccountMerger;
 use Webmention\Webmention\RateLimiter;
 use Webmention\Webmention\AccountOverview;
 use Webmention\Webmention\SiteActivity;
+use Webmention\Webmention\SiteOwnership;
 use Webmention\Webmention\SourceActivity;
 use Webmention\Webmention\SiteDeleter;
 use Webmention\Webmention\SiteVerifier;
@@ -129,6 +130,12 @@ final class Bootstrap
             $c->get(Log::class),
         ));
         $c->set(SiteVerifier::class, static fn (Container $c): SiteVerifier => new SiteVerifier($c->get(HttpClient::class), $config));
+        $c->set(SiteOwnership::class, static fn (Container $c): SiteOwnership => new SiteOwnership(
+            $c->get(SiteRepository::class),
+            $c->get(AccountRepository::class),
+            $c->get(SiteVerifier::class),
+            $c->get(Log::class),
+        ));
         $c->set(AvatarArchiver::class, static fn (Container $c): AvatarArchiver => new AvatarArchiver(
             $config,
             $c->get(HttpClient::class),
@@ -246,6 +253,7 @@ final class Bootstrap
             $c->get(SiteDeleter::class),
             $config,
             $c->get(SourceActivity::class),
+            $c->get(SiteOwnership::class),
         ));
 
         return $c;

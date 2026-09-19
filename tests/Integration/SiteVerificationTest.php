@@ -9,6 +9,7 @@ use Webmention\Storage\AccountRepository;
 use Webmention\Storage\PageRepository;
 use Webmention\Storage\SiteRepository;
 use Webmention\Tests\Support\IntegrationTestCase;
+use Webmention\Webmention\SiteOwnership;
 use Webmention\Webmention\SiteRecheck;
 use Webmention\Webmention\SiteVerifier;
 
@@ -44,6 +45,119 @@ final class SiteVerificationTest extends IntegrationTestCase
         $this->advertise('https://blog.alice.example/', 'https://webmention.io/alice.example/webmention');
         $this->request('POST', '/settings/sites/new', post: ['domain' => 'blog.alice.example', 'csrf' => $this->signIn($this->alice)]);
         self::assertTrue($this->service(SiteRepository::class)->findByAccountAndDomain($this->alice->id, 'blog.alice.example')?->isVerified());
+    }
+
+    public function testSigningInWithADomainAnotherAccountHasVerifiedDoesNotVerifyItHere(): void
+    {
+        // alice.example verified tv.example, whose pages advertise alice's endpoint.
+        $this->createSite($this->alice, 'tv.example', ['verified_at' => '2026-01-01 00:00:00']);
+        $this->createSite($this->alice, 'alice.example', ['verified_at' => '2026-01-01 00:00:00']);
+        $this->createLink($this->service(SiteRepository::class)->findByAccountAndDomain($this->alice->id, 'tv.example'), 'https://tv.example/post', 'https://bob.example/reply');
+        $this->advertise('https://tv.example/', 'https://webmention.io/alice.example/webmention');
+
+        // Then the owner signs in as tv.example, which makes a second account.
+        $tv = $this->createAccount('tv.example');
+        $this->signIn($tv);
+        $page = $this->request('GET', '/settings/sites')->body;
+
+        $site = $this->service(SiteRepository::class)->findByAccountAndDomain($tv->id, 'tv.example');
+        self::assertNotNull($site, 'the row exists');
+        self::assertFalse($site->isVerified(), 'but is not verified by the sign-in alone');
+        self::assertStringContainsString('points to a different webmention endpoint', (string) $site->verificationError);
+        self::assertStringContainsString('<strong>tv.example is already set up on the account alice.example</strong>', $page);
+        self::assertStringContainsString('sign in as alice.example', $page);
+        self::assertStringContainsString('<span class="badge badge-error">Not verified</span>', $page);
+        self::assertStringContainsString('Check now', $this->request('GET', "/settings/sites/{$site->id}")->body);
+
+        // The public API keeps showing alice's mentions for the domain, and only hers.
+        $children = self::json($this->request('GET', '/api/mentions.jf2', ['target' => 'https://tv.example/post']))['children'];
+        self::assertSame(['https://bob.example/reply'], array_column($children, 'wm-source'));
+
+        // No conflict card once the domain's pages point here and it is checked again.
+        $this->advertise('https://tv.example/', 'https://webmention.io/tv.example/webmention');
+        $this->request('POST', '/settings/sites/verify', post: ['site_id' => (string) $site->id, 'csrf' => $this->signIn($tv)]);
+        self::assertTrue($this->service(SiteRepository::class)->find($site->id)?->isVerified());
+        self::assertStringNotContainsString('is already set up on the account', $this->request('GET', '/settings/sites')->body);
+
+        // With no other account holding the domain, the sign-in shortcut still needs no fetch.
+        $this->http->requests = [];
+        $solo = $this->createAccount('solo.example');
+        $this->signIn($solo);
+        $this->request('GET', '/settings/sites');
+        self::assertTrue($this->service(SiteRepository::class)->findByAccountAndDomain($solo->id, 'solo.example')?->isVerified());
+        self::assertSame([], $this->http->requests);
+    }
+
+    public function testADomainThatMovesToAnotherAccountLosesItsOldVerification(): void
+    {
+        $sites = $this->service(SiteRepository::class);
+        $old   = $this->createSite($this->alice, 'tv.example', ['verified_at' => '2026-01-01 00:00:00']);
+        $this->createSite($this->alice, 'alice.example', ['verified_at' => '2026-01-01 00:00:00']);
+        $this->advertise('https://tv.example/', 'https://webmention.io/alice.example/webmention');
+
+        $tv = $this->createAccount('tv.example');
+        $this->signIn($tv);
+        $this->request('GET', '/settings/sites');
+        $new = $sites->findByAccountAndDomain($tv->id, 'tv.example');
+        self::assertFalse($new?->isVerified());
+
+        // The owner repoints the site at the new account and checks it.
+        $this->advertise('https://tv.example/', 'https://webmention.io/tv.example/webmention');
+        $response = $this->request('POST', '/settings/sites/verify', post: ['site_id' => (string) $new?->id, 'csrf' => $this->signIn($tv)]);
+        self::assertStringContainsString(rawurlencode('tv.example is verified.'), (string) $response->header('location'));
+        self::assertTrue($sites->find((int) $new?->id)?->isVerified());
+
+        $oldNow = $sites->find($old->id);
+        self::assertFalse($oldNow?->isVerified(), 'the old account no longer holds the domain');
+        self::assertSame('tv.example now advertises the endpoint of the account tv.example, so its webmentions go there.', $oldNow?->verificationError);
+
+        // The old account sees why on the site's page, and Check now there says so too.
+        $csrf = $this->signIn($this->alice);
+        self::assertStringContainsString('now advertises the endpoint of the account tv.example', $this->request('GET', "/settings/sites/{$old->id}")->body);
+        $response = $this->request('POST', '/settings/sites/verify', post: ['site_id' => (string) $old->id, 'csrf' => $csrf]);
+        self::assertStringContainsString(rawurlencode('could not be verified.'), (string) $response->header('location'));
+        self::assertFalse($sites->find($old->id)?->isVerified());
+
+        // Public results now come from the new account's row only.
+        $this->createLink($sites->find($old->id), 'https://tv.example/post', 'https://a.example/old');
+        $this->createLink($sites->find((int) $new?->id), 'https://tv.example/post', 'https://a.example/new');
+        $children = self::json($this->request('GET', '/api/mentions.jf2', ['target' => 'https://tv.example/post']))['children'];
+        self::assertSame(['https://a.example/new'], array_column($children, 'wm-source'));
+    }
+
+    public function testTheNightlyRecheckDowngradesOnlyForAMoveToAnotherAccount(): void
+    {
+        $sites   = $this->service(SiteRepository::class);
+        $moved   = $this->createSite($this->alice, 'moved.example', ['verified_at' => '2026-01-01 00:00:00']);
+        $shared  = $this->createSite($this->alice, 'shared.example', ['verified_at' => '2026-01-01 00:00:00']);
+        $shared2 = $this->createSite($this->mallory, 'shared.example', ['verified_at' => '2026-01-01 00:00:00']);
+        $typo    = $this->createSite($this->alice, 'typo.example', ['verified_at' => '2026-01-01 00:00:00']);
+        $down    = $this->createSite($this->alice, 'down.example', ['verified_at' => '2026-01-01 00:00:00']);
+
+        $this->advertise('https://moved.example/', 'https://webmention.io/mallory.example/webmention');
+        $this->advertise('https://shared.example/', 'https://webmention.io/d/shared.example/webmention');
+        $this->advertise('https://typo.example/', 'https://webmention.io/nobody.example/webmention');
+        $this->http->respond('GET', 'https://down.example/', 0, '', [], 'timeout');
+        $this->http->respond('GET', 'http://down.example/', 0, '', [], 'timeout');
+
+        $recheck = new SiteRecheck($sites, $this->service(AccountRepository::class), $this->service(SiteOwnership::class), pauseMs: 0);
+
+        // A dry run reports but changes nothing.
+        $dry = implode("
+", $recheck->run(10, recheckVerifiedOlderThanDays: 0));
+        self::assertStringContainsString('moved.example (account ' . $this->alice->id . ', verified): not verified', $dry);
+        self::assertTrue($sites->find($moved->id)?->isVerified());
+
+        $lines = implode("
+", $recheck->run(10, dryRun: false, recheckVerifiedOlderThanDays: 0));
+        self::assertStringContainsString("moved.example (account {$this->alice->id}, verified): unverified: moved.example now advertises the endpoint of the account mallory.example", $lines);
+
+        self::assertFalse($sites->find($moved->id)?->isVerified(), 'a domain that names another account has moved');
+        self::assertTrue($sites->find($shared->id)?->isVerified(), 'the /d/ form names nobody, so both keep it');
+        self::assertTrue($sites->find($shared2->id)?->isVerified());
+        self::assertTrue($sites->find($typo->id)?->isVerified(), 'an endpoint naming no existing account is just a wrong tag');
+        self::assertStringContainsString('different webmention endpoint', (string) $sites->find($typo->id)?->verificationError);
+        self::assertTrue($sites->find($down->id)?->isVerified(), 'being down is not a move');
     }
 
     public function testVerifierAcceptsTheTagOnARecentlyMentionedPage(): void
@@ -137,7 +251,7 @@ final class SiteVerificationTest extends IntegrationTestCase
         $this->http->respond('GET', 'https://bad.example/', 200, '<html><head><link rel="webmention" href="https://webmention.io/mallory.example/webmention"></head></html>', ['Content-Type' => 'text/html']);
         $this->http->respond('GET', 'http://bad.example/', 404, 'no');
 
-        $recheck = new SiteRecheck($sites, $this->service(AccountRepository::class), $this->service(SiteVerifier::class), pauseMs: 0);
+        $recheck = new SiteRecheck($sites, $this->service(AccountRepository::class), $this->service(SiteOwnership::class), pauseMs: 0);
 
         $dry = $recheck->run(10);
         self::assertCount(2, $dry, 'verified sites are not re-checked by default');

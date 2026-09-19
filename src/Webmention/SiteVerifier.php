@@ -28,6 +28,11 @@ final class SiteVerifier
     /** The hostname every site's tag points at, whatever this deployment's BASE_URL is. */
     private const PUBLIC_BASE = 'https://webmention.io';
 
+    private ?string $matched = null;
+
+    /** @var list<string> */
+    private array $found = [];
+
     public function __construct(
         private readonly HttpClient $http,
         private readonly Config $config,
@@ -64,6 +69,9 @@ final class SiteVerifier
         $http->set_max_redirects(0);
         $problem  = null;
 
+        $this->matched = null;
+        $this->found   = [];
+
         $urls = ["https://$domain/", "http://$domain/"];
         foreach ($alsoTry as $url) {
             if (Url::isHttp($url) && Url::host($url) === $domain && !in_array($url, $urls, true)) {
@@ -88,7 +96,14 @@ final class SiteVerifier
                 // A Link header counts on every hop, including a redirect's.
                 $found = self::endpoints($response, $url, includeBody: $code < 300);
                 foreach ($found as $endpoint) {
+                    if (!in_array($endpoint, $this->found, true)) {
+                        $this->found[] = $endpoint;
+                    }
+                }
+                foreach ($found as $endpoint) {
                     if (in_array(self::normalize($endpoint), $accepted, true)) {
+                        $this->matched = $endpoint;
+
                         return null;
                     }
                 }
@@ -116,6 +131,41 @@ final class SiteVerifier
         }
 
         return $problem ?? "Could not fetch https://$domain/.";
+    }
+
+    /** The endpoint that satisfied the last verify(), or null if none did. */
+    public function matchedEndpoint(): ?string
+    {
+        return $this->matched;
+    }
+
+    /** @return list<string> Every endpoint the last verify() saw the domain advertise, in order. */
+    public function foundEndpoints(): array
+    {
+        return $this->found;
+    }
+
+    /**
+     * The account an endpoint of this service names: "alice.example" for
+     * https://webmention.io/alice.example/webmention. Null for any other URL,
+     * and for the /d/{domain}/webmention form, which any account may claim
+     * and so names nobody.
+     */
+    public function accountNamedBy(string $endpoint): ?string
+    {
+        $endpoint = self::normalize($endpoint);
+        foreach (array_unique([$this->config->baseUrl(), self::PUBLIC_BASE]) as $base) {
+            $base = self::normalize($base) . '/';
+            if (!str_starts_with($endpoint, $base)) {
+                continue;
+            }
+            $parts = explode('/', substr($endpoint, strlen($base)));
+            if (count($parts) === 2 && $parts[1] === 'webmention' && $parts[0] !== 'd' && $parts[0] !== '') {
+                return rawurldecode($parts[0]);
+            }
+        }
+
+        return null;
     }
 
     /** @param array<string, mixed> $response */

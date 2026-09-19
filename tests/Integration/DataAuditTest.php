@@ -53,6 +53,8 @@ final class DataAuditTest extends IntegrationTestCase
         $this->db->insert('sites', ['account_id' => 0, 'domain' => 'nobody.example', 'created_at' => Database::now()]);
         $holding = $this->db->insert('sites', ['account_id' => 0, 'domain' => 'somebody.example', 'created_at' => Database::now()]);
         $pages->create(0, $holding, 'https://somebody.example/post');
+        $this->createSite($bob, 'alice.example', ['verified_at' => '2026-01-01 00:00:00']); // alice.example verified on bob's account too
+        $this->db->update('sites', $site->id, ['verified_at' => '2026-01-01 00:00:00']);
         $this->db->insert('page_aliases', ['site_id' => $site->id, 'href' => 'https://alice.example/old', 'page_id' => 999_999, 'created_at' => Database::now()]);
         $this->db->insert('blocklists', ['site_id' => 999_999, 'source' => 'https://spam.example/', 'created_at' => Database::now()]);
 
@@ -74,6 +76,7 @@ final class DataAuditTest extends IntegrationTestCase
             'page_account_mismatch'        => 1,
             'site_missing_account'         => 1,
             'site_missing_account_holding' => 1,
+            'domain_verified_on_several_accounts' => 1,
             'alias_missing_page'           => 1,
             'blocklist_missing_site'       => 1,
             'duplicate_mentions'           => 1,
