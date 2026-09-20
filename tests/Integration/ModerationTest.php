@@ -64,7 +64,8 @@ final class ModerationTest extends IntegrationTestCase
 
         $approved = $this->request('POST', '/approve', post: ['id' => (string) $link->id, 'back' => '/dashboard', 'csrf' => $csrf]);
         self::assertSame(303, $approved->status);
-        self::assertStringContainsString(rawurlencode('1 webmention approved.'), (string) $approved->header('location'));
+        self::assertSame('/dashboard', $approved->header('location'));
+        self::assertStringContainsString('<p class="notice">1 webmention approved.</p>', $this->request('GET', '/dashboard')->body);
 
         $now = $this->service(LinkRepository::class)->find($link->id);
         self::assertTrue($now?->verified);
@@ -148,7 +149,8 @@ final class ModerationTest extends IntegrationTestCase
 
         // An author URL prefix: both of the spammer's, wherever they were relayed from.
         $mute = $this->request('POST', '/mute', post: ['kind' => 'author', 'pattern' => 'https://social.example/@spammer', 'csrf' => $csrf]);
-        self::assertStringContainsString(rawurlencode('2 existing webmentions hidden'), (string) $mute->header('location'));
+        self::assertSame('/settings/blocks', $mute->header('location'));
+        self::assertStringContainsString('2 existing webmentions hidden', $this->request('GET', '/settings/blocks')->body);
         self::assertEqualsCanonicalizing([$c, $d, $e], $visible());
         self::assertSame('hidden', $links->find($a)?->status);
         self::assertFalse($links->find($a)?->deleted);
@@ -164,7 +166,8 @@ final class ModerationTest extends IntegrationTestCase
         $authorRule = array_values(array_filter($rules, static fn ($r): bool => $r->kind === 'author'))[0];
 
         $unmute = $this->request('POST', '/unmute-rule', post: ['id' => (string) $authorRule->id, 'csrf' => $csrf]);
-        self::assertStringContainsString(rawurlencode('1 webmention visible again'), (string) $unmute->header('location'));
+        self::assertSame('/settings/blocks', $unmute->header('location'));
+        self::assertStringContainsString('1 webmention visible again', $this->request('GET', '/settings/blocks')->body);
         self::assertEqualsCanonicalizing([$b, $c, $e], $visible(), 'a is still covered by the social.example source rule');
 
         // New mentions matching a rule arrive hidden, with no web hook, and the sender still sees success.
@@ -183,7 +186,8 @@ final class ModerationTest extends IntegrationTestCase
 
         // Garbage patterns are refused.
         $bad = $this->request('POST', '/mute', post: ['kind' => 'author', 'pattern' => 'not a domain', 'csrf' => $csrf]);
-        self::assertStringContainsString(rawurlencode('Enter a domain name'), (string) $bad->header('location'));
+        self::assertSame('/settings/blocks', $bad->header('location'));
+        self::assertStringContainsString('Enter a domain name', $this->request('GET', '/settings/blocks')->body);
     }
 
     public function testReviewQueueIsPaged(): void

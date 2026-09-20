@@ -84,11 +84,11 @@ final class SourcesTest extends IntegrationTestCase
 
         $response = $this->request('POST', '/mute', post: ['kind' => 'source', 'pattern' => 'noisy.example', 'back' => '/sources', 'csrf' => $csrf]);
         self::assertSame(303, $response->status);
-        self::assertSame('/sources?notice=' . rawurlencode('Muted source on noisy.example. 1 existing webmention hidden; new ones will be too.'), $response->header('location'));
+        self::assertSame('/sources', $response->header('location'));
         self::assertSame('hidden', $this->service(LinkRepository::class)->find($id)?->status);
 
-        $body = $this->request('GET', '/sources', ['notice' => 'Muted source on noisy.example.'])->body;
-        self::assertStringContainsString('<p class="notice">Muted source on noisy.example.</p>', $body);
+        $body = $this->request('GET', '/sources')->body;
+        self::assertStringContainsString('<p class="notice">Muted source on noisy.example. 1 existing webmention hidden; new ones will be too.</p>', $body);
         self::assertStringContainsString('>Muted</span>', $body);
         self::assertStringNotContainsString('action="/mute"', $body);
     }
@@ -111,7 +111,8 @@ final class SourcesTest extends IntegrationTestCase
         self::assertStringNotContainsString('<h2>Delete this webmention</h2>', $confirm->body);
 
         $response = $this->request('POST', '/delete', post: ['domain' => 'spam.example', 'back' => '/sources', 'csrf' => $csrf]);
-        self::assertSame('/sources?notice=' . rawurlencode('Blocked spam.example and deleted every webmention from it.'), $response->header('location'));
+        self::assertSame('/sources', $response->header('location'));
+        self::assertStringContainsString('Blocked spam.example and deleted every webmention from it.', $this->request('GET', '/sources')->body);
         foreach ($ids as $id) {
             self::assertTrue($this->service(LinkRepository::class)->find($id)?->deleted);
         }

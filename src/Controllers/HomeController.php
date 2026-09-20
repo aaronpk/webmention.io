@@ -47,7 +47,7 @@ final class HomeController extends Controller
         $response = $this->page('home', 'Webmention.io', [
             'base_url'  => $this->config->baseUrl(),
             'signed_in' => $user !== null,
-            'error'     => $request->query('error'),
+            'error'     => $user === null ? null : $this->session->takeFlash('error'),
             'me'        => trim((string) $request->query('me')),
         ], $user === null ? null : $this->nav($user, 'home'));
 

@@ -140,7 +140,8 @@ final class WebhookDeliveryTest extends IntegrationTestCase
 
         $response = $this->request('POST', '/webhook/resend', post: ['site_id' => (string) $this->site->id, 'delivery_id' => (string) $original->id, 'csrf' => $csrf]);
         self::assertSame(303, $response->status);
-        self::assertSame("/settings/sites/{$this->site->id}?sent=1#deliveries", $response->header('location'));
+        self::assertSame("/settings/sites/{$this->site->id}#deliveries", $response->header('location'));
+        self::assertStringContainsString('Sent. The result is the newest delivery below.', $this->request('GET', "/settings/sites/{$this->site->id}")->body);
 
         $posts = $this->http->posts(self::HOOK);
         self::assertCount(2, $posts);
@@ -154,7 +155,7 @@ final class WebhookDeliveryTest extends IntegrationTestCase
         $latest = $this->service(WebhookDeliveryRepository::class)->latestForSite($this->site->id);
         self::assertSame('test', $latest?->kind);
         self::assertSame($id, $latest?->linkId);
-        self::assertStringContainsString('Sent. The result is the newest delivery below.', $this->request('GET', "/settings/sites/{$this->site->id}", ['sent' => '1'])->body);
+        self::assertStringNotContainsString('Sent. The result is the newest delivery below.', $this->request('GET', "/settings/sites/{$this->site->id}", ['sent' => '1'])->body, 'shown once, after the redirect, never from the URL');
     }
 
     public function testSendingTheLatestMentionAndTheLimits(): void
@@ -165,16 +166,18 @@ final class WebhookDeliveryTest extends IntegrationTestCase
         // Nothing published yet: nothing to send.
         $response = $this->request('POST', '/webhook/resend', post: ['site_id' => (string) $this->site->id, 'csrf' => $csrf]);
         self::assertSame(303, $response->status);
-        self::assertStringContainsString('resend_error=', (string) $response->header('location'));
+        self::assertSame("/settings/sites/{$this->site->id}#deliveries", $response->header('location'));
         self::assertCount(0, $this->http->posts(self::HOOK));
-        self::assertStringContainsString('disabled>Send the latest webmention now', $this->request('GET', "/settings/sites/{$this->site->id}")->body);
+        $page = $this->request('GET', "/settings/sites/{$this->site->id}")->body;
+        self::assertStringContainsString('This site has no published webmention to send yet.', $page);
+        self::assertStringContainsString('disabled>Send the latest webmention now', $page);
 
         $this->createLink($this->site, 'https://alice.example/post', 'https://old.example/1');
         $newest = $this->createLink($this->site, 'https://alice.example/post', 'https://new.example/2');
         $this->createLink($this->site, 'https://alice.example/post', 'https://held.example/3', ['verified' => 0, 'status' => 'pending']);
 
         $response = $this->request('POST', '/webhook/resend', post: ['site_id' => (string) $this->site->id, 'csrf' => $csrf]);
-        self::assertSame("/settings/sites/{$this->site->id}?sent=1#deliveries", $response->header('location'));
+        self::assertSame("/settings/sites/{$this->site->id}#deliveries", $response->header('location'));
         $posts = $this->http->posts(self::HOOK);
         self::assertCount(1, $posts);
         self::assertSame($newest, json_decode((string) $posts[0]['body'], true)['post']['wm-id'], 'the newest published one, not the held one');
@@ -185,7 +188,8 @@ final class WebhookDeliveryTest extends IntegrationTestCase
             $this->request('POST', '/webhook/resend', post: ['site_id' => (string) $this->site->id, 'csrf' => $csrf]);
         }
         $refused = $this->request('POST', '/webhook/resend', post: ['site_id' => (string) $this->site->id, 'csrf' => $csrf]);
-        self::assertStringContainsString(rawurlencode('Too many sends'), (string) $refused->header('location'));
+        self::assertSame("/settings/sites/{$this->site->id}#deliveries", $refused->header('location'));
+        self::assertStringContainsString('Too many sends in a row', $this->request('GET', "/settings/sites/{$this->site->id}")->body);
         self::assertCount(9, $this->http->posts(self::HOOK));
 
         // Not someone else's site or delivery, and not a site without a hook.

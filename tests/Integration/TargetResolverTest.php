@@ -173,20 +173,23 @@ final class TargetResolverTest extends IntegrationTestCase
 
         // Not redirecting: nothing happens.
         $same = $this->request('POST', '/settings/sites/merge', post: ['old_url' => self::ENTRY, 'csrf' => $csrf]);
-        self::assertStringContainsString('merge_error=', (string) $same->header('location'));
+        self::assertSame('/settings/sites', $same->header('location'));
+        self::assertStringContainsString('<p class="alert">', $this->request('GET', '/settings/sites')->body);
 
         // Someone else's URL: refused.
         $mallory = $this->createAccount('mallory.example');
         $mcsrf   = $this->signIn($mallory);
         $other   = $this->request('POST', '/settings/sites/merge', post: ['old_url' => 'http://target.example.com/old', 'csrf' => $mcsrf]);
-        self::assertStringContainsString(rawurlencode('not on one of your sites'), (string) $other->header('location'));
+        self::assertSame('/settings/sites', $other->header('location'));
+        self::assertStringContainsString('not on one of your sites', $this->request('GET', '/settings/sites')->body);
         self::assertNotNull($this->service(PageRepository::class)->find($old->id));
 
         $csrf     = $this->signIn($this->account);
         $response = $this->request('POST', '/settings/sites/merge', post: ['old_url' => 'http://target.example.com/old', 'csrf' => $csrf]);
 
         self::assertSame(303, $response->status);
-        self::assertStringContainsString(rawurlencode('1 mention from http://target.example.com/old now filed under http://target.example.com/entry.'), (string) $response->header('location'));
+        self::assertSame('/settings/sites', $response->header('location'));
+        self::assertStringContainsString('1 mention from http://target.example.com/old now filed under http://target.example.com/entry.', $this->request('GET', '/settings/sites')->body);
         self::assertNull($this->service(PageRepository::class)->find($old->id));
 
         $entry = $this->service(PageRepository::class)->findBySiteAndHref($this->site->id, self::ENTRY);

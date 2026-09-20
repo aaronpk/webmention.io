@@ -109,6 +109,26 @@ final class Session
         }
     }
 
+    /**
+     * Leave a message for the next page: a notice or error after a redirect.
+     * It travels in the session, never in the URL, so a link cannot be
+     * crafted that makes a page show someone else's words as its own, and
+     * messages stay out of histories and logs.
+     */
+    public function flash(string $key, string $message): void
+    {
+        $_SESSION['flash'][$key] = $message;
+    }
+
+    /** The message left under $key, removing it; null when there is none. */
+    public function takeFlash(string $key): ?string
+    {
+        $message = $_SESSION['flash'][$key] ?? null;
+        unset($_SESSION['flash'][$key]);
+
+        return is_string($message) ? $message : null;
+    }
+
     public function csrfToken(): string
     {
         if (!isset($_SESSION['csrf']) || !is_string($_SESSION['csrf'])) {

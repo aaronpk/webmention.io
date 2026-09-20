@@ -147,7 +147,7 @@ final class MentionsController extends Controller
             'domain' => $domain ?? '',
             'query'  => $query,
             'back'   => '/mentions' . ($query === [] && $page === 0 ? '' : '?' . http_build_query([...$query, 'page' => $page > 0 ? $page : null])),
-            'notice' => $request->query('notice'),
+            'notice' => $this->session->takeFlash('notice'),
             'csrf'   => $this->session->csrfToken(),
         ], $this->nav($user, 'mentions'));
     }
@@ -192,7 +192,7 @@ final class MentionsController extends Controller
             'sources' => $rows,
             'days'    => SourceActivity::DAYS,
             'limit'   => SourceActivity::LIMIT,
-            'notice'  => $request->query('notice'),
+            'notice'  => $this->session->takeFlash('notice'),
             'csrf'    => $this->session->csrfToken(),
         ], $this->nav($user, 'sources'));
     }

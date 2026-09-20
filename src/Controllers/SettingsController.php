@@ -114,12 +114,12 @@ final class SettingsController extends Controller
 
         // Each check fetches the domain.
         if (!$this->limiter->allow('merge_check', (string) $user->id, 5, 60)) {
-            return Response::seeOther('/settings/sites?account_merge_error=' . rawurlencode('Too many checks in a row; try again in a minute.') . '#bring');
+            return $this->flashTo('/settings/sites#bring', 'account_merge_error', 'Too many checks in a row; try again in a minute.');
         }
 
         $old = $this->merger->check($user, (string) ($request->post('site') ?? $request->post('old_domain')));
         if (is_string($old)) {
-            return Response::seeOther('/settings/sites?account_merge_error=' . rawurlencode($old) . '#bring');
+            return $this->flashTo('/settings/sites#bring', 'account_merge_error', $old);
         }
 
         // Remember what was proved, so the confirmation cannot name another account.
@@ -144,24 +144,24 @@ final class SettingsController extends Controller
         $pending = $_SESSION['merge_account'] ?? null;
         unset($_SESSION['merge_account']);
         if (!is_array($pending) || (int) ($pending['until'] ?? 0) < time()) {
-            return Response::seeOther('/settings/sites?account_merge_error=' . rawurlencode('That confirmation has expired; check the domain again.') . '#bring');
+            return $this->flashTo('/settings/sites#bring', 'account_merge_error', 'That confirmation has expired; check the domain again.');
         }
 
         $old = $this->accounts->find((int) $pending['id']);
         if ($old === null || $old->id === $user->id || strtolower((string) $old->domain) !== AccountMerger::domain((string) $request->post('old_domain'))) {
-            return Response::seeOther('/settings/sites?account_merge_error=' . rawurlencode('That confirmation does not match; check the domain again.') . '#bring');
+            return $this->flashTo('/settings/sites#bring', 'account_merge_error', 'That confirmation does not match; check the domain again.');
         }
 
         $moved = $this->merger->merge($user, $old);
 
-        return Response::seeOther('/settings/sites?account_merged=' . rawurlencode(sprintf(
+        return $this->flashTo('/settings/sites#bring', 'account_merged', sprintf(
             'Merged the account %s: %d site%s and %s webmention%s are now on this account.',
             $old->username ?: $old->domain,
             $moved['sites'],
             $moved['sites'] === 1 ? '' : 's',
             number_format($moved['mentions']),
             $moved['mentions'] === 1 ? '' : 's',
-        )) . '#bring');
+        ));
     }
 
     /** @param array<string, string> $params */
@@ -236,14 +236,14 @@ final class SettingsController extends Controller
         return $this->page('sites', 'Sites', [
             'sites'    => $rows,
             'archived' => $archived,
-            'notice'   => $request->query('notice'),
+            'notice'   => $this->session->takeFlash('notice'),
             'conflict' => $conflict,
             'endpoint' => $this->config->baseUrl() . '/' . $user->domain . '/webmention',
-            'error'    => $request->query('error'),
-            'merged'   => $request->query('merged'),
-            'merge_error' => $request->query('merge_error'),
-            'account_merged'      => $request->query('account_merged'),
-            'account_merge_error' => $request->query('account_merge_error'),
+            'error'    => $this->session->takeFlash('error'),
+            'merged'   => $this->session->takeFlash('merged'),
+            'merge_error' => $this->session->takeFlash('merge_error'),
+            'account_merged'      => $this->session->takeFlash('account_merged'),
+            'account_merge_error' => $this->session->takeFlash('account_merge_error'),
             'csrf'     => $this->session->csrfToken(),
         ], $this->nav($user, 'sites'));
     }
@@ -265,12 +265,12 @@ final class SettingsController extends Controller
         $archived = $this->sites->archive($user->id, $ids);
 
         if (count($ids) === 1 && $request->post('back') === 'site' && $this->sites->findForAccount($user->id, $ids[0]) !== null) {
-            return Response::seeOther("/settings/sites/{$ids[0]}?notice=" . rawurlencode('Archived. This site no longer accepts webmentions.'));
+            return $this->flashTo("/settings/sites/{$ids[0]}", 'notice', 'Archived. This site no longer accepts webmentions.');
         }
 
-        return Response::seeOther('/settings/sites?notice=' . rawurlencode(
+        return $this->flashTo('/settings/sites', 'notice',
             $archived === 0 ? 'No sites were archived.' : sprintf('Archived %d site%s.', $archived, $archived === 1 ? '' : 's'),
-        ));
+        );
     }
 
     /** @param array<string, string> $params */
@@ -287,12 +287,12 @@ final class SettingsController extends Controller
         }
 
         if ($this->deleter->isDeleting($site->id)) {
-            return Response::seeOther("/settings/sites/{$site->id}?notice=" . rawurlencode('This site is being deleted and cannot be unarchived.'));
+            return $this->flashTo("/settings/sites/{$site->id}", 'notice', 'This site is being deleted and cannot be unarchived.');
         }
 
         $this->sites->unarchive($user->id, $site->id);
 
-        return Response::seeOther("/settings/sites/{$site->id}?notice=" . rawurlencode('Unarchived. This site accepts webmentions again.'));
+        return $this->flashTo("/settings/sites/{$site->id}", 'notice', 'Unarchived. This site accepts webmentions again.');
     }
 
     /**
@@ -320,7 +320,7 @@ final class SettingsController extends Controller
             ],
             'export_url'     => $this->config->baseUrl() . '/api/export.jf2?token=' . rawurlencode($this->tokenFor($user)) . '&domain=' . rawurlencode((string) $site->domain),
             'sign_in_domain' => strtolower((string) $site->domain) === self::normalizeDomain((string) $user->domain),
-            'error'          => $request->query('error'),
+            'error'          => $this->session->takeFlash('error'),
             'csrf'           => $this->session->csrfToken(),
         ], $this->nav($user, 'sites'));
     }
@@ -339,14 +339,14 @@ final class SettingsController extends Controller
         }
 
         if (strtolower(trim((string) $request->post('confirm_domain'))) !== strtolower((string) $site->domain)) {
-            return Response::seeOther("/settings/sites/{$site->id}/delete?error=" . rawurlencode('Type the domain name exactly to confirm.'));
+            return $this->flashTo("/settings/sites/{$site->id}/delete", 'error', 'Type the domain name exactly to confirm.');
         }
 
         $mentions = $this->sites->linkCount($site->id);
 
-        return Response::seeOther('/settings/sites?notice=' . rawurlencode($this->deleter->delete($site)
+        return $this->flashTo('/settings/sites', 'notice', $this->deleter->delete($site)
             ? "Deleted {$site->domain}."
-            : sprintf('Deleting %s. Its %s webmentions are being removed in the background.', $site->domain, number_format($mentions))));
+            : sprintf('Deleting %s. Its %s webmentions are being removed in the background.', $site->domain, number_format($mentions)));
     }
 
     /** A stored UTC datetime as "Sep 17, 2026", or null. */
@@ -397,19 +397,19 @@ final class SettingsController extends Controller
                 'archived_on'     => $date($site->archivedAt),
                 'deleting'        => $this->deleter->isDeleting($site->id),
             ],
-            'notice'       => $request->query('notice'),
+            'notice'       => $this->session->takeFlash('notice'),
             'export_url'   => $site->isArchived()
                 ? $this->config->baseUrl() . '/api/export.jf2?token=' . rawurlencode($this->tokenFor($user)) . '&domain=' . rawurlencode((string) $site->domain)
                 : null,
             'activity'     => self::activity($this->activity->monthlyCounts($site->id)),
             'endpoint'     => $this->config->baseUrl() . '/' . $user->domain . '/webmention',
-            'saved'        => $request->query('saved') !== null,
-            'checked'      => $request->query('checked'),
+            'saved'        => $this->session->takeFlash('saved') !== null,
+            'checked'      => $this->session->takeFlash('checked'),
             'deliveries'   => Url::blank($site->callbackUrl) ? [] : $this->deliveryRows($site->id),
             'has_mentions' => $this->links->latestPublishedForSite($site->id) !== null,
             'max_attempts' => WebHooks::MAX_ATTEMPTS,
-            'sent'         => $request->query('sent') !== null,
-            'resend_error' => $request->query('resend_error'),
+            'sent'         => $this->session->takeFlash('sent') !== null,
+            'resend_error' => $this->session->takeFlash('resend_error'),
             'csrf'         => $this->session->csrfToken(),
         ], $this->nav($user, 'sites'));
     }
@@ -500,7 +500,7 @@ final class SettingsController extends Controller
 
         // Each send is a request to someone's server; a few a minute is plenty.
         if (!$this->limiter->allow('webhook_resend', (string) $user->id, 10, 60)) {
-            return Response::seeOther("$back?resend_error=" . rawurlencode('Too many sends in a row; try again in a minute.') . '#deliveries');
+            return $this->flashTo("$back#deliveries", 'resend_error', 'Too many sends in a row; try again in a minute.');
         }
 
         if ($request->post('delivery_id') !== null) {
@@ -512,12 +512,12 @@ final class SettingsController extends Controller
         } else {
             $link = $this->links->latestPublishedForSite($site->id);
             if ($link === null) {
-                return Response::seeOther("$back?resend_error=" . rawurlencode('This site has no published webmention to send yet.') . '#deliveries');
+                return $this->flashTo("$back#deliveries", 'resend_error', 'This site has no published webmention to send yet.');
             }
             $this->webHooks->notify($site, $link, (string) $link->href, (string) $link->targetHref, $link->isPrivate, 'test');
         }
 
-        return Response::seeOther("$back?sent=1#deliveries");
+        return $this->flashTo("$back#deliveries", 'sent', '1');
     }
 
     /** @param array<string, string> $params */
@@ -531,13 +531,13 @@ final class SettingsController extends Controller
         $domain = self::normalizeDomain((string) $request->post('domain'));
 
         if ($domain === null) {
-            return Response::seeOther('/settings/sites?error=' . rawurlencode('Enter a domain name, like example.com'));
+            return $this->flashTo('/settings/sites', 'error', 'Enter a domain name, like example.com');
         }
 
         if (($existing = $this->sites->findByAccountAndDomain($user->id, $domain)) !== null) {
             // An archived site comes back from its own page, where Unarchive is.
             return $existing->isArchived()
-                ? Response::seeOther("/settings/sites/{$existing->id}?notice=" . rawurlencode("$domain is already on your account, archived. Unarchive it to receive webmentions again."))
+                ? $this->flashTo("/settings/sites/{$existing->id}", 'notice', "$domain is already on your account, archived. Unarchive it to receive webmentions again.")
                 : Response::seeOther('/settings/sites');
         }
 
@@ -546,9 +546,7 @@ final class SettingsController extends Controller
         if ($problem !== null) {
             $tag = '<link rel="webmention" href="' . $this->verifier->endpointFor($user) . '">';
 
-            return Response::seeOther('/settings/sites?error=' . rawurlencode(
-                "$problem Add $tag to the home page of $domain, then try again.",
-            ));
+            return $this->flashTo('/settings/sites', 'error', "$problem Add $tag to the home page of $domain, then try again.");
         }
 
         $site = $this->sites->findOrCreate($user->id, $domain);
@@ -577,21 +575,21 @@ final class SettingsController extends Controller
 
         // Each check fetches the site; a handful a minute is plenty.
         if (!$this->limiter->allow('verify_site', (string) $user->id, 10, 60)) {
-            return Response::seeOther("/settings/sites/{$site->id}?checked=" . rawurlencode('Too many checks in a row; try again in a minute.'));
+            return $this->flashTo("/settings/sites/{$site->id}", 'checked', 'Too many checks in a row; try again in a minute.');
         }
 
         $problem = $this->ownership->check($site, $user, $this->sites->recentPageHrefs($site->id));
 
         if ($problem === null) {
-            return Response::seeOther("/settings/sites/{$site->id}?checked=" . rawurlencode("{$site->domain} is verified."));
+            return $this->flashTo("/settings/sites/{$site->id}", 'checked', "{$site->domain} is verified.");
         }
 
         $now = $this->sites->find($site->id) ?? $site;
         if ($site->isVerified() && !$now->isVerified()) {
-            return Response::seeOther("/settings/sites/{$site->id}?checked=" . rawurlencode("{$site->domain} is no longer verified here. " . $now->verificationError));
+            return $this->flashTo("/settings/sites/{$site->id}", 'checked', "{$site->domain} is no longer verified here. " . $now->verificationError);
         }
 
-        return Response::seeOther("/settings/sites/{$site->id}?checked=" . rawurlencode("{$site->domain} could not be verified. $problem"));
+        return $this->flashTo("/settings/sites/{$site->id}", 'checked', "{$site->domain} could not be verified. $problem");
     }
 
     /**
@@ -608,7 +606,7 @@ final class SettingsController extends Controller
         }
         $this->checkCsrf($request);
 
-        $fail = static fn (string $why): Response => Response::seeOther('/settings/sites?merge_error=' . rawurlencode($why));
+        $fail = fn (string $why): Response => $this->flashTo('/settings/sites', 'merge_error', $why);
 
         $old = trim((string) $request->post('old_url'));
         if (!Url::isHttp($old)) {
@@ -639,13 +637,13 @@ final class SettingsController extends Controller
 
         $moved = $this->pages->merge($from, $into);
 
-        return Response::seeOther('/settings/sites?merged=' . rawurlencode(sprintf(
+        return $this->flashTo('/settings/sites', 'merged', sprintf(
             '%d mention%s from %s now filed under %s.',
             $moved,
             $moved === 1 ? '' : 's',
             $old,
             $canonical['url'],
-        )));
+        ));
     }
 
     /**
@@ -693,7 +691,7 @@ final class SettingsController extends Controller
             $policy,
         );
 
-        return Response::seeOther("/settings/sites/{$site->id}?saved=1");
+        return $this->flashTo("/settings/sites/{$site->id}", 'saved', '1');
     }
 
     /** Blocked URLs shown per page on the Blocklists page. */
@@ -727,7 +725,7 @@ final class SettingsController extends Controller
 
         return $this->page('blocks', 'Blocklists', [
             'mutes'    => array_map(static fn (Mute $m): array => ['id' => $m->id, 'kind' => $m->kind, 'pattern' => $m->pattern, 'label' => $m->describe()], $this->mutes->forAccount($user->id)),
-            'mute_notice' => $request->query('muted'),
+            'mute_notice' => $this->session->takeFlash('muted'),
             'domains'  => $this->blocks->domainsForAccount($user->id),
             'sources'  => $sources,
             'total'    => $total,
@@ -757,19 +755,19 @@ final class SettingsController extends Controller
         $param   = $back === '/settings/blocks' ? 'muted' : 'notice';
 
         if (!in_array($kind, Mute::KINDS, true) || $pattern === null) {
-            return Response::seeOther("$back?$param=" . rawurlencode('Enter a domain name like example.com, or a URL prefix like https://example.com/user/'));
+            return $this->flashTo($back, $param, 'Enter a domain name like example.com, or a URL prefix like https://example.com/user/');
         }
 
         $rule   = $this->mutes->add($user->id, $kind, $pattern);
         $hidden = $this->links->hideMatching($user->id, $rule);
         $this->sourceActivity->forget($user->id);
 
-        return Response::seeOther("$back?$param=" . rawurlencode(sprintf(
+        return $this->flashTo($back, $param, sprintf(
             'Muted %s. %d existing webmention%s hidden; new ones will be too.',
             lcfirst($rule->describe()),
             $hidden,
             $hidden === 1 ? '' : 's',
-        )));
+        ));
     }
 
     /**
@@ -792,12 +790,12 @@ final class SettingsController extends Controller
         $this->mutes->remove($user->id, $rule->id);
         $restored = $this->links->restoreHidden($user->id, $this->mutes->forAccount($user->id));
 
-        return Response::seeOther('/settings/blocks?muted=' . rawurlencode(sprintf(
+        return $this->flashTo('/settings/blocks', 'muted', sprintf(
             'Unmuted %s. %d webmention%s visible again.',
             lcfirst($rule->describe()),
             $restored,
             $restored === 1 ? '' : 's',
-        )));
+        ));
     }
 
     /** "https://Example.com/path" → "example.com". Null if there's no usable host. */

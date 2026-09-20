@@ -78,7 +78,7 @@ final class DashboardController extends Controller
             'pending'       => array_map(MentionRow::row(...), $this->links->pendingForAccount($user->id, self::PENDING_PREVIEW)),
             'pending_total' => $this->links->countPendingForAccount($user->id),
             'links'         => array_map(MentionRow::row(...), $this->links->recentForAccount($user->id, 40)),
-            'notice'        => $request->query('notice'),
+            'notice'        => $this->session->takeFlash('notice'),
             'csrf'          => $this->session->csrfToken(),
         ], $this->nav($user, 'dashboard'));
     }
@@ -235,7 +235,7 @@ final class DashboardController extends Controller
     /** Back to the page an action was taken from, with a message. */
     private function backTo(Request $request, string $notice): Response
     {
-        return Response::seeOther(ReturnPath::withNotice(ReturnPath::resolve($request->post('back')), $notice));
+        return $this->flashTo(ReturnPath::resolve($request->post('back')), 'notice', $notice);
     }
 
     /**

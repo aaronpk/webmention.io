@@ -44,10 +44,4 @@ final class ReturnPath
 
         return $path . ($kept === [] ? '' : '?' . http_build_query($kept));
     }
-
-    /** The path with a notice added, for a redirect. */
-    public static function withNotice(string $path, string $notice): string
-    {
-        return $path . (str_contains($path, '?') ? '&' : '?') . 'notice=' . rawurlencode($notice);
-    }
 }

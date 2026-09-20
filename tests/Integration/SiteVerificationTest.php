@@ -104,7 +104,8 @@ final class SiteVerificationTest extends IntegrationTestCase
         // The owner repoints the site at the new account and checks it.
         $this->advertise('https://tv.example/', 'https://webmention.io/tv.example/webmention');
         $response = $this->request('POST', '/settings/sites/verify', post: ['site_id' => (string) $new?->id, 'csrf' => $this->signIn($tv)]);
-        self::assertStringContainsString(rawurlencode('tv.example is verified.'), (string) $response->header('location'));
+        self::assertSame("/settings/sites/{$new?->id}", $response->header('location'));
+        self::assertStringContainsString('tv.example is verified.', $this->request('GET', "/settings/sites/{$new?->id}")->body);
         self::assertTrue($sites->find((int) $new?->id)?->isVerified());
 
         $oldNow = $sites->find($old->id);
@@ -115,7 +116,8 @@ final class SiteVerificationTest extends IntegrationTestCase
         $csrf = $this->signIn($this->alice);
         self::assertStringContainsString('now advertises the endpoint of the account tv.example', $this->request('GET', "/settings/sites/{$old->id}")->body);
         $response = $this->request('POST', '/settings/sites/verify', post: ['site_id' => (string) $old->id, 'csrf' => $csrf]);
-        self::assertStringContainsString(rawurlencode('could not be verified.'), (string) $response->header('location'));
+        self::assertSame("/settings/sites/{$old->id}", $response->header('location'));
+        self::assertStringContainsString('could not be verified.', $this->request('GET', "/settings/sites/{$old->id}")->body);
         self::assertFalse($sites->find($old->id)?->isVerified());
 
         // Public results now come from the new account's row only.
@@ -318,17 +320,19 @@ final class SiteVerificationTest extends IntegrationTestCase
 
         $response = $this->request('POST', '/settings/sites/verify', post: ['site_id' => (string) $site->id, 'csrf' => $csrf]);
         self::assertSame(303, $response->status);
-        self::assertStringStartsWith("/settings/sites/{$site->id}?checked=", (string) $response->header('location'));
-        self::assertStringContainsString(rawurlencode('could not be verified'), (string) $response->header('location'));
+        self::assertSame("/settings/sites/{$site->id}", $response->header('location'));
         $page = $this->request('GET', "/settings/sites/{$site->id}")->body;
+        self::assertStringContainsString('could not be verified', $page);
         self::assertStringContainsString('Last checked', $page);
         self::assertStringContainsString('does not have a webmention endpoint', $page);
 
         $this->advertise('https://later.example/', 'https://webmention.io/alice.example/webmention');
         $response = $this->request('POST', '/settings/sites/verify', post: ['site_id' => (string) $site->id, 'csrf' => $csrf]);
-        self::assertStringContainsString(rawurlencode('later.example is verified.'), (string) $response->header('location'));
+        self::assertSame("/settings/sites/{$site->id}", $response->header('location'));
         self::assertTrue($this->service(SiteRepository::class)->find($site->id)?->isVerified());
-        self::assertStringNotContainsString('action="/settings/sites/verify"', $this->request('GET', "/settings/sites/{$site->id}")->body);
+        $page = $this->request('GET', "/settings/sites/{$site->id}")->body;
+        self::assertStringContainsString('later.example is verified.', $page);
+        self::assertStringNotContainsString('action="/settings/sites/verify"', $page);
 
         // Not for someone else's site.
         $mcsrf = $this->signIn($this->mallory);

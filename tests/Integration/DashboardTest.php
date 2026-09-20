@@ -267,8 +267,9 @@ final class DashboardTest extends IntegrationTestCase
             'callback_secret' => str_repeat('x', 80),
             'csrf'            => $csrf,
         ]);
-        self::assertSame("/settings/sites/{$this->aliceSite->id}?saved=1", $saved->header('location'));
-        self::assertStringContainsString('Saved</span>', $this->request('GET', "/settings/sites/{$this->aliceSite->id}", ['saved' => '1'])->body);
+        self::assertSame("/settings/sites/{$this->aliceSite->id}", $saved->header('location'));
+        self::assertStringContainsString('Saved</span>', $this->request('GET', "/settings/sites/{$this->aliceSite->id}")->body);
+        self::assertStringNotContainsString('Saved</span>', $this->request('GET', "/settings/sites/{$this->aliceSite->id}", ['saved' => '1'])->body, 'once, and not from the URL');
 
         $site = $this->service(SiteRepository::class)->find($this->aliceSite->id);
         self::assertSame('https://alice.example/new-hook', $site?->callbackUrl);
@@ -303,8 +304,10 @@ final class DashboardTest extends IntegrationTestCase
         foreach (['victim.example' => 'does not have a webmention endpoint', 'alice.example' => 'different webmention endpoint', 'down.example' => 'Could not fetch'] as $domain => $why) {
             $response = $this->request('POST', '/settings/sites/new', post: ['domain' => $domain, 'csrf' => $csrf]);
             self::assertSame(303, $response->status);
-            self::assertStringContainsString(rawurlencode($why), (string) $response->header('location'), $domain);
-            self::assertStringContainsString(rawurlencode('href="https://webmention.io/mallory.example/webmention"'), (string) $response->header('location'));
+            self::assertSame('/settings/sites', $response->header('location'), $domain);
+            $page = $this->request('GET', '/settings/sites')->body;
+            self::assertStringContainsString(htmlspecialchars($why, ENT_QUOTES | ENT_HTML5), $page, $domain);
+            self::assertStringContainsString(htmlspecialchars('href="https://webmention.io/mallory.example/webmention"', ENT_QUOTES | ENT_HTML5), $page);
         }
 
         $domains = array_map(static fn (Site $s): ?string => $s->domain, $this->service(SiteRepository::class)->listForAccount($this->mallory->id));

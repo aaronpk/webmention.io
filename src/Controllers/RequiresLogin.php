@@ -6,6 +6,7 @@ namespace Webmention\Controllers;
 
 use Webmention\Http\HttpException;
 use Webmention\Http\Request;
+use Webmention\Http\Response;
 use Webmention\Http\Session;
 use Webmention\Model\Account;
 use Webmention\Storage\AccountRepository;
@@ -35,6 +36,14 @@ trait RequiresLogin
         if (!$this->session()->validCsrf($request->post('csrf'))) {
             throw HttpException::forbidden('Your session expired. Go back, reload the page and try again.');
         }
+    }
+
+    /** Redirect to $path with a message for it to show, carried in the session. */
+    protected function flashTo(string $path, string $key, string $message): Response
+    {
+        $this->session()->flash($key, $message);
+
+        return Response::seeOther($path);
     }
 
     /** Mentions awaiting review, shown next to "Dashboard"; controllers with a LinkRepository override this. */

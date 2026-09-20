@@ -133,7 +133,8 @@ final class MentionBrowserTest extends IntegrationTestCase
 
         $response = $this->request('POST', '/approve', post: ['id' => (string) $id, 'back' => '/mentions?status=hidden', 'csrf' => $csrf]);
         self::assertSame(303, $response->status);
-        self::assertSame('/mentions?status=hidden&notice=' . rawurlencode('1 webmention approved.'), $response->header('location'));
+        self::assertSame('/mentions?status=hidden', $response->header('location'));
+        self::assertStringContainsString('<p class="notice">1 webmention approved.</p>', $this->request('GET', '/mentions', ['status' => 'hidden'])->body);
 
         $link = $this->service(LinkRepository::class)->find($id);
         self::assertTrue($link?->verified);
@@ -156,7 +157,8 @@ final class MentionBrowserTest extends IntegrationTestCase
         self::assertTrue(json_decode((string) $this->http->posts(self::HOOK)[0]['body'], true)['deleted']);
 
         $response = $this->request('POST', '/restore', post: ['id' => (string) $id, 'back' => '/mentions?status=deleted&page=0', 'csrf' => $csrf]);
-        self::assertSame('/mentions?status=deleted&notice=' . rawurlencode('Webmention restored; its source URL is unblocked.'), $response->header('location'));
+        self::assertSame('/mentions?status=deleted', $response->header('location'));
+        self::assertStringContainsString('<p class="notice">Webmention restored; its source URL is unblocked.</p>', $this->request('GET', '/mentions', ['status' => 'deleted'])->body);
 
         $link = $this->service(LinkRepository::class)->find($id);
         self::assertFalse($link?->deleted);
@@ -172,13 +174,15 @@ final class MentionBrowserTest extends IntegrationTestCase
 
         // Restoring again, or restoring a live mention, changes nothing.
         $again = $this->request('POST', '/restore', post: ['id' => (string) $id, 'csrf' => $csrf]);
-        self::assertSame('/dashboard?notice=' . rawurlencode('That webmention is not deleted.'), $again->header('location'));
+        self::assertSame('/dashboard', $again->header('location'));
+        self::assertStringContainsString('That webmention is not deleted.', $this->request('GET', '/dashboard')->body);
         self::assertCount(2, $this->http->posts(self::HOOK));
 
         // A domain block stays, and the notice says so.
         $this->request('POST', '/delete', post: ['domain' => 'bob.example', 'csrf' => $csrf]);
         $response = $this->request('POST', '/restore', post: ['id' => (string) $id, 'csrf' => $csrf]);
-        self::assertStringContainsString(rawurlencode('Its domain, bob.example, is still blocked.'), (string) $response->header('location'));
+        self::assertSame('/dashboard', $response->header('location'));
+        self::assertStringContainsString('Its domain, bob.example, is still blocked.', $this->request('GET', '/dashboard')->body);
         self::assertTrue($blocks->isDomainBlocked($this->alice->id, 'bob.example'));
     }
 
@@ -206,7 +210,8 @@ final class MentionBrowserTest extends IntegrationTestCase
         $csrf    = $this->signIn($this->alice);
 
         $response = $this->request('POST', '/approve', post: ['id' => [(string) $mine[0], (string) $mine[1], (string) $theirs, (string) $live, 'abc', (string) $mine[0]], 'back' => '/moderation?page=0', 'csrf' => $csrf]);
-        self::assertSame('/moderation?notice=' . rawurlencode('2 webmentions approved.'), $response->header('location'));
+        self::assertSame('/moderation', $response->header('location'));
+        self::assertStringContainsString('2 webmentions approved.', $this->request('GET', '/dashboard')->body, 'the notice key is shared by the review pages');
         $links = $this->service(LinkRepository::class);
         self::assertNull($links->find($mine[0])?->status);
         self::assertNull($links->find($mine[1])?->status);
@@ -215,7 +220,8 @@ final class MentionBrowserTest extends IntegrationTestCase
         self::assertCount(2, $this->http->posts(self::HOOK), 'one web hook per approved mention');
 
         $response = $this->request('POST', '/reject', post: ['id' => [(string) $mine[2], (string) $mine[3], (string) $theirs, (string) $live], 'back' => '/mentions?status=pending&type=reply', 'csrf' => $csrf]);
-        self::assertSame('/mentions?status=pending&type=reply&notice=' . rawurlencode('2 webmentions rejected; their source URLs are blocked.'), $response->header('location'));
+        self::assertSame('/mentions?status=pending&type=reply', $response->header('location'));
+        self::assertStringContainsString('2 webmentions rejected; their source URLs are blocked.', $this->request('GET', '/mentions', ['status' => 'pending', 'type' => 'reply'])->body);
         self::assertTrue($links->find($mine[2])?->deleted);
         self::assertTrue($links->find($mine[3])?->deleted);
         self::assertFalse($links->find($live)?->deleted, 'a published mention is not rejected');
@@ -225,7 +231,8 @@ final class MentionBrowserTest extends IntegrationTestCase
 
         // Nothing left: the old message, and one id still reads as before.
         $response = $this->request('POST', '/reject', post: ['id' => (string) $mine[2], 'csrf' => $csrf]);
-        self::assertSame('/dashboard?notice=' . rawurlencode('That webmention is no longer waiting for review.'), $response->header('location'));
+        self::assertSame('/dashboard', $response->header('location'));
+        self::assertStringContainsString('That webmention is no longer waiting for review.', $this->request('GET', '/dashboard')->body);
     }
 
     public function testBulkRequestsAreCapped(): void
@@ -237,7 +244,8 @@ final class MentionBrowserTest extends IntegrationTestCase
         $csrf = $this->signIn($this->alice);
 
         $response = $this->request('POST', '/approve', post: ['id' => $ids, 'csrf' => $csrf]);
-        self::assertSame('/dashboard?notice=' . rawurlencode('200 webmentions approved.'), $response->header('location'));
+        self::assertSame('/dashboard', $response->header('location'));
+        self::assertStringContainsString('200 webmentions approved.', $this->request('GET', '/dashboard')->body);
         self::assertSame(5, $this->service(LinkRepository::class)->countPendingForAccount($this->alice->id));
     }
 

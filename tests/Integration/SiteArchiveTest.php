@@ -40,7 +40,8 @@ final class SiteArchiveTest extends IntegrationTestCase
 
         $response = $this->request('POST', '/settings/sites/archive', post: ['site_id' => [(string) $this->old->id], 'csrf' => $csrf]);
         self::assertSame(303, $response->status);
-        self::assertSame('/settings/sites?notice=' . rawurlencode('Archived 1 site.'), $response->header('location'));
+        self::assertSame('/settings/sites', $response->header('location'));
+        self::assertStringContainsString('<p class="notice">Archived 1 site.</p>', $this->request('GET', '/settings/sites')->body);
         self::assertTrue($this->service(SiteRepository::class)->find($this->old->id)?->isArchived());
 
         // Both endpoints refuse it.
@@ -63,7 +64,8 @@ final class SiteArchiveTest extends IntegrationTestCase
 
         // Unarchiving brings receiving back.
         $response = $this->request('POST', '/settings/sites/unarchive', post: ['site_id' => (string) $this->old->id, 'csrf' => $csrf]);
-        self::assertSame("/settings/sites/{$this->old->id}?notice=" . rawurlencode('Unarchived. This site accepts webmentions again.'), $response->header('location'));
+        self::assertSame("/settings/sites/{$this->old->id}", $response->header('location'));
+        self::assertStringContainsString('Unarchived. This site accepts webmentions again.', $this->request('GET', "/settings/sites/{$this->old->id}")->body);
         self::assertFalse($this->service(SiteRepository::class)->find($this->old->id)?->isArchived());
         self::assertSame(201, $this->request('POST', '/alice.example/webmention', post: ['source' => 'https://carol.example/new', 'target' => 'https://old.example/post'])->status);
     }
@@ -103,22 +105,25 @@ final class SiteArchiveTest extends IntegrationTestCase
 
         // Another account's id in the form is ignored.
         $response = $this->request('POST', '/settings/sites/archive', post: ['site_id' => [(string) $this->old->id, (string) $hers->id], 'csrf' => $csrf]);
-        self::assertSame('/settings/sites?notice=' . rawurlencode('Archived 1 site.'), $response->header('location'));
+        self::assertSame('/settings/sites', $response->header('location'));
         self::assertFalse($this->service(SiteRepository::class)->find($hers->id)?->isArchived());
 
-        $page = $this->request('GET', '/settings/sites', ['notice' => 'Archived 1 site.'])->body;
+        $page = $this->request('GET', '/settings/sites')->body;
         self::assertStringContainsString('<p class="notice">Archived 1 site.</p>', $page);
+        self::assertStringNotContainsString('<p class="notice">', $this->request('GET', '/settings/sites', ['notice' => 'Archived 99 sites.'])->body, 'not from the URL, and only once');
         $archivedCard = substr($page, (int) strpos($page, 'id="archived"'));
         self::assertStringContainsString('old.example', $archivedCard);
         self::assertStringNotContainsString('name="site_id[]" value="' . $this->old->id . '"', $page, 'no longer in the live table');
 
         // Nothing selected.
-        self::assertSame('/settings/sites?notice=' . rawurlencode('No sites were archived.'), $this->request('POST', '/settings/sites/archive', post: ['csrf' => $csrf])->header('location'));
+        self::assertSame('/settings/sites', $this->request('POST', '/settings/sites/archive', post: ['csrf' => $csrf])->header('location'));
+        self::assertStringContainsString('No sites were archived.', $this->request('GET', '/settings/sites')->body);
 
         // From a site's own page, back to that page.
         $response = $this->request('POST', '/settings/sites/archive', post: ['site_id' => [(string) $this->live->id], 'back' => 'site', 'csrf' => $csrf]);
-        self::assertStringStartsWith("/settings/sites/{$this->live->id}?notice=", (string) $response->header('location'));
+        self::assertSame("/settings/sites/{$this->live->id}", $response->header('location'));
         $sitePage = $this->request('GET', "/settings/sites/{$this->live->id}")->body;
+        self::assertStringContainsString('Archived. This site no longer accepts webmentions.', $sitePage);
         self::assertStringContainsString('<h2>Archived</h2>', $sitePage);
         self::assertStringContainsString('action="/settings/sites/unarchive"', $sitePage);
         $token = (string) $this->service(AccountRepository::class)->find($this->alice->id)?->token;
@@ -163,8 +168,8 @@ final class SiteArchiveTest extends IntegrationTestCase
         $response = $this->request('POST', '/settings/sites/new', post: ['domain' => 'old.example', 'csrf' => $csrf]);
 
         self::assertSame(303, $response->status);
-        self::assertStringStartsWith("/settings/sites/{$this->old->id}?notice=", (string) $response->header('location'));
+        self::assertSame("/settings/sites/{$this->old->id}", $response->header('location'));
         self::assertSame([], $this->http->requests, 'nothing is fetched');
-        self::assertStringContainsString('already on your account, archived', urldecode((string) $response->header('location')));
+        self::assertStringContainsString('already on your account, archived', $this->request('GET', "/settings/sites/{$this->old->id}")->body);
     }
 }

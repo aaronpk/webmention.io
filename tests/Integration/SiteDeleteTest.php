@@ -52,7 +52,8 @@ final class SiteDeleteTest extends IntegrationTestCase
         // A wrong or missing domain changes nothing.
         foreach (['', 'alice.example', 'old.example.evil'] as $typed) {
             $response = $this->request('POST', '/settings/sites/delete', post: ['site_id' => (string) $this->old->id, 'confirm_domain' => $typed, 'csrf' => $csrf]);
-            self::assertStringStartsWith("/settings/sites/{$this->old->id}/delete?error=", (string) $response->header('location'), $typed);
+            self::assertSame("/settings/sites/{$this->old->id}/delete", $response->header('location'), $typed);
+            self::assertStringContainsString('Type the domain name exactly to confirm.', $this->request('GET', "/settings/sites/{$this->old->id}/delete")->body, $typed);
         }
         self::assertNotNull($this->service(SiteRepository::class)->find($this->old->id));
         self::assertSame(2, (int) $this->db->value('SELECT COUNT(*) FROM links WHERE site_id = ?', [$this->old->id]));
@@ -80,7 +81,8 @@ final class SiteDeleteTest extends IntegrationTestCase
         $response = $this->request('POST', '/settings/sites/delete', post: ['site_id' => (string) $this->old->id, 'confirm_domain' => ' OLD.example ', 'csrf' => $csrf]);
 
         self::assertSame(303, $response->status);
-        self::assertSame('/settings/sites?notice=' . rawurlencode('Deleted old.example.'), $response->header('location'));
+        self::assertSame('/settings/sites', $response->header('location'));
+        self::assertStringContainsString('<p class="notice">Deleted old.example.</p>', $this->request('GET', '/settings/sites')->body);
         self::assertNull($this->service(SiteRepository::class)->find($this->old->id));
         foreach (['links', 'pages', 'page_aliases', 'blocklists', 'webhook_deliveries'] as $table) {
             self::assertSame(0, (int) $this->db->value("SELECT COUNT(*) FROM `$table` WHERE site_id = ?", [$this->old->id]), $table);
@@ -112,7 +114,8 @@ final class SiteDeleteTest extends IntegrationTestCase
         $csrf = $this->signIn($this->alice);
 
         $response = $this->request('POST', '/settings/sites/delete', post: ['site_id' => (string) $this->old->id, 'confirm_domain' => 'old.example', 'csrf' => $csrf]);
-        self::assertSame('/settings/sites?notice=' . rawurlencode('Deleting old.example. Its 5 webmentions are being removed in the background.'), $response->header('location'));
+        self::assertSame('/settings/sites', $response->header('location'));
+        self::assertStringContainsString('Deleting old.example. Its 5 webmentions are being removed in the background.', $this->request('GET', '/settings/sites')->body);
 
         // Archived at once, three webmentions left, and waiting for a worker.
         $site = $this->service(SiteRepository::class)->find($this->old->id);
@@ -125,7 +128,8 @@ final class SiteDeleteTest extends IntegrationTestCase
 
         // It can't be unarchived half way.
         $response = $this->request('POST', '/settings/sites/unarchive', post: ['site_id' => (string) $this->old->id, 'csrf' => $csrf]);
-        self::assertStringContainsString(rawurlencode('being deleted'), (string) $response->header('location'));
+        self::assertSame("/settings/sites/{$this->old->id}", $response->header('location'));
+        self::assertStringContainsString('being deleted and cannot be unarchived', $this->request('GET', "/settings/sites/{$this->old->id}")->body);
         self::assertTrue($this->service(SiteRepository::class)->find($this->old->id)?->isArchived());
 
         // The worker takes a batch per turn until it is gone.

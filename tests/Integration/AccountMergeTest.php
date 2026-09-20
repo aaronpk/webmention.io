@@ -112,7 +112,8 @@ final class AccountMergeTest extends IntegrationTestCase
         self::assertStringContainsString('<dd>2</dd>', $response->body);
 
         $response = $this->request('POST', '/settings/merge-account/confirm', post: ['old_domain' => 'oauth.example', 'csrf' => $csrf]);
-        self::assertSame('/settings/sites?account_merged=' . rawurlencode('Merged the account oauth: 1 site and 2 webmentions are now on this account.') . '#bring', $response->header('location'));
+        self::assertSame('/settings/sites#bring', $response->header('location'));
+        self::assertStringContainsString('<p class="notice">Merged the account oauth: 1 site and 2 webmentions are now on this account.</p>', $this->request('GET', '/settings/sites')->body);
 
         $sites = $this->service(SiteRepository::class);
         $rows  = $this->db->all('SELECT id, verified_at FROM sites WHERE domain = ?', ['oauth.example']);
@@ -194,17 +195,19 @@ final class AccountMergeTest extends IntegrationTestCase
         $this->http->respond('GET', 'http://steele.example/', 200, '<html><body>nothing</body></html>', ['Content-Type' => 'text/html']);
         $response = $this->request('POST', '/settings/merge-account', post: ['site' => 'steele.example', 'csrf' => $csrf]);
         self::assertSame(303, $response->status);
-        self::assertStringStartsWith('/settings/sites?account_merge_error=', (string) $response->header('location'));
-        self::assertStringEndsWith('#bring', (string) $response->header('location'));
+        self::assertSame('/settings/sites#bring', $response->header('location'), 'the message is not in the URL');
 
-        $page = $this->request('GET', '/settings/sites', ['account_merge_error' => 'That did not work'])->body;
+        $page = $this->request('GET', '/settings/sites')->body;
         $card = substr($page, (int) strpos($page, 'id="bring"'));
         $card = substr($card, 0, (int) strpos($card, '</section>'));
-        self::assertStringContainsString('<p class="alert">That did not work</p>', $card, 'the message is in the card the anchor lands on');
+        self::assertStringContainsString('<p class="alert">steele.example does not redirect to any of this account&apos;s sites', $card, 'the message is in the card the anchor lands on');
+        self::assertStringNotContainsString('<p class="alert">', $this->request('GET', '/settings/sites')->body, 'shown once');
+        self::assertStringNotContainsString('alert', $this->request('GET', '/settings/sites', ['account_merge_error' => 'crafted'])->body, 'a crafted link shows nothing');
 
         // Confirming without a check first is refused.
         $response = $this->request('POST', '/settings/merge-account/confirm', post: ['old_domain' => 'steele.example', 'csrf' => $csrf]);
-        self::assertStringContainsString('expired', urldecode((string) $response->header('location')));
+        self::assertSame('/settings/sites#bring', $response->header('location'));
+        self::assertStringContainsString('That confirmation has expired', $this->request('GET', '/settings/sites')->body);
         self::assertNotNull($this->service(AccountRepository::class)->find($this->old->id));
 
         // Proved: the confirmation page, then the merge.
@@ -218,15 +221,15 @@ final class AccountMergeTest extends IntegrationTestCase
         // The confirmation cannot be pointed at a different account.
         $other = $this->createAccount('other.example');
         $response = $this->request('POST', '/settings/merge-account/confirm', post: ['old_domain' => 'other.example', 'csrf' => $csrf]);
-        self::assertStringContainsString('does not match', urldecode((string) $response->header('location')));
+        self::assertStringContainsString('does not match', $this->request('GET', '/settings/sites')->body);
         self::assertNotNull($this->service(AccountRepository::class)->find($other->id));
 
         // Check again (the mismatch cleared the pending merge), then confirm properly.
         $this->request('POST', '/settings/merge-account', post: ['old_domain' => 'steele.example', 'csrf' => $csrf]);
         $response = $this->request('POST', '/settings/merge-account/confirm', post: ['old_domain' => 'steele.example', 'csrf' => $csrf]);
         self::assertSame(303, $response->status);
-        self::assertStringContainsString('Merged the account steele.example: 1 site and 1 webmention', urldecode((string) $response->header('location')));
-        self::assertStringStartsWith('/settings/sites?account_merged=', (string) $response->header('location'));
+        self::assertSame('/settings/sites#bring', $response->header('location'));
+        self::assertStringContainsString('Merged the account steele.example: 1 site and 1 webmention', $this->request('GET', '/settings/sites')->body);
         self::assertNull($this->service(AccountRepository::class)->find($this->old->id));
         self::assertNotNull($this->service(SiteRepository::class)->findByAccountAndDomain($this->new->id, 'steele.example'));
 
