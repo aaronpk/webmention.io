@@ -88,4 +88,73 @@ final class AccountRepository
             [$id],
         ) !== null;
     }
+
+    /**
+     * Accounts matching a typed fragment of a domain, username or email, or an
+     * exact id, for the admin search. The Account model carries only what the
+     * app needs, so this returns rows: the admin page shows the email address
+     * and the last sign-in too.
+     *
+     * A scan of a few thousand rows; there is no index for a LIKE like this
+     * and none is worth adding.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function searchRows(string $query, int $limit): array
+    {
+        $like  = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], trim($query)) . '%';
+        $id    = ctype_digit(trim($query)) ? (int) trim($query) : 0;
+
+        return $this->db->all(
+            'SELECT a.id, a.username, a.domain, a.email, a.created_at, a.last_login,
+                    (SELECT COUNT(*) FROM sites s WHERE s.account_id = a.id) AS sites
+                FROM accounts a
+                WHERE a.id = ? OR a.domain LIKE ? OR a.username LIKE ? OR a.email LIKE ?
+                ORDER BY a.last_login IS NULL, a.last_login DESC, a.id DESC LIMIT ?',
+            [$id, $like, $like, $like, max(1, $limit)],
+        );
+    }
+
+    /** The most recently active accounts, shown before anything is searched for. @return list<array<string, mixed>> */
+    public function recentRows(int $limit): array
+    {
+        return $this->db->all(
+            'SELECT a.id, a.username, a.domain, a.email, a.created_at, a.last_login,
+                    (SELECT COUNT(*) FROM sites s WHERE s.account_id = a.id) AS sites
+                FROM accounts a
+                ORDER BY a.last_login IS NULL, a.last_login DESC, a.id DESC LIMIT ?',
+            [max(1, $limit)],
+        );
+    }
+
+    /** The whole row, for the admin account page. @return array<string, mixed>|null */
+    public function row(int $id): ?array
+    {
+        return $this->db->one('SELECT * FROM accounts WHERE id = ?', [$id]);
+    }
+
+    /**
+     * Accounts created per calendar month, for the admin activity page.
+     *
+     * @return array<string, int> 'YYYY-MM' => count
+     */
+    public function createdPerMonth(): array
+    {
+        $out = [];
+        foreach ($this->db->all("SELECT DATE_FORMAT(created_at, '%Y-%m') AS month, COUNT(*) AS n FROM accounts WHERE created_at IS NOT NULL GROUP BY month") as $row) {
+            $out[(string) $row['month']] = (int) $row['n'];
+        }
+
+        return $out;
+    }
+
+    public function countCreatedSince(string $since): int
+    {
+        return (int) $this->db->value('SELECT COUNT(*) FROM accounts WHERE created_at >= ?', [$since]);
+    }
+
+    public function countAll(): int
+    {
+        return (int) $this->db->value('SELECT COUNT(*) FROM accounts');
+    }
 }

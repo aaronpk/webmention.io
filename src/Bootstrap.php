@@ -5,6 +5,13 @@ declare(strict_types=1);
 namespace Webmention;
 
 use Redis;
+use Webmention\Admin\AccountReport;
+use Webmention\Admin\Admins;
+use Webmention\Admin\Lookup;
+use Webmention\Admin\ServiceActivity;
+use Webmention\Admin\ServiceOverview;
+use Webmention\Admin\SourceRadar;
+use Webmention\Controllers\AdminController;
 use Webmention\Controllers\ApiController;
 use Webmention\Controllers\AuthController;
 use Webmention\Controllers\DashboardController;
@@ -42,6 +49,7 @@ use Webmention\Webmention\StatusStore;
 use Webmention\Webmention\TargetResolver;
 use Webmention\Webmention\WebhookRetries;
 use Webmention\Webmention\WebHooks;
+use Webmention\Webmention\WorkerHeartbeat;
 
 /**
  * The wiring. Every service and every route is declared here, explicitly.
@@ -117,6 +125,45 @@ final class Bootstrap
         $c->set(SourceActivity::class, static fn (Container $c): SourceActivity => new SourceActivity($c->get(LinkRepository::class), $c->get(Redis::class)));
         $c->set(AccountOverview::class, static fn (Container $c): AccountOverview => new AccountOverview($c->get(LinkRepository::class), $c->get(Redis::class)));
         $c->set(Queue::class, static fn (Container $c): Queue => new Queue($c->get(Redis::class)));
+        $c->set(WorkerHeartbeat::class, static fn (Container $c): WorkerHeartbeat => new WorkerHeartbeat($c->get(Redis::class)));
+
+        // The admin section: reading, only.
+        $c->set(Admins::class, static fn (): Admins => Admins::fromConfig($config));
+        $c->set(ServiceOverview::class, static fn (Container $c): ServiceOverview => new ServiceOverview(
+            $c->get(Database::class),
+            $c->get(Redis::class),
+            $c->get(Queue::class),
+            $c->get(WebhookRetries::class),
+            $c->get(WorkerHeartbeat::class),
+            $c->get(LinkRepository::class),
+            $c->get(SiteRepository::class),
+            $c->get(AccountRepository::class),
+        ));
+        $c->set(ServiceActivity::class, static fn (Container $c): ServiceActivity => new ServiceActivity(
+            $c->get(Database::class),
+            $c->get(Redis::class),
+            $c->get(SiteActivity::class),
+            $c->get(LinkRepository::class),
+            $c->get(AccountRepository::class),
+            $c->get(SiteRepository::class),
+        ));
+        $c->set(SourceRadar::class, static fn (Container $c): SourceRadar => new SourceRadar($c->get(LinkRepository::class), $c->get(Redis::class)));
+        $c->set(AccountReport::class, static fn (Container $c): AccountReport => new AccountReport(
+            $c->get(AccountRepository::class),
+            $c->get(SiteRepository::class),
+            $c->get(LinkRepository::class),
+            $c->get(BlockRepository::class),
+            $c->get(MuteRepository::class),
+            $c->get(WebhookDeliveryRepository::class),
+            $c->get(WebhookRetries::class),
+        ));
+        $c->set(Lookup::class, static fn (Container $c): Lookup => new Lookup(
+            $c->get(AccountRepository::class),
+            $c->get(SiteRepository::class),
+            $c->get(PageRepository::class),
+            $c->get(LinkRepository::class),
+            $c->get(StatusStore::class),
+        ));
         $c->set(RateLimiter::class, static fn (Container $c): RateLimiter => new RateLimiter($c->get(Redis::class), $c->get(Log::class)));
         $c->set(HttpClient::class, static fn (): HttpClient => new HttpClient(
             $config->baseUrl(),
@@ -172,6 +219,7 @@ final class Bootstrap
             $c->get(AccountRepository::class),
             $c->get(JsonResponder::class),
             $config,
+            $c->get(Admins::class),
         ));
 
         $c->set(ApiController::class, static fn (Container $c): ApiController => new ApiController(
@@ -220,6 +268,7 @@ final class Bootstrap
             $c->get(WebHooks::class),
             $c->get(SourceActivity::class),
             $c->get(AccountOverview::class),
+            $c->get(Admins::class),
         ));
 
         $c->set(MentionsController::class, static fn (Container $c): MentionsController => new MentionsController(
@@ -231,6 +280,7 @@ final class Bootstrap
             $c->get(MuteRepository::class),
             $c->get(BlockRepository::class),
             $c->get(SourceActivity::class),
+            $c->get(Admins::class),
         ));
 
         $c->set(SettingsController::class, static fn (Container $c): SettingsController => new SettingsController(
@@ -254,6 +304,19 @@ final class Bootstrap
             $config,
             $c->get(SourceActivity::class),
             $c->get(SiteOwnership::class),
+            $c->get(Admins::class),
+        ));
+
+        $c->set(AdminController::class, static fn (Container $c): AdminController => new AdminController(
+            $c->get(Template::class),
+            $c->get(Session::class),
+            $c->get(AccountRepository::class),
+            $c->get(Admins::class),
+            $c->get(ServiceOverview::class),
+            $c->get(ServiceActivity::class),
+            $c->get(SourceRadar::class),
+            $c->get(AccountReport::class),
+            $c->get(Lookup::class),
         ));
 
         return $c;
@@ -320,6 +383,14 @@ final class Bootstrap
         $r->post('/webhook/resend', [SettingsController::class, 'resendWebhook']);
         $r->get('/settings/blocks', [SettingsController::class, 'blocks']);
         $r->get('/settings/blocks/mute', [SettingsController::class, 'muteForm']);
+
+        // Read-only, and a 404 for anyone ADMIN_USERS does not name.
+        $r->get('/admin', [AdminController::class, 'overview']);
+        $r->get('/admin/activity', [AdminController::class, 'activity']);
+        $r->get('/admin/sources', [AdminController::class, 'sources']);
+        $r->get('/admin/lookup', [AdminController::class, 'lookup']);
+        $r->get('/admin/accounts', [AdminController::class, 'accountList']);
+        $r->get('/admin/accounts/{id}', [AdminController::class, 'account']);
 
         $r->post('/d/{domain}/webmention', [WebmentionController::class, 'receiveForSite']);
         $r->get('/{username}/webmention', [WebmentionController::class, 'form']);

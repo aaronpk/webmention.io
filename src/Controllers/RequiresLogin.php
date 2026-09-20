@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Webmention\Controllers;
 
+use Webmention\Admin\Admins;
 use Webmention\Http\HttpException;
 use Webmention\Http\Request;
 use Webmention\Http\Response;
@@ -52,9 +53,21 @@ trait RequiresLogin
         return null;
     }
 
-    /** @return array{domain: string|null, active: string, csrf: string, pending: int|null} */
+    /** Who may see the admin section; controllers that render the nav override this. */
+    protected function admins(): Admins
+    {
+        return Admins::none();
+    }
+
+    /** @return array{domain: string|null, active: string, csrf: string, pending: int|null, admin: bool} */
     protected function nav(Account $user, string $active): array
     {
-        return ['domain' => $user->domain, 'active' => $active, 'csrf' => $this->session()->csrfToken(), 'pending' => $this->pendingCount($user)];
+        return [
+            'domain'  => $user->domain,
+            'active'  => $active,
+            'csrf'    => $this->session()->csrfToken(),
+            'pending' => $this->pendingCount($user),
+            'admin'   => $this->admins()->has($user),
+        ];
     }
 }

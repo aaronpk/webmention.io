@@ -261,4 +261,75 @@ final class SiteRepository
     {
         return (int) $this->db->value('SELECT COUNT(*) FROM links WHERE site_id = ?', [$siteId]);
     }
+
+    /** How many sites unverifiedToCheck() has waiting, for the admin overview. */
+    public function countUnverifiedToCheck(): int
+    {
+        return (int) $this->db->value(
+            'SELECT COUNT(*) FROM sites WHERE verified_at IS NULL AND domain IS NOT NULL AND archived_at IS NULL',
+        );
+    }
+
+    /** How many sites verifiedToRecheck() would return, for the admin overview. */
+    public function countVerifiedToRecheck(int $days): int
+    {
+        return (int) $this->db->value(
+            'SELECT COUNT(*) FROM sites WHERE verified_at IS NOT NULL AND domain IS NOT NULL AND archived_at IS NULL
+                AND (verification_checked_at IS NULL OR verification_checked_at <= ?)',
+            [gmdate('Y-m-d H:i:s', time() - $days * 86400)],
+        );
+    }
+
+    /** Sites that failed their last verification check, newest failure first. @return list<Site> */
+    public function withVerificationError(int $limit): array
+    {
+        return array_map(Site::fromRow(...), $this->db->all(
+            'SELECT * FROM sites WHERE verification_error IS NOT NULL AND verification_error <> \'\' AND archived_at IS NULL
+                ORDER BY verification_checked_at DESC, id DESC LIMIT ?',
+            [max(1, $limit)],
+        ));
+    }
+
+    /** Every site on a domain, whoever holds it. @return list<Site> */
+    public function allForDomain(string $domain): array
+    {
+        return array_map(Site::fromRow(...), $this->db->all(
+            'SELECT * FROM sites WHERE domain = ? ORDER BY verified_at IS NULL, id',
+            [strtolower($domain)],
+        ));
+    }
+
+    public function countCreatedSince(string $since): int
+    {
+        return (int) $this->db->value('SELECT COUNT(*) FROM sites WHERE created_at >= ?', [$since]);
+    }
+
+    /** @return array{total: int, verified: int, archived: int} */
+    public function totals(): array
+    {
+        $row = $this->db->one(
+            'SELECT COUNT(*) AS total, SUM(verified_at IS NOT NULL) AS verified, SUM(archived_at IS NOT NULL) AS archived FROM sites',
+        ) ?? [];
+
+        return [
+            'total'    => (int) ($row['total'] ?? 0),
+            'verified' => (int) ($row['verified'] ?? 0),
+            'archived' => (int) ($row['archived'] ?? 0),
+        ];
+    }
+
+    /**
+     * Sites created per calendar month, for the admin activity page.
+     *
+     * @return array<string, int> 'YYYY-MM' => count
+     */
+    public function createdPerMonth(): array
+    {
+        $out = [];
+        foreach ($this->db->all("SELECT DATE_FORMAT(created_at, '%Y-%m') AS month, COUNT(*) AS n FROM sites WHERE created_at IS NOT NULL GROUP BY month") as $row) {
+            $out[(string) $row['month']] = (int) $row['n'];
+        }
+
+        return $out;
+    }
 }

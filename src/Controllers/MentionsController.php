@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Webmention\Controllers;
 
 use DateTimeImmutable;
+use Webmention\Admin\Admins;
 use Webmention\Format\Url;
 use Webmention\Http\Request;
 use Webmention\Http\Response;
@@ -52,6 +53,7 @@ final class MentionsController extends Controller
         private readonly MuteRepository $mutes,
         private readonly BlockRepository $blocks,
         private readonly SourceActivity $sources,
+        private readonly Admins $admins,
     ) {
         parent::__construct($view);
     }
@@ -64,6 +66,11 @@ final class MentionsController extends Controller
     protected function accounts(): AccountRepository
     {
         return $this->accounts;
+    }
+
+    protected function admins(): Admins
+    {
+        return $this->admins;
     }
 
     protected function pendingCount(Account $user): ?int

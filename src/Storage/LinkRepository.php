@@ -489,6 +489,152 @@ final class LinkRepository
     }
 
     /**
+     * Every row for one source URL, across all accounts, for the admin lookup.
+     * The domain is passed as well as the href because links.href has no index
+     * of its own: the pair uses the `domain` index instead of a full scan.
+     *
+     * @return list<Link>
+     */
+    public function fromSource(string $domain, string $href, int $limit): array
+    {
+        return $this->many(
+            self::SELECT . ' WHERE links.domain = ? AND links.href = ? ORDER BY links.id DESC LIMIT ?',
+            [strtolower($domain), $href, $limit],
+        );
+    }
+
+    /** The mention a status receipt refers to, whichever account it belongs to. */
+    public function findByToken(string $token): ?Link
+    {
+        return $this->first(self::SELECT . ' WHERE links.token = ? ORDER BY links.id DESC LIMIT 1', [$token]);
+    }
+
+    /** @return list<Link> The newest mentions filed under one page, deleted and held ones included. */
+    public function anyForPage(int $pageId, int $limit): array
+    {
+        return $this->many(self::SELECT . ' WHERE links.page_id = ? ORDER BY links.id DESC LIMIT ?', [$pageId, $limit]);
+    }
+
+    /** @return list<Link> The newest mentions on one account, whatever their state. */
+    public function anyForAccount(int $accountId, int $limit): array
+    {
+        return $this->many(self::SELECT . ' WHERE links.account_id = ? ORDER BY links.id DESC LIMIT ?', [$accountId, $limit]);
+    }
+
+    /**
+     * Service-wide: how many webmentions arrived since a moment, and how they
+     * ended up. One pass of the created_at index.
+     *
+     * @return array{total: int, published: int, pending: int, hidden: int, deleted: int}
+     */
+    public function countsByStatusSince(string $since): array
+    {
+        $row = $this->db->one(
+            "SELECT COUNT(*) AS total,
+                    SUM(verified = 1 AND deleted = 0 AND status IS NULL) AS published,
+                    SUM(status = 'pending' AND deleted = 0) AS pending,
+                    SUM(status = 'hidden' AND deleted = 0) AS hidden,
+                    SUM(deleted = 1) AS deleted
+                FROM links WHERE created_at >= ?",
+            [$since],
+        ) ?? [];
+
+        return [
+            'total'     => (int) ($row['total'] ?? 0),
+            'published' => (int) ($row['published'] ?? 0),
+            'pending'   => (int) ($row['pending'] ?? 0),
+            'hidden'    => (int) ($row['hidden'] ?? 0),
+            'deleted'   => (int) ($row['deleted'] ?? 0),
+        ];
+    }
+
+    /**
+     * Service-wide counts by type in a window, the sibling of
+     * countsByTypeBetween() without the account.
+     *
+     * @return array<string, int>
+     */
+    public function countsByTypeSince(string $since): array
+    {
+        $rows = $this->db->all(
+            'SELECT type, COUNT(*) AS n FROM links
+                WHERE created_at >= ? AND verified = 1 AND deleted = 0
+                GROUP BY type',
+            [$since],
+        );
+
+        $out = [];
+        foreach ($rows as $row) {
+            $out[(string) ($row['type'] ?? '')] = (int) $row['n'];
+        }
+
+        return $out;
+    }
+
+    /**
+     * What one source domain has sent the whole service since a moment.
+     * Uses the `domain` index, so it stays cheap for the admin lookup.
+     *
+     * @return array{domain: string, total: int, pending: int, deleted: int, accounts: int, last_seen: string}|null
+     */
+    public function sourceDomainEverywhereSince(string $domain, string $since): ?array
+    {
+        $row = $this->db->one(
+            "SELECT COUNT(*) AS total,
+                    SUM(status = 'pending' AND deleted = 0) AS pending,
+                    SUM(deleted = 1) AS deleted,
+                    COUNT(DISTINCT account_id) AS accounts,
+                    MAX(created_at) AS last_seen
+                FROM links WHERE domain = ? AND created_at >= ?",
+            [strtolower($domain), $since],
+        );
+
+        if ($row === null || (int) $row['total'] === 0) {
+            return null;
+        }
+
+        return [
+            'domain'    => strtolower($domain),
+            'total'     => (int) $row['total'],
+            'pending'   => (int) $row['pending'],
+            'deleted'   => (int) $row['deleted'],
+            'accounts'  => (int) $row['accounts'],
+            'last_seen' => (string) $row['last_seen'],
+        ];
+    }
+
+    /**
+     * Service-wide source domains since a moment, busiest first, with how many
+     * accounts each one reached. The sibling of sourceDomainsSince().
+     *
+     * @return list<array{domain: string, total: int, pending: int, deleted: int, accounts: int, last_seen: string}>
+     */
+    public function sourceDomainsEverywhereSince(string $since, int $limit, bool $byDeleted = false): array
+    {
+        $order = $byDeleted ? 'deleted DESC, total DESC' : 'total DESC';
+
+        $rows = $this->db->all(
+            "SELECT domain, COUNT(*) AS total,
+                    SUM(status = 'pending' AND deleted = 0) AS pending,
+                    SUM(deleted = 1) AS deleted,
+                    COUNT(DISTINCT account_id) AS accounts,
+                    MAX(created_at) AS last_seen
+                FROM links WHERE created_at >= ?
+                GROUP BY domain ORDER BY $order, domain LIMIT ?",
+            [$since, max(1, $limit)],
+        );
+
+        return array_map(static fn (array $r): array => [
+            'domain'    => (string) $r['domain'],
+            'total'     => (int) $r['total'],
+            'pending'   => (int) $r['pending'],
+            'deleted'   => (int) $r['deleted'],
+            'accounts'  => (int) $r['accounts'],
+            'last_seen' => (string) $r['last_seen'],
+        ], $rows);
+    }
+
+    /**
      * @param  list<mixed> $params
      * @return list<Link>
      */

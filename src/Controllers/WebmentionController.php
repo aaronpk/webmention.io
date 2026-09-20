@@ -46,7 +46,8 @@ final class WebmentionController extends Controller
     private const LIMIT_WINDOW      = 60;
 
     /** Above this many waiting jobs, new webmentions are asked to come back later. */
-    private const MAX_QUEUE_LENGTH = 10000;
+    /** Also shown on the admin overview, so backpressure is visible before it bites. */
+    public const MAX_QUEUE_LENGTH = 10000;
 
     /** Error descriptions returned when processing synchronously with `debug`. */
     private const DEBUG_ERRORS = [

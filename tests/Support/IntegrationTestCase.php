@@ -61,7 +61,12 @@ abstract class IntegrationTestCase extends TestCase
             self::markTestSkipped('No .env.testing; see the README for setting up the test database.');
         }
 
-        $config = Config::load($envFile)->with(['CA3DB_API_ENDPOINT' => '']);
+        $config = Config::load($envFile)->with([
+            'CA3DB_API_ENDPOINT' => '',
+            // A fixed admin for the admin-section tests. It cannot live in
+            // .env.testing, which is not in the repository.
+            'ADMIN_USERS' => 'admin.example',
+        ]);
 
         if (!str_ends_with((string) $config->get('DB_NAME'), '_test') || (int) $config->get('REDIS_DB', '0') === 0) {
             self::fail('Refusing to wipe a database not named *_test or Redis DB 0.');

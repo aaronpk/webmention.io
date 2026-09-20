@@ -23,6 +23,7 @@ use Webmention\Webmention\Processor;
 use Webmention\Webmention\Queue;
 use Webmention\Webmention\SiteDeleter;
 use Webmention\Webmention\StatusStore;
+use Webmention\Webmention\WorkerHeartbeat;
 use Webmention\Webmention\WebHooks;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
@@ -80,6 +81,13 @@ $process = static function (Job $job) use (&$container, $build, $log): string {
 
 $done = 0;
 while (!$stop && $done < $maxJobs) {
+    // Say we are alive, so the admin overview can show a worker that stopped.
+    try {
+        $container->get(WorkerHeartbeat::class)->beat($name, $done);
+    } catch (Throwable) {
+        // A heartbeat is never worth interrupting a job for.
+    }
+
     // A deleted site too large to remove within its request: one batch per
     // turn, so deletions and webmentions share the workers.
     $purged = null;

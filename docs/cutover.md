@@ -52,6 +52,8 @@ Both apps use the same database schema and the same Redis keys for webmention st
    grep -E '^(APP_DEBUG|TRUST_PROXY|ALLOW_PRIVATE_NETWORK|BASE_URL)=' .env
    ```
 
+   Set `ADMIN_USERS=aaronparecki.com` while you are in there, or the admin section is a 404 for everyone, including you.
+
    `APP_DEBUG` and `ALLOW_PRIVATE_NETWORK` must be `0` or absent (the checked-out development `.env` has `APP_DEBUG=1` and a LAN `BASE_URL`), `BASE_URL` must be `https://webmention.io`. Behind a proxy, give nginx the proxy's address in `set_real_ip_from` (see `docs/nginx.conf`) and leave `TRUST_PROXY=0`; PHP then sees the visitor's address and both nginx's and the app's per-client rate limits work. Set `TRUST_PROXY=1` only if nginx itself cannot see the proxy headers, and never when the server is reachable directly, because `X-Forwarded-For` is then spoofable. The worker's environment must not carry `http_proxy`/`https_proxy` (the systemd unit clears them; check the shell you test from).
 
    The database user only needs `SELECT, INSERT, UPDATE, DELETE` on the application database; nothing runs DDL. Redis must listen on localhost only (`bind 127.0.0.1 ::1` in redis.conf), or set a password and put it in the Redis URL the app uses.

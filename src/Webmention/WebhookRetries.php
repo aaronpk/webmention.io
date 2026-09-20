@@ -69,6 +69,22 @@ final class WebhookRetries
         return $out;
     }
 
+    /**
+     * Every pending retry, grouped by site: one pass of the set for a page
+     * that would otherwise ask about each of an account's sites in turn.
+     *
+     * @return array<int, array<int, int>> site_id => [delivery_id => due]
+     */
+    public function bySite(): array
+    {
+        $out = [];
+        foreach ($this->all() as [$pending, $due]) {
+            $out[(int) $pending['site_id']][(int) $pending['delivery_id']] = $due;
+        }
+
+        return $out;
+    }
+
     /** Drop a site's retries: it was deleted, or its callback URL changed. */
     public function forgetSite(int $siteId): int
     {

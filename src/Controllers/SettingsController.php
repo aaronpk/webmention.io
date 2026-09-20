@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Webmention\Controllers;
 
+use Webmention\Admin\Admins;
 use Webmention\Config;
 use Webmention\Format\Url;
 use Webmention\Http\HttpException;
@@ -61,6 +62,7 @@ final class SettingsController extends Controller
         private readonly Config $config,
         private readonly SourceActivity $sourceActivity,
         private readonly SiteOwnership $ownership,
+        private readonly Admins $admins,
     ) {
         parent::__construct($view);
     }
@@ -78,6 +80,11 @@ final class SettingsController extends Controller
     protected function accounts(): AccountRepository
     {
         return $this->accounts;
+    }
+
+    protected function admins(): Admins
+    {
+        return $this->admins;
     }
 
     /** @param array<string, string> $params */

@@ -2,7 +2,7 @@
 /**
  * @var string      $title
  * @var string      $content Pre-rendered, already-escaped markup.
- * @var array|null  $nav     ['domain' => ?string, 'active' => string, 'csrf' => string] when signed in.
+ * @var array|null  $nav     ['domain' => ?string, 'active' => string, 'csrf' => string, 'admin' => bool] when signed in.
  */
 $nav = $nav ?? null;
 $links = [
@@ -13,6 +13,10 @@ $links = [
     'blocks'    => ['/settings/blocks', 'Blocklists'],
     'settings'  => ['/settings', 'Settings'],
 ];
+// Last, and only for the few accounts ADMIN_USERS names.
+if ($nav !== null && ($nav['admin'] ?? false)) {
+    $links['admin'] = ['/admin', 'Admin'];
+}
 ?>
 <!doctype html>
 <html lang="en">

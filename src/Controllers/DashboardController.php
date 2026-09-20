@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Webmention\Controllers;
 
+use Webmention\Admin\Admins;
 use Webmention\Format\Url;
 use Webmention\Http\HttpException;
 use Webmention\Http\Request;
@@ -38,6 +39,7 @@ final class DashboardController extends Controller
         private readonly WebHooks $webHooks,
         private readonly SourceActivity $sources,
         private readonly AccountOverview $overview,
+        private readonly Admins $admins,
     ) {
         parent::__construct($view);
     }
@@ -50,6 +52,11 @@ final class DashboardController extends Controller
     protected function accounts(): AccountRepository
     {
         return $this->accounts;
+    }
+
+    protected function admins(): Admins
+    {
+        return $this->admins;
     }
 
     protected function pendingCount(Account $user): ?int

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Webmention\Controllers;
 
+use Webmention\Admin\Admins;
 use Webmention\Config;
 use Webmention\Http\JsonResponder;
 use Webmention\Http\Request;
@@ -23,6 +24,7 @@ final class HomeController extends Controller
         private readonly AccountRepository $accounts,
         private readonly JsonResponder $json,
         private readonly Config $config,
+        private readonly Admins $admins,
     ) {
         parent::__construct($view);
     }
@@ -35,6 +37,11 @@ final class HomeController extends Controller
     protected function accounts(): AccountRepository
     {
         return $this->accounts;
+    }
+
+    protected function admins(): Admins
+    {
+        return $this->admins;
     }
 
     /** @param array<string, string> $params */

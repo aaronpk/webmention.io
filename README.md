@@ -364,6 +364,7 @@ Webmentions are verified by `bin/worker`, which pops jobs from a Redis list. Run
 * `src/Webmention/` - the queue, the worker's `Processor`, XRay fetching, web hooks
 * `src/Format/` - the JSON, jf2 and Atom API formats
 * `src/Storage/` - database access
+* `src/Admin/` - the read-only admin views
 * `templates/` - plain PHP templates; values are HTML-escaped before a template sees them
 
 ### Tests
@@ -406,6 +407,22 @@ Each site records whether it has proved this (`sites.verified_at`). Sites added 
 **Archiving and deleting sites.** A site's page has Archive and Delete, and the Sites list can archive several at once. An archived site refuses new webmentions (`invalid_target`, "target domain is archived on this account"), is skipped by verification rechecks and is never a canonical destination, but the webmentions it received stay in the API, feeds and export; unarchiving restores it. Deleting asks for the domain to be typed, archives the site at once, then removes its links, pages, aliases, blocked sources and web hook deliveries and finally the site row. A small site goes within the request; a larger one is finished by the workers, a batch at a time, from the `webmention:site-purge` Redis list. Deleting again resumes an interrupted deletion.
 
 **Bringing in another account.** Someone who signs in under a new profile URL gets a new account, and early accounts were named by a username. Under Sites › "Bring in a site from another account" they can merge another account into the current one by entering one of its sites' domains or the account's name, once that domain points at the current account: its home page redirects to one of the current account's verified sites, or carries the current account's webmention tag. Sites, pages, mentions, blocks, mutes and web hook deliveries move over (a site both accounts have is folded together page by page), and the old account row is deleted, so its token stops working. A merge cannot be undone; a report about one can be traced from the "Merged account" line in the web log.
+
+### Admin
+
+`ADMIN_USERS` in `.env` is a comma-separated list of account names, each matched against an account's username or its domain, so `ADMIN_USERS=aaronparecki.com` works whichever of the two that account carries. Leave it empty and nobody is an admin. Those accounts get an "Admin" entry in the nav; for everyone else every `/admin` path is a 404, so the section leaves no trace.
+
+It is read-only. Nothing there changes data: fixes still go through the owner's own pages or through `tools/` on the server.
+
+* `/admin` — how the service is doing right now: the queue against the length at which it starts refusing, which workers have reported in and which have stopped, the web hook retry backlog and today's failed deliveries, sites being removed, the verification backlog, what arrived today and over the last 7 and 30 days split by state, and roughly how big each table is.
+* `/admin/activity` — webmentions per month for the last five years, new accounts and sites per month, and the last 30 days by kind.
+* `/admin/sources` — every domain that sent the service a webmention in the last 30 days, orderable by how many were sent or by how many were deleted. A domain whose mentions are mostly deleted, across many accounts, is what abuse looks like here.
+* `/admin/accounts` — search by domain, username, email or id; an account's page then shows its sites with their verification errors and check times, any domain of theirs that is verified on another account too, web hook deliveries and pending retries, blocks and mutes, and its recent webmentions.
+* `/admin/lookup` — one box for whatever a support email contains: a source URL, a target URL, a domain, an account name, a status receipt or a bare id, all tried at once.
+
+Ordinary webmentions are shown in full, since their content is public on the web. A private webmention shows its source, target and state but never its author or its content.
+
+Workers report in through the `webmention:workers` Redis hash, refreshed on each turn of `bin/worker`'s loop; one that has not been heard from for a minute is shown as stopped, with the time it was last seen.
 
 ### Security notes for the spec
 
