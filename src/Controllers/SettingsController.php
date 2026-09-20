@@ -95,15 +95,13 @@ final class SettingsController extends Controller
             'html_url'   => $base . '/api/mentions.html?token=' . rawurlencode($token),
             'atom_url'   => $base . '/api/mentions.atom?token=' . rawurlencode($token),
             'export_url' => $base . '/api/export.jf2?token=' . rawurlencode($token),
-            'merge_error' => $request->query('merge_error'),
-            'merged'      => $request->query('merged'),
             'csrf'       => $this->session->csrfToken(),
         ], $this->nav($user, 'settings'));
     }
 
     /**
-     * Step one of bringing an old account in (issue 223): check that its
-     * domain now points here, then ask for confirmation.
+     * Step one of bringing another account in (issue 223), from the Sites
+     * page: check that the domain now points here, then ask for confirmation.
      *
      * @param array<string, string> $params
      */
@@ -114,14 +112,14 @@ final class SettingsController extends Controller
         }
         $this->checkCsrf($request);
 
-        // Each check fetches the old domain.
+        // Each check fetches the domain.
         if (!$this->limiter->allow('merge_check', (string) $user->id, 5, 60)) {
-            return Response::seeOther('/settings?merge_error=' . rawurlencode('Too many checks in a row; try again in a minute.'));
+            return Response::seeOther('/settings/sites?account_merge_error=' . rawurlencode('Too many checks in a row; try again in a minute.') . '#bring');
         }
 
-        $old = $this->merger->check($user, (string) $request->post('old_domain'));
+        $old = $this->merger->check($user, (string) ($request->post('site') ?? $request->post('old_domain')));
         if (is_string($old)) {
-            return Response::seeOther('/settings?merge_error=' . rawurlencode($old));
+            return Response::seeOther('/settings/sites?account_merge_error=' . rawurlencode($old) . '#bring');
         }
 
         // Remember what was proved, so the confirmation cannot name another account.
@@ -130,8 +128,9 @@ final class SettingsController extends Controller
         return $this->page('merge', 'Merge accounts', [
             ...$this->merger->preview($old),
             'old_domain' => (string) $old->domain,
+            'old_name'   => (string) ($old->username ?: $old->domain),
             'csrf'       => $this->session->csrfToken(),
-        ], $this->nav($user, 'settings'));
+        ], $this->nav($user, 'sites'));
     }
 
     /** @param array<string, string> $params */
@@ -145,24 +144,24 @@ final class SettingsController extends Controller
         $pending = $_SESSION['merge_account'] ?? null;
         unset($_SESSION['merge_account']);
         if (!is_array($pending) || (int) ($pending['until'] ?? 0) < time()) {
-            return Response::seeOther('/settings?merge_error=' . rawurlencode('That confirmation has expired; check the old domain again.'));
+            return Response::seeOther('/settings/sites?account_merge_error=' . rawurlencode('That confirmation has expired; check the domain again.') . '#bring');
         }
 
         $old = $this->accounts->find((int) $pending['id']);
         if ($old === null || $old->id === $user->id || strtolower((string) $old->domain) !== AccountMerger::domain((string) $request->post('old_domain'))) {
-            return Response::seeOther('/settings?merge_error=' . rawurlencode('That confirmation does not match; check the old domain again.'));
+            return Response::seeOther('/settings/sites?account_merge_error=' . rawurlencode('That confirmation does not match; check the domain again.') . '#bring');
         }
 
         $moved = $this->merger->merge($user, $old);
 
-        return Response::seeOther('/settings?merged=' . rawurlencode(sprintf(
-            'Merged %s: %d site%s and %s webmention%s are now on this account.',
-            $old->domain,
+        return Response::seeOther('/settings/sites?account_merged=' . rawurlencode(sprintf(
+            'Merged the account %s: %d site%s and %s webmention%s are now on this account.',
+            $old->username ?: $old->domain,
             $moved['sites'],
             $moved['sites'] === 1 ? '' : 's',
             number_format($moved['mentions']),
             $moved['mentions'] === 1 ? '' : 's',
-        )));
+        )) . '#bring');
     }
 
     /** @param array<string, string> $params */
@@ -243,6 +242,8 @@ final class SettingsController extends Controller
             'error'    => $request->query('error'),
             'merged'   => $request->query('merged'),
             'merge_error' => $request->query('merge_error'),
+            'account_merged'      => $request->query('account_merged'),
+            'account_merge_error' => $request->query('account_merge_error'),
             'csrf'     => $this->session->csrfToken(),
         ], $this->nav($user, 'sites'));
     }

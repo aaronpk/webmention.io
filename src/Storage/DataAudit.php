@@ -129,7 +129,7 @@ final class DataAudit
         ],
         [
             // Only the owner can say which account should keep the domain;
-            // the merge form on Settings is the fix.
+            // "Bring in a site from another account" on the Sites page is the fix.
             'key'    => 'domain_verified_on_several_accounts',
             'label'  => 'Domains verified on more than one account',
             'count'  => 'SELECT COUNT(*) FROM (SELECT domain FROM sites WHERE verified_at IS NOT NULL AND archived_at IS NULL

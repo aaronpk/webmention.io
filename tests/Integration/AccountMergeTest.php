@@ -54,9 +54,69 @@ final class AccountMergeTest extends IntegrationTestCase
         self::assertSame($this->old->id, $merger->check($this->new, 'steele.example')?->id);
 
         // The other cases.
-        self::assertStringContainsString('no account named', (string) $merger->check($this->new, 'nobody.example'));
+        self::assertSame('No other account has nobody.example.', (string) $merger->check($this->new, 'nobody.example'));
+        self::assertSame('There is no account named nobody.', (string) $merger->check($this->new, 'nobody'));
         self::assertStringContainsString('signed in with', (string) $merger->check($this->new, 'www.steele.example'));
-        self::assertStringContainsString('Enter the old domain', (string) $merger->check($this->new, 'not a domain'));
+        self::assertStringContainsString("Enter the site's domain", (string) $merger->check($this->new, '   '));
+    }
+
+    public function testAnAccountIsFoundByItsNameOrByASiteItHolds(): void
+    {
+        $merger = $this->service(AccountMerger::class);
+
+        // An early account named by a username, with a domain that differs.
+        $early = $this->createAccount('oauth.example', 'oauth');
+        $this->createSite($early, 'oauth.example', ['verified_at' => '2021-01-01 00:00:00']);
+        $this->http->respond('GET', 'https://oauth.example/', 200, '<html><head><link rel="webmention" href="https://webmention.io/www.steele.example/webmention"></head></html>', ['Content-Type' => 'text/html']);
+        self::assertSame($early->id, $merger->check($this->new, 'oauth')?->id, 'by username, proved on its domain');
+        self::assertSame($early->id, $merger->check($this->new, 'oauth.example')?->id, 'by domain');
+
+        // A site that is not the other account's own domain finds the account holding it verified.
+        $holder = $this->createAccount('holder.example');
+        $this->createSite($holder, 'holder.example', ['verified_at' => '2026-01-01 00:00:00']);
+        $this->createSite($holder, 'blog.example', ['verified_at' => '2026-01-01 00:00:00']);
+        $this->http->respond('GET', 'https://blog.example/', 301, '', ['Location' => 'https://www.steele.example/']);
+        self::assertSame($holder->id, $merger->check($this->new, 'blog.example')?->id);
+        self::assertSame(['holder.example', 'blog.example'], $merger->preview($holder)['sites'], 'the whole account comes, and the preview says so');
+
+        // An unverified row on another account does not identify it; the new account's own row is never it.
+        $this->createSite($this->createAccount('squatter.example'), 'plain.example');
+        self::assertSame('No other account has plain.example.', (string) $merger->check($this->new, 'plain.example'));
+        $this->createSite($this->new, 'mine.example', ['verified_at' => '2026-01-01 00:00:00']);
+        self::assertSame('No other account has mine.example.', (string) $merger->check($this->new, 'mine.example'));
+    }
+
+    public function testADomainBothAccountsHaveFoldsIntoOneVerifiedRow(): void
+    {
+        // oauth.net: the new account has an old unverified row, the other account a verified one.
+        $mine   = $this->createSite($this->new, 'oauth.example');
+        $early  = $this->createAccount('oauth.example', 'oauth');
+        $theirs = $this->createSite($early, 'oauth.example', ['verified_at' => '2021-01-01 00:00:00']);
+        $a = $this->createLink($mine, 'https://oauth.example/a', 'https://x.example/1');
+        $b = $this->createLink($theirs, 'https://oauth.example/a', 'https://y.example/2');
+        $c = $this->createLink($theirs, 'https://oauth.example/b', 'https://z.example/3');
+        $csrf = $this->signIn($this->new);
+        $this->http->respond('GET', 'https://oauth.example/', 200, '<html><head><link rel="webmention" href="https://webmention.io/www.steele.example/webmention"></head></html>', ['Content-Type' => 'text/html']);
+
+        $response = $this->request('POST', '/settings/merge-account', post: ['site' => 'oauth.example', 'csrf' => $csrf]);
+        self::assertSame(200, $response->status, $response->body);
+        self::assertStringContainsString('Merge the account oauth into this one?', $response->body);
+        self::assertStringContainsString('<dt>Account</dt><dd>oauth (oauth.example)</dd>', $response->body);
+        self::assertStringContainsString('<dd>2</dd>', $response->body);
+
+        $response = $this->request('POST', '/settings/merge-account/confirm', post: ['old_domain' => 'oauth.example', 'csrf' => $csrf]);
+        self::assertSame('/settings/sites?account_merged=' . rawurlencode('Merged the account oauth: 1 site and 2 webmentions are now on this account.') . '#bring', $response->header('location'));
+
+        $sites = $this->service(SiteRepository::class);
+        $rows  = $this->db->all('SELECT id, verified_at FROM sites WHERE domain = ?', ['oauth.example']);
+        self::assertCount(1, $rows, 'one row left');
+        self::assertSame($mine->id, (int) $rows[0]['id'], 'the account keeps its own row');
+        $links = $this->service(LinkRepository::class);
+        foreach ([$a, $b, $c] as $id) {
+            self::assertSame($mine->id, $links->find($id)?->siteId, "link $id is on the surviving row");
+            self::assertSame($this->new->id, $links->find($id)?->accountId);
+        }
+        self::assertNull($this->service(AccountRepository::class)->find($early->id));
     }
 
     public function testMergeMovesEverythingAndDeletesTheOldAccount(): void
@@ -119,22 +179,21 @@ final class AccountMergeTest extends IntegrationTestCase
         $csrf = $this->signIn($this->new);
         $this->createLink($this->service(SiteRepository::class)->findByAccountAndDomain($this->old->id, 'steele.example'), 'https://steele.example/post', 'https://x.example/1');
 
-        self::assertStringContainsString('Moved to a new domain?', $this->request('GET', '/settings')->body);
+        self::assertStringContainsString('<h2>Bring in a site from another account</h2>', $this->request('GET', '/settings/sites')->body);
+        self::assertStringNotContainsString('Moved to a new domain', $this->request('GET', '/settings')->body, 'no longer on Settings');
 
-        // Not proved: back to Settings with the reason.
+        // Not proved: back to the card on the Sites page with the reason.
         $this->http->respond('GET', 'https://steele.example/', 200, '<html><body>nothing</body></html>', ['Content-Type' => 'text/html']);
         $this->http->respond('GET', 'http://steele.example/', 200, '<html><body>nothing</body></html>', ['Content-Type' => 'text/html']);
-        $response = $this->request('POST', '/settings/merge-account', post: ['old_domain' => 'steele.example', 'csrf' => $csrf]);
+        $response = $this->request('POST', '/settings/merge-account', post: ['site' => 'steele.example', 'csrf' => $csrf]);
         self::assertSame(303, $response->status);
-        self::assertStringStartsWith('/settings?merge_error=', (string) $response->header('location'));
+        self::assertStringStartsWith('/settings/sites?account_merge_error=', (string) $response->header('location'));
+        self::assertStringEndsWith('#bring', (string) $response->header('location'));
 
-        // The page then shows just the merge card, so the message is at the top.
-        $page = $this->request('GET', '/settings', ['merge_error' => 'That did not work'])->body;
-        self::assertStringContainsString('That did not work', $page);
-        self::assertStringNotContainsString('<h2>API key</h2>', $page);
-        self::assertStringNotContainsString('<h2>Export your data</h2>', $page);
-        self::assertStringContainsString('href="/settings">← All settings</a>', $page);
-        self::assertStringContainsString('<h2>API key</h2>', $this->request('GET', '/settings')->body);
+        $page = $this->request('GET', '/settings/sites', ['account_merge_error' => 'That did not work'])->body;
+        $card = substr($page, (int) strpos($page, 'id="bring"'));
+        $card = substr($card, 0, (int) strpos($card, '</section>'));
+        self::assertStringContainsString('<p class="alert">That did not work</p>', $card, 'the message is in the card the anchor lands on');
 
         // Confirming without a check first is refused.
         $response = $this->request('POST', '/settings/merge-account/confirm', post: ['old_domain' => 'steele.example', 'csrf' => $csrf]);
@@ -145,7 +204,7 @@ final class AccountMergeTest extends IntegrationTestCase
         $this->http->respond('GET', 'https://steele.example/', 301, '', ['Location' => 'https://www.steele.example/']);
         $response = $this->request('POST', '/settings/merge-account', post: ['old_domain' => 'steele.example', 'csrf' => $csrf]);
         self::assertSame(200, $response->status, $response->body);
-        self::assertStringContainsString('Merge steele.example into this account?', $response->body);
+        self::assertStringContainsString('Merge the account steele.example into this one?', $response->body);
         self::assertStringContainsString('<dd>1</dd>', $response->body);
         self::assertStringContainsString('action="/settings/merge-account/confirm"', $response->body);
 
@@ -159,7 +218,8 @@ final class AccountMergeTest extends IntegrationTestCase
         $this->request('POST', '/settings/merge-account', post: ['old_domain' => 'steele.example', 'csrf' => $csrf]);
         $response = $this->request('POST', '/settings/merge-account/confirm', post: ['old_domain' => 'steele.example', 'csrf' => $csrf]);
         self::assertSame(303, $response->status);
-        self::assertStringContainsString('Merged steele.example: 1 site and 1 webmention', urldecode((string) $response->header('location')));
+        self::assertStringContainsString('Merged the account steele.example: 1 site and 1 webmention', urldecode((string) $response->header('location')));
+        self::assertStringStartsWith('/settings/sites?account_merged=', (string) $response->header('location'));
         self::assertNull($this->service(AccountRepository::class)->find($this->old->id));
         self::assertNotNull($this->service(SiteRepository::class)->findByAccountAndDomain($this->new->id, 'steele.example'));
 

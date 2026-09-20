@@ -8,6 +8,8 @@
  * @var string|null $error
  * @var string|null $merged       Result of re-filing a moved page.
  * @var string|null $merge_error
+ * @var string|null $account_merged        Result of bringing another account in.
+ * @var string|null $account_merge_error
  * @var string      $csrf
  */
 ?>
@@ -22,8 +24,8 @@
         <div class="alert">
             <p><strong><?= $conflict['domain'] ?> is already set up on the account <?= $who ?></strong>, and its pages advertise that account's
                 webmention endpoint, so webmentions for it go there. It is listed below but not verified here.</p>
-            <p>If that account is also yours, sign out, sign in as <?= $who ?>, and use "Moved to a new domain?" on its Settings page
-                to bring this account into it. If <?= $conflict['domain'] ?> has moved here, change its
+            <p>If that account is also yours, sign out, sign in as <?= $who ?>, and use "Bring in a site from another account" on its
+                Sites page to bring this account into it. If <?= $conflict['domain'] ?> has moved here, change its
                 <code>rel="webmention"</code> link to this account's endpoint and check the site again.</p>
         </div>
     <?php } ?>
@@ -137,6 +139,25 @@
         <input type="hidden" name="csrf" value="<?= $csrf ?>">
         <input type="text" name="domain" placeholder="example.com" required aria-label="Domain" autocapitalize="off" spellcheck="false">
         <button type="submit">Add site</button>
+    </form>
+</section>
+
+<section class="card" id="bring">
+    <h2>Bring in a site from another account</h2>
+    <p class="muted">If a site of yours is on another account, because you once signed in with a different domain or an early
+        account was named differently, you can bring that whole account here: its sites, webmentions, blocks and mutes.
+        Enter the site's domain, or the other account's name. The domain has to point at this account first: put this account's
+        webmention tag on it (under Setup above), or redirect its home page to one of this account's verified sites.</p>
+    <?php if ($account_merged !== null) { ?>
+        <p class="notice"><?= $account_merged ?></p>
+    <?php } ?>
+    <?php if ($account_merge_error !== null) { ?>
+        <p class="alert"><?= $account_merge_error ?></p>
+    <?php } ?>
+    <form action="/settings/merge-account" method="post" class="inline-field">
+        <input type="hidden" name="csrf" value="<?= $csrf ?>">
+        <input type="text" name="site" placeholder="example.com" required aria-label="Domain or account name" autocapitalize="off" spellcheck="false">
+        <button type="submit" class="secondary">Check</button>
     </form>
 </section>
 

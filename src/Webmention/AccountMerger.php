@@ -14,13 +14,16 @@ use Webmention\Storage\PageRepository;
 use Webmention\Storage\SiteRepository;
 
 /**
- * Bring an old account's sites and mentions into the account someone is
- * signed in with, after they moved their site to a new domain (issue 223).
+ * Bring another account's sites and mentions into the account someone is
+ * signed in with (issue 223): the account they used before moving to a new
+ * domain, or an early account named by a username, or the account a site
+ * of theirs ended up on.
  *
- * Proof that the old account is theirs: its domain now points at the current
- * account, either by advertising one of its webmention endpoints (the normal
- * site proof) or by redirecting to a site the current account has verified.
- * Whoever controls the old domain today chose where it goes.
+ * Proof that the other account is theirs: the domain in question now points
+ * at the current account, either by advertising one of its webmention
+ * endpoints (the normal site proof) or by redirecting to a site the current
+ * account has verified. Whoever controls the domain today chose where it
+ * goes. The whole other account moves, not one site of it.
  */
 final class AccountMerger
 {
@@ -42,25 +45,43 @@ final class AccountMerger
     }
 
     /**
-     * The old account, if $oldDomain names one and it now points at $into;
+     * The other account, if $input names one that now points at $into;
      * otherwise a sentence saying why not.
+     *
+     * $input is a domain (a site's, or the account's own) or an account's
+     * name. A domain that is not an account's name finds the account holding
+     * a verified site for it. The proof is checked on the domain typed, or
+     * on the account's own domain when a name was typed.
      */
-    public function check(Account $into, string $oldDomain): Account|string
+    public function check(Account $into, string $input): Account|string
     {
-        $domain = self::domain($oldDomain);
-        if ($domain === null) {
-            return 'Enter the old domain name, like example.com.';
+        $name   = strtolower(trim($input));
+        $domain = self::domain($input);
+        if ($name === '') {
+            return "Enter the site's domain, like example.com, or the other account's name.";
         }
 
-        $old = $this->accounts->findByDomain($domain);
+        $old = $this->accounts->findByName($domain ?? $name);
+        if ($old === null && $domain !== null) {
+            foreach ($this->sites->verifiedOnOtherAccounts($into->id, $domain) as $site) {
+                if (($old = $this->accounts->find($site->accountId)) !== null) {
+                    break;
+                }
+            }
+        }
         if ($old === null) {
-            return "There is no account named $domain.";
+            return $domain !== null ? "No other account has $domain." : "There is no account named $name.";
         }
         if ($old->id === $into->id) {
             return 'That is the account you are signed in with.';
         }
 
-        // The old domain advertises this account's endpoint...
+        $domain ??= self::domain((string) $old->domain);
+        if ($domain === null) {
+            return "The account $name has no domain that can be checked.";
+        }
+
+        // The domain advertises this account's endpoint...
         if ($this->verifier->verify($into, $domain) === null) {
             return $old;
         }
