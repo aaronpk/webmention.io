@@ -131,3 +131,15 @@ way to prove it, though the natural one exists: the domain's pages advertise
 the claimant's endpoint via `rel=webmention`. A note that hosted receivers
 SHOULD verify a claimed domain this way would close a real hole (anyone who
 could add a domain could inject mentions into that domain's public results).
+
+## 13. IndieAuth: where the metadata document may live
+
+Not Webmention, but found the same way. IndieAuth requires the `issuer` in
+the server metadata to be a prefix of the metadata document's URL. RFC 8414,
+which the next IndieAuth draft follows, puts the document at
+`https://host/.well-known/oauth-authorization-server` followed by the
+issuer's path, which is never prefixed by an issuer that has a path. Servers
+already following the draft (IndieKey.id) are refused by clients following
+the current text, including indieauth-client-php 1.1.6. The text should say:
+the issuer is a prefix of the document's URL, or the document is at the
+issuer's RFC 8414 well-known location.

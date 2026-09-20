@@ -133,16 +133,16 @@
         },
         {
             "name": "indieauth/client",
-            "version": "1.1.6",
+            "version": "1.1.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/indieweb/indieauth-client-php.git",
-                "reference": "9f3f9cc71a752c371b44d40a979504ffd7026c7d"
+                "reference": "5c48f8dc17bf231f7d7bd91849d76ed254ebda9c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/indieweb/indieauth-client-php/zipball/9f3f9cc71a752c371b44d40a979504ffd7026c7d",
-                "reference": "9f3f9cc71a752c371b44d40a979504ffd7026c7d",
+                "url": "https://api.github.com/repos/indieweb/indieauth-client-php/zipball/5c48f8dc17bf231f7d7bd91849d76ed254ebda9c",
+                "reference": "5c48f8dc17bf231f7d7bd91849d76ed254ebda9c",
                 "shasum": ""
             },
             "require": {
@@ -173,7 +173,7 @@
             "description": "IndieAuth Client Library",
             "support": {
                 "issues": "https://github.com/indieweb/indieauth-client-php/issues",
-                "source": "https://github.com/indieweb/indieauth-client-php/tree/1.1.6"
+                "source": "https://github.com/indieweb/indieauth-client-php/tree/1.1.7"
             },
             "funding": [
                 {
@@ -181,7 +181,7 @@
                     "type": "opencollective"
                 }
             ],
-            "time": "2022-11-08T21:37:04+00:00"
+            "time": "2026-09-20T12:08:44+00:00"
         },
         {
             "name": "indieweb/link-rel-parser",

@@ -349,7 +349,13 @@ final class SignInReport
         return self::stage('metadata', 'ok', 'The metadata document was read and its issuer matches its URL.', $details);
     }
 
-    /** Why an issuer fails the spec's rule for the metadata document it appears in, or null. */
+    /**
+     * Why an issuer fails the rule for the metadata document it appears in,
+     * or null. The issuer must be a prefix of the document's URL (IndieAuth),
+     * or the document must be at the issuer's RFC 8414 well-known location
+     * (the next IndieAuth draft, and IndieKey.id today). Mirrors
+     * IndieAuth\Client::_isIssuerValid() so the page can say which rule failed.
+     */
     public static function issuerProblem(string $issuer, string $metadataUrl): ?string
     {
         $parts = parse_url($issuer);
@@ -359,11 +365,30 @@ final class SignInReport
         if (isset($parts['query']) || isset($parts['fragment'])) {
             return 'it must not have a query string or fragment';
         }
-        if (!str_starts_with(rtrim($metadataUrl, '/'), rtrim($issuer, '/'))) {
-            return "it must be a prefix of the metadata document's URL, $metadataUrl";
+        $document = rtrim(strtolower($metadataUrl), '/');
+        if (str_starts_with($document, rtrim(strtolower($issuer), '/')) || $document === self::wellKnownUrl($issuer)) {
+            return null;
         }
 
-        return null;
+        return "it must be a prefix of the metadata document's URL, $metadataUrl, or the document must be at the issuer's RFC 8414 location, " . self::wellKnownUrl($issuer);
+    }
+
+    /**
+     * The RFC 8414 metadata location for an issuer: the well-known path is
+     * inserted between the host and the issuer's path. Lowercased, without a
+     * trailing slash, for comparison. (OpenID Connect discovery documents
+     * follow their own rules and are not IndieAuth metadata.)
+     */
+    public static function wellKnownUrl(string $issuer): ?string
+    {
+        $parts = parse_url($issuer);
+        if ($parts === false || !isset($parts['scheme'], $parts['host'])) {
+            return null;
+        }
+        $base = strtolower($parts['scheme'] . '://' . $parts['host'] . (isset($parts['port']) ? ':' . $parts['port'] : ''));
+        $path = rtrim(strtolower($parts['path'] ?? ''), '/');
+
+        return $base . '/.well-known/oauth-authorization-server' . $path;
     }
 
     /**

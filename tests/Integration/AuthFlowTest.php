@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Webmention\Tests\Integration;
 
 use IndieAuth\Client;
+use Webmention\Auth\SignInReport;
 use Webmention\Controllers\AuthController;
 use Webmention\Storage\AccountRepository;
 use Webmention\Tests\Support\IntegrationTestCase;
@@ -312,7 +313,7 @@ final class AuthFlowTest extends IntegrationTestCase
         $this->http->respond('GET', 'https://ids.example/piss/metadata', 200, '{"issuer":"https://other.example/","authorization_endpoint":"https://ids.example/auth"}', ['Content-Type' => 'application/json']);
         $body = $this->request('POST', '/auth/start', post: ['me' => 'https://piss.example/'], headers: self::SAME_ORIGIN)->body;
         self::assertSame(['ok', 'ok', 'failed', 'skipped'], self::stageStates($body));
-        self::assertStringContainsString("it must be a prefix of the metadata document&apos;s URL, https://ids.example/piss/metadata", $body);
+        self::assertStringContainsString("it must be a prefix of the metadata document&apos;s URL, https://ids.example/piss/metadata, or the document must be at the issuer&apos;s RFC 8414 location, https://other.example/.well-known/oauth-authorization-server", $body);
 
         // The legacy link, no metadata: stage 3 reads as not needed, and the page carries the Try again link.
         $this->fresh();
@@ -405,6 +406,50 @@ final class AuthFlowTest extends IntegrationTestCase
         self::assertStringContainsString('HTTP 303 from https://old.example/authorization; HTTP 400 from https://old.example/token', $body);
         self::assertStringContainsString('<dt>Attempt 1: endpoint</dt><dd><code>https://old.example/authorization</code></dd>', $body);
         self::assertStringContainsString('<dt>Attempt 2: server error</dt><dd><code>invalid_grant</code></dd>', $body);
+    }
+
+    public function testTheIssuerRuleAcceptsPrefixAndRfc8414Locations(): void
+    {
+        // IndieKey.id's shape: the well-known path inserted between host and issuer path.
+        self::assertNull(SignInReport::issuerProblem('https://indiekey.id/s/57zav5x865sww7s3/', 'https://indiekey.id/.well-known/oauth-authorization-server/s/57zav5x865sww7s3'));
+        self::assertNotNull(SignInReport::issuerProblem('https://indiekey.id/s/57zav5x865sww7s3/', 'https://indiekey.id/.well-known/openid-configuration/s/57zav5x865sww7s3'), 'OpenID Connect discovery is not IndieAuth metadata');
+        self::assertNull(SignInReport::issuerProblem('https://indiekey.id/s/57zav5x865sww7s3/', 'https://indiekey.id/s/57zav5x865sww7s3/metadata'), 'the prefix form');
+        self::assertNull(SignInReport::issuerProblem('https://ids.example/', 'https://ids.example/.well-known/oauth-authorization-server'));
+        self::assertNull(SignInReport::issuerProblem('https://IDS.example/S/abc/', 'https://ids.example/.well-known/oauth-authorization-server/s/abc'), 'case does not matter');
+
+        self::assertSame('it must be an https URL', SignInReport::issuerProblem('http://ids.example/s/abc/', 'http://ids.example/.well-known/oauth-authorization-server/s/abc'));
+        self::assertSame('it must not have a query string or fragment', SignInReport::issuerProblem('https://ids.example/s/abc/?x=1', 'https://ids.example/s/abc/metadata'));
+        self::assertSame(
+            "it must be a prefix of the metadata document's URL, https://ids.example/.well-known/oauth-authorization-server/s/xyz, or the document must be at the issuer's RFC 8414 location, https://ids.example/.well-known/oauth-authorization-server/s/abc",
+            SignInReport::issuerProblem('https://ids.example/s/abc/', 'https://ids.example/.well-known/oauth-authorization-server/s/xyz'),
+            'the well-known location of a different path',
+        );
+        self::assertNotNull(SignInReport::issuerProblem('https://ids.example/s/abc/', 'https://other.example/.well-known/oauth-authorization-server/s/abc'), 'another host');
+    }
+
+    public function testASiteWhoseMetadataIsAtTheRfc8414LocationSignsIn(): void
+    {
+        $metadataUrl = 'https://ids.example/.well-known/oauth-authorization-server/s/kim';
+        $metadata    = '{"issuer":"https://ids.example/s/kim/","authorization_endpoint":"https://ids.example/s/kim/auth","token_endpoint":"https://ids.example/token"}';
+
+        // Does the installed library accept the RFC 8414 form? (1.1.6 does not; the fix is upstream.)
+        Client::setMetadata($metadataUrl, $metadata);
+        if (!is_string(Client::discoverIssuer($metadataUrl))) {
+            self::markTestSkipped('indieauth/client without RFC 8414 metadata locations');
+        }
+        $this->fresh();
+
+        $this->http->respond('GET', 'https://wk.example/', 200, '<html><head><link rel="indieauth-metadata" href="' . $metadataUrl . '"></head><body>Hi</body></html>', ['Content-Type' => 'text/html']);
+        $this->http->respond('GET', $metadataUrl, 200, $metadata, ['Content-Type' => 'application/json']);
+        $location = $this->startSignIn('https://wk.example/');
+        self::assertStringStartsWith('https://ids.example/s/kim/auth?', $location);
+        parse_str((string) parse_url($location, PHP_URL_QUERY), $params);
+
+        $this->http->respond('POST', 'https://ids.example/token', 200, '{"me":"https://wk.example/"}', ['Content-Type' => 'application/json']);
+        $response = $this->request('GET', '/auth/callback', ['code' => 'x', 'state' => $params['state'], 'iss' => 'https://ids.example/s/kim/']);
+        self::assertSame(302, $response->status, $response->body);
+        self::assertSame('/settings/sites', $response->header('location'));
+        self::assertNotNull($this->service(AccountRepository::class)->findByDomain('wk.example'));
     }
 
     public function testIndieloginFailuresReadTheSameWay(): void
