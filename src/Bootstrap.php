@@ -304,6 +304,9 @@ final class Bootstrap
         $r->post('/settings/merge-account', [SettingsController::class, 'mergeAccount']);
         $r->post('/settings/merge-account/confirm', [SettingsController::class, 'confirmMergeAccount']);
         $r->get('/settings/sites', [SettingsController::class, 'sites']);
+        $r->get('/settings/sites/add', [SettingsController::class, 'addSiteForm']);
+        $r->get('/settings/sites/bring', [SettingsController::class, 'bringAccountForm']);
+        $r->get('/settings/sites/refile', [SettingsController::class, 'refilePageForm']);
         $r->post('/settings/sites/new', [SettingsController::class, 'createSite']);
         $r->post('/settings/sites/merge', [SettingsController::class, 'mergePage']);
         $r->post('/settings/sites/verify', [SettingsController::class, 'verifySite']);
@@ -316,6 +319,7 @@ final class Bootstrap
         $r->post('/webhook/configure', [SettingsController::class, 'configureWebhook']);
         $r->post('/webhook/resend', [SettingsController::class, 'resendWebhook']);
         $r->get('/settings/blocks', [SettingsController::class, 'blocks']);
+        $r->get('/settings/blocks/mute', [SettingsController::class, 'muteForm']);
 
         $r->post('/d/{domain}/webmention', [WebmentionController::class, 'receiveForSite']);
         $r->get('/{username}/webmention', [WebmentionController::class, 'form']);

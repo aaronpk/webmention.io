@@ -304,8 +304,8 @@ final class DashboardTest extends IntegrationTestCase
         foreach (['victim.example' => 'does not have a webmention endpoint', 'alice.example' => 'different webmention endpoint', 'down.example' => 'Could not fetch'] as $domain => $why) {
             $response = $this->request('POST', '/settings/sites/new', post: ['domain' => $domain, 'csrf' => $csrf]);
             self::assertSame(303, $response->status);
-            self::assertSame('/settings/sites', $response->header('location'), $domain);
-            $page = $this->request('GET', '/settings/sites')->body;
+            self::assertSame('/settings/sites/add', $response->header('location'), $domain);
+            $page = $this->request('GET', '/settings/sites/add')->body;
             self::assertStringContainsString(htmlspecialchars($why, ENT_QUOTES | ENT_HTML5), $page, $domain);
             self::assertStringContainsString(htmlspecialchars('href="https://webmention.io/mallory.example/webmention"', ENT_QUOTES | ENT_HTML5), $page);
         }

@@ -173,31 +173,31 @@ final class TargetResolverTest extends IntegrationTestCase
 
         // Not redirecting: nothing happens.
         $same = $this->request('POST', '/settings/sites/merge', post: ['old_url' => self::ENTRY, 'csrf' => $csrf]);
-        self::assertSame('/settings/sites', $same->header('location'));
-        self::assertStringContainsString('<p class="alert">', $this->request('GET', '/settings/sites')->body);
+        self::assertSame('/settings/sites/refile', $same->header('location'));
+        self::assertStringContainsString('<p class="alert">', $this->request('GET', '/settings/sites/refile')->body);
 
         // Someone else's URL: refused.
         $mallory = $this->createAccount('mallory.example');
         $mcsrf   = $this->signIn($mallory);
         $other   = $this->request('POST', '/settings/sites/merge', post: ['old_url' => 'http://target.example.com/old', 'csrf' => $mcsrf]);
-        self::assertSame('/settings/sites', $other->header('location'));
-        self::assertStringContainsString('not on one of your sites', $this->request('GET', '/settings/sites')->body);
+        self::assertSame('/settings/sites/refile', $other->header('location'));
+        self::assertStringContainsString('not on one of your sites', $this->request('GET', '/settings/sites/refile')->body);
         self::assertNotNull($this->service(PageRepository::class)->find($old->id));
 
         $csrf     = $this->signIn($this->account);
         $response = $this->request('POST', '/settings/sites/merge', post: ['old_url' => 'http://target.example.com/old', 'csrf' => $csrf]);
 
         self::assertSame(303, $response->status);
-        self::assertSame('/settings/sites', $response->header('location'));
-        self::assertStringContainsString('1 mention from http://target.example.com/old now filed under http://target.example.com/entry.', $this->request('GET', '/settings/sites')->body);
+        self::assertSame('/settings/sites/refile', $response->header('location'));
+        self::assertStringContainsString('1 mention from http://target.example.com/old now filed under http://target.example.com/entry.', $this->request('GET', '/settings/sites/refile')->body);
         self::assertNull($this->service(PageRepository::class)->find($old->id));
 
         $entry = $this->service(PageRepository::class)->findBySiteAndHref($this->site->id, self::ENTRY);
         self::assertSame(3, (int) $this->db->value('SELECT COUNT(*) FROM links WHERE page_id = ?', [$entry->id]), 'the shared source is not duplicated');
         self::assertSame(3, self::json($this->request('GET', '/api/count', ['target' => 'http://target.example.com/old']))['count'], 'the old URL still answers, as an alias');
 
-        $page = $this->request('GET', '/settings/sites')->body;
-        self::assertStringContainsString('Moved a page?', $page);
+        self::assertStringContainsString('href="/settings/sites/refile">Moved a page?</a>', $this->request('GET', '/settings/sites')->body);
+        self::assertStringContainsString('<h2>Moved a page?</h2>', $this->request('GET', '/settings/sites/refile')->body);
     }
 
     public function testFragmentPagesAreFoldedByTheMigration(): void

@@ -5,11 +5,6 @@
  * @var string|null $notice       A message from the last action.
  * @var array{domain: string, account: ?string}|null $conflict  The sign-in domain is verified on another account.
  * @var string      $endpoint
- * @var string|null $error
- * @var string|null $merged       Result of re-filing a moved page.
- * @var string|null $merge_error
- * @var string|null $account_merged        Result of bringing another account in.
- * @var string|null $account_merge_error
  * @var string      $csrf
  */
 ?>
@@ -24,16 +19,22 @@
         <div class="alert">
             <p><strong><?= $conflict['domain'] ?> is already set up on the account <?= $who ?></strong>, and its pages advertise that account's
                 webmention endpoint, so webmentions for it go there. It is listed below but not verified here.</p>
-            <p>If that account is also yours, sign out, sign in as <?= $who ?>, and use "Bring in a site from another account" on its
-                Sites page to bring this account into it. If <?= $conflict['domain'] ?> has moved here, change its
+            <p>If that account is also yours, sign out, sign in as <?= $who ?>, and use "Bring in a site from another account" under
+                its Sites to bring this account into it. If <?= $conflict['domain'] ?> has moved here, change its
                 <code>rel="webmention"</code> link to this account's endpoint and check the site again.</p>
         </div>
     <?php } ?>
 
+    <p class="form-actions">
+        <a class="button" href="/settings/sites/add">Add a site</a>
+        <a class="button secondary" href="/settings/sites/bring">Bring in a site from another account</a>
+        <a class="button secondary" href="/settings/sites/refile">Moved a page?</a>
+    </p>
+
     <?php if ($sites === [] && $archived === []) { ?>
         <p>Add a site, then add the tag below to any pages you want to receive webmentions for.</p>
     <?php } elseif ($sites === []) { ?>
-        <p>Every site on this account is archived. Add a site below, or unarchive one from its page.</p>
+        <p>Every site on this account is archived. Add a site, or unarchive one from its page.</p>
     <?php } else { ?>
         <form action="/settings/sites/archive" method="post">
             <input type="hidden" name="csrf" value="<?= $csrf ?>">
@@ -125,56 +126,4 @@
     </div>
     <p class="muted">Webmentions for any site on your account are accepted at this endpoint, and can be queried
         <a href="/api">using the API</a>.</p>
-</section>
-
-<section class="card">
-    <h2>Add a site</h2>
-    <p>To add another domain, first put the tag above on that domain's home page (or a page that receives mentions), so it names
-        this account's endpoint. That is how the site proves it is yours; without it, anyone could add
-        your domain to their account. The page has to be served by that domain (or its <code>www.</code> twin): a redirect to another site does not count.</p>
-    <?php if ($error !== null) { ?>
-        <p class="alert"><?= $error ?></p>
-    <?php } ?>
-    <form action="/settings/sites/new" method="post" class="inline-field">
-        <input type="hidden" name="csrf" value="<?= $csrf ?>">
-        <input type="text" name="domain" placeholder="example.com" required aria-label="Domain" autocapitalize="off" spellcheck="false">
-        <button type="submit">Add site</button>
-    </form>
-</section>
-
-<section class="card" id="bring">
-    <h2>Bring in a site from another account</h2>
-    <p class="muted">If a site of yours is on another account, because you once signed in with a different domain or an early
-        account was named differently, you can bring that whole account here: its sites, webmentions, blocks and mutes.
-        Enter the site's domain, or the other account's name. The domain has to point at this account first: put this account's
-        webmention tag on it (under Setup above), or redirect its home page to one of this account's verified sites.</p>
-    <?php if ($account_merged !== null) { ?>
-        <p class="notice"><?= $account_merged ?></p>
-    <?php } ?>
-    <?php if ($account_merge_error !== null) { ?>
-        <p class="alert"><?= $account_merge_error ?></p>
-    <?php } ?>
-    <form action="/settings/merge-account" method="post" class="inline-field">
-        <input type="hidden" name="csrf" value="<?= $csrf ?>">
-        <input type="text" name="site" placeholder="example.com" required aria-label="Domain or account name" autocapitalize="off" spellcheck="false">
-        <button type="submit" class="secondary">Check</button>
-    </form>
-</section>
-
-<section class="card">
-    <h2>Moved a page?</h2>
-    <p class="muted">Mentions are filed under a page's canonical URL, following your site's redirects and <code>rel="canonical"</code>.
-        If you changed a URL after mentions arrived, enter the old URL: if it now redirects to the new one, its mentions are
-        re-filed there and the old URL keeps working as an alias in the API.</p>
-    <?php if ($merged !== null) { ?>
-        <p class="notice"><?= $merged ?></p>
-    <?php } ?>
-    <?php if ($merge_error !== null) { ?>
-        <p class="alert"><?= $merge_error ?></p>
-    <?php } ?>
-    <form action="/settings/sites/merge" method="post" class="inline-field">
-        <input type="hidden" name="csrf" value="<?= $csrf ?>">
-        <input type="url" name="old_url" placeholder="https://example.com/old-url" required aria-label="Old URL">
-        <button type="submit" class="secondary">Re-file mentions</button>
-    </form>
 </section>

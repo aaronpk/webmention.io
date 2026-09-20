@@ -25,6 +25,6 @@
         <input type="hidden" name="csrf" value="<?= $csrf ?>">
         <input type="hidden" name="old_domain" value="<?= $old_domain ?>">
         <button type="submit" class="danger">Merge and delete the other account</button>
-        <a class="button secondary" href="/settings/sites#bring">Cancel</a>
+        <a class="button secondary" href="/settings/sites/bring">Cancel</a>
     </form>
 </section>

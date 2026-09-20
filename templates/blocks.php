@@ -2,7 +2,7 @@
 /**
  * @var list<string> $domains  Domains blocked for the whole account.
  * @var list<array>  $mutes    Mute rules: id, kind, pattern, label.
- * @var string|null  $mute_notice
+ * @var string|null  $notice   Result of the last mute, unmute or unblock.
  * @var list<array>  $sources  This page of blocked URLs: id, site_id, domain, source, url (safe href or null), blocked_on.
  * @var int          $total    Blocked URLs on the account.
  * @var int          $matching Blocked URLs matching the filter (equals $total with no filter).
@@ -13,6 +13,10 @@
  */
 $pageQuery = static fn (int $p): string => '/settings/blocks?' . http_build_query(array_filter(['q' => html_entity_decode($q, ENT_QUOTES | ENT_HTML5), 'page' => $p > 0 ? $p : null], static fn ($v): bool => $v !== null && $v !== ''));
 ?>
+<?php if ($notice !== null) { ?>
+    <p class="notice"><?= $notice ?></p>
+<?php } ?>
+
 <section class="card">
     <h2>Blocked domains</h2>
     <p class="muted">Webmentions from these domains are refused on every site on your account.</p>
@@ -49,9 +53,7 @@ $pageQuery = static fn (int $p): string => '/settings/blocks?' . http_build_quer
         to cover everything by someone, wherever it was relayed from (a bridged social account, say). A domain covers its subdomains;
         a URL prefix such as <code>https://social.example/@someone/</code> covers exactly those URLs.</p>
 
-    <?php if ($mute_notice !== null) { ?>
-        <p class="notice"><?= $mute_notice ?></p>
-    <?php } ?>
+    <p class="form-actions"><a class="button" href="/settings/blocks/mute">Mute a source or author</a></p>
 
     <?php if ($mutes !== []) { ?>
         <div class="table-wrap">
@@ -74,15 +76,6 @@ $pageQuery = static fn (int $p): string => '/settings/blocks?' . http_build_quer
         </div>
     <?php } ?>
 
-    <form action="/mute" method="post" class="inline-field">
-        <input type="hidden" name="csrf" value="<?= $csrf ?>">
-        <select name="kind" aria-label="What to mute">
-            <option value="source">Source</option>
-            <option value="author">Author</option>
-        </select>
-        <input type="text" name="pattern" placeholder="example.com or https://example.com/user/" required aria-label="Domain or URL prefix" autocapitalize="off" spellcheck="false">
-        <button type="submit" class="secondary">Mute</button>
-    </form>
 </section>
 
 <section class="card">

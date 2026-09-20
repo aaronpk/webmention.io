@@ -186,8 +186,9 @@ final class ModerationTest extends IntegrationTestCase
 
         // Garbage patterns are refused.
         $bad = $this->request('POST', '/mute', post: ['kind' => 'author', 'pattern' => 'not a domain', 'csrf' => $csrf]);
-        self::assertSame('/settings/blocks', $bad->header('location'));
-        self::assertStringContainsString('Enter a domain name', $this->request('GET', '/settings/blocks')->body);
+        self::assertSame('/settings/blocks/mute', $bad->header('location'), 'back to the form page');
+        $page = $this->request('GET', '/settings/blocks/mute')->body;
+        self::assertLessThan(strpos($page, 'action="/mute"'), strpos($page, '<p class="alert">Enter a domain name'), 'the message is above the form');
     }
 
     public function testReviewQueueIsPaged(): void

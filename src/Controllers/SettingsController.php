@@ -114,12 +114,12 @@ final class SettingsController extends Controller
 
         // Each check fetches the domain.
         if (!$this->limiter->allow('merge_check', (string) $user->id, 5, 60)) {
-            return $this->flashTo('/settings/sites#bring', 'account_merge_error', 'Too many checks in a row; try again in a minute.');
+            return $this->flashTo('/settings/sites/bring', 'error', 'Too many checks in a row; try again in a minute.');
         }
 
         $old = $this->merger->check($user, (string) ($request->post('site') ?? $request->post('old_domain')));
         if (is_string($old)) {
-            return $this->flashTo('/settings/sites#bring', 'account_merge_error', $old);
+            return $this->flashTo('/settings/sites/bring', 'error', $old);
         }
 
         // Remember what was proved, so the confirmation cannot name another account.
@@ -144,17 +144,17 @@ final class SettingsController extends Controller
         $pending = $_SESSION['merge_account'] ?? null;
         unset($_SESSION['merge_account']);
         if (!is_array($pending) || (int) ($pending['until'] ?? 0) < time()) {
-            return $this->flashTo('/settings/sites#bring', 'account_merge_error', 'That confirmation has expired; check the domain again.');
+            return $this->flashTo('/settings/sites/bring', 'error', 'That confirmation has expired; check the domain again.');
         }
 
         $old = $this->accounts->find((int) $pending['id']);
         if ($old === null || $old->id === $user->id || strtolower((string) $old->domain) !== AccountMerger::domain((string) $request->post('old_domain'))) {
-            return $this->flashTo('/settings/sites#bring', 'account_merge_error', 'That confirmation does not match; check the domain again.');
+            return $this->flashTo('/settings/sites/bring', 'error', 'That confirmation does not match; check the domain again.');
         }
 
         $moved = $this->merger->merge($user, $old);
 
-        return $this->flashTo('/settings/sites#bring', 'account_merged', sprintf(
+        return $this->flashTo('/settings/sites', 'notice', sprintf(
             'Merged the account %s: %d site%s and %s webmention%s are now on this account.',
             $old->username ?: $old->domain,
             $moved['sites'],
@@ -239,11 +239,6 @@ final class SettingsController extends Controller
             'notice'   => $this->session->takeFlash('notice'),
             'conflict' => $conflict,
             'endpoint' => $this->config->baseUrl() . '/' . $user->domain . '/webmention',
-            'error'    => $this->session->takeFlash('error'),
-            'merged'   => $this->session->takeFlash('merged'),
-            'merge_error' => $this->session->takeFlash('merge_error'),
-            'account_merged'      => $this->session->takeFlash('account_merged'),
-            'account_merge_error' => $this->session->takeFlash('account_merge_error'),
             'csrf'     => $this->session->csrfToken(),
         ], $this->nav($user, 'sites'));
     }
@@ -531,7 +526,7 @@ final class SettingsController extends Controller
         $domain = self::normalizeDomain((string) $request->post('domain'));
 
         if ($domain === null) {
-            return $this->flashTo('/settings/sites', 'error', 'Enter a domain name, like example.com');
+            return $this->flashTo('/settings/sites/add', 'error', 'Enter a domain name, like example.com');
         }
 
         if (($existing = $this->sites->findByAccountAndDomain($user->id, $domain)) !== null) {
@@ -546,13 +541,74 @@ final class SettingsController extends Controller
         if ($problem !== null) {
             $tag = '<link rel="webmention" href="' . $this->verifier->endpointFor($user) . '">';
 
-            return $this->flashTo('/settings/sites', 'error', "$problem Add $tag to the home page of $domain, then try again.");
+            return $this->flashTo('/settings/sites/add', 'error', "$problem Add $tag to the home page of $domain, then try again.");
         }
 
         $site = $this->sites->findOrCreate($user->id, $domain);
         $this->sites->markVerified($site->id);
 
-        return Response::seeOther('/settings/sites');
+        return $this->flashTo('/settings/sites', 'notice', "Added $domain.");
+    }
+
+    /**
+     * The three forms that used to sit under the list, each on its own page
+     * so a message about it is the first thing seen, not something below the
+     * fold.
+     *
+     * @param array<string, string> $params
+     */
+    public function addSiteForm(Request $request, array $params): Response
+    {
+        if (($user = $this->currentUser($request)) === null) {
+            return Response::redirect('/');
+        }
+
+        return $this->page('site-add', 'Add a site', [
+            'endpoint' => $this->config->baseUrl() . '/' . $user->domain . '/webmention',
+            'error'    => $this->session->takeFlash('error'),
+            'csrf'     => $this->session->csrfToken(),
+        ], $this->nav($user, 'sites'));
+    }
+
+    /** @param array<string, string> $params */
+    public function bringAccountForm(Request $request, array $params): Response
+    {
+        if (($user = $this->currentUser($request)) === null) {
+            return Response::redirect('/');
+        }
+
+        return $this->page('site-bring', 'Bring in a site from another account', [
+            'endpoint' => $this->config->baseUrl() . '/' . $user->domain . '/webmention',
+            'error'    => $this->session->takeFlash('error'),
+            'csrf'     => $this->session->csrfToken(),
+        ], $this->nav($user, 'sites'));
+    }
+
+    /** @param array<string, string> $params */
+    public function muteForm(Request $request, array $params): Response
+    {
+        if (($user = $this->currentUser($request)) === null) {
+            return Response::redirect('/');
+        }
+
+        return $this->page('blocks-mute', 'Mute a source or author', [
+            'error' => $this->session->takeFlash('error'),
+            'csrf'  => $this->session->csrfToken(),
+        ], $this->nav($user, 'blocks'));
+    }
+
+    /** @param array<string, string> $params */
+    public function refilePageForm(Request $request, array $params): Response
+    {
+        if (($user = $this->currentUser($request)) === null) {
+            return Response::redirect('/');
+        }
+
+        return $this->page('site-refile', 'Moved a page?', [
+            'notice' => $this->session->takeFlash('merged'),
+            'error'  => $this->session->takeFlash('merge_error'),
+            'csrf'   => $this->session->csrfToken(),
+        ], $this->nav($user, 'sites'));
     }
 
     /**
@@ -606,7 +662,7 @@ final class SettingsController extends Controller
         }
         $this->checkCsrf($request);
 
-        $fail = fn (string $why): Response => $this->flashTo('/settings/sites', 'merge_error', $why);
+        $fail = fn (string $why): Response => $this->flashTo('/settings/sites/refile', 'merge_error', $why);
 
         $old = trim((string) $request->post('old_url'));
         if (!Url::isHttp($old)) {
@@ -637,7 +693,7 @@ final class SettingsController extends Controller
 
         $moved = $this->pages->merge($from, $into);
 
-        return $this->flashTo('/settings/sites', 'merged', sprintf(
+        return $this->flashTo('/settings/sites/refile', 'merged', sprintf(
             '%d mention%s from %s now filed under %s.',
             $moved,
             $moved === 1 ? '' : 's',
@@ -725,7 +781,7 @@ final class SettingsController extends Controller
 
         return $this->page('blocks', 'Blocklists', [
             'mutes'    => array_map(static fn (Mute $m): array => ['id' => $m->id, 'kind' => $m->kind, 'pattern' => $m->pattern, 'label' => $m->describe()], $this->mutes->forAccount($user->id)),
-            'mute_notice' => $this->session->takeFlash('muted'),
+            'notice'   => $this->session->takeFlash('notice'),
             'domains'  => $this->blocks->domainsForAccount($user->id),
             'sources'  => $sources,
             'total'    => $total,
@@ -751,18 +807,22 @@ final class SettingsController extends Controller
 
         $kind    = (string) $request->post('kind');
         $pattern = Mute::normalizePattern((string) $request->post('pattern'));
+        // From a review page, back there; from the mute form, its result goes to the list.
         $back    = ReturnPath::resolve($request->post('back'), '/settings/blocks');
-        $param   = $back === '/settings/blocks' ? 'muted' : 'notice';
 
         if (!in_array($kind, Mute::KINDS, true) || $pattern === null) {
-            return $this->flashTo($back, $param, 'Enter a domain name like example.com, or a URL prefix like https://example.com/user/');
+            $problem = 'Enter a domain name like example.com, or a URL prefix like https://example.com/user/';
+
+            return $back === '/settings/blocks'
+                ? $this->flashTo('/settings/blocks/mute', 'error', $problem)
+                : $this->flashTo($back, 'notice', $problem);
         }
 
         $rule   = $this->mutes->add($user->id, $kind, $pattern);
         $hidden = $this->links->hideMatching($user->id, $rule);
         $this->sourceActivity->forget($user->id);
 
-        return $this->flashTo($back, $param, sprintf(
+        return $this->flashTo($back, 'notice', sprintf(
             'Muted %s. %d existing webmention%s hidden; new ones will be too.',
             lcfirst($rule->describe()),
             $hidden,
@@ -790,7 +850,7 @@ final class SettingsController extends Controller
         $this->mutes->remove($user->id, $rule->id);
         $restored = $this->links->restoreHidden($user->id, $this->mutes->forAccount($user->id));
 
-        return $this->flashTo('/settings/blocks', 'muted', sprintf(
+        return $this->flashTo('/settings/blocks', 'notice', sprintf(
             'Unmuted %s. %d webmention%s visible again.',
             lcfirst($rule->describe()),
             $restored,
