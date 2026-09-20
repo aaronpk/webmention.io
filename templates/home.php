@@ -31,7 +31,8 @@
     </div>
 </section>
 
-<section class="doc" id="use-it">
+<div class="home-docs">
+<section class="card doc" id="use-it">
     <h2><a href="#use-it">Use it on your site</a></h2>
     <p>Once you have signed in, add the following tag to your HTML, replacing "username" with your username:</p>
     <pre><code>&lt;link rel="webmention" href="<?= $base_url ?>/username/webmention" /&gt;</code></pre>
@@ -39,7 +40,7 @@
     <p>Your username is most likely your domain. For instance, if your website is <code>https://aaronparecki.com/</code>, your username is <code>aaronparecki.com</code>.</p>
 </section>
 
-<section class="doc" id="show-mentions">
+<section class="card doc" id="show-mentions">
     <h2><a href="#show-mentions">Show mentions on your pages</a></h2>
     <p>Drop three lines into a page and its likes, reposts, replies and mentions appear, with no dependencies:</p>
     <pre><code>&lt;div data-webmention-target="https://example.com/post/"&gt;&lt;/div&gt;
@@ -48,3 +49,4 @@
     <p>The <a href="/api">API documentation</a> covers the script's options and shows it running, along with the JSON API for
         listing and counting mentions, Atom and h-feed feeds, web hooks, example data for development, and a full export of your account.</p>
 </section>
+</div>

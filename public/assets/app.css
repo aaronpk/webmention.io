@@ -241,10 +241,14 @@ pre code { background: none; padding: 0; overflow-wrap: normal; }
 .sign-in { margin-top: 1.5rem; max-width: 30rem; }
 .sign-in label { display: block; font-weight: 600; margin-bottom: .4rem; }
 
-.doc {
+/* Long-form docs (the API page) run as one column separated by rules; on the
+   home page the same sections sit in cards instead. */
+.doc:not(.card) {
     border-top: 1px solid var(--line);
     padding: 2rem 0 .5rem;
 }
+
+.home-docs { margin-top: 2rem; }
 
 .doc h2 a, .doc h3 a { color: inherit; text-decoration: none; }
 .doc h2 a:hover::after, .doc h3 a:hover::after { content: " #"; color: var(--muted); }
