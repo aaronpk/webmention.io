@@ -47,7 +47,14 @@ final class AccountMergeTest extends IntegrationTestCase
         $this->http->respond('GET', 'https://elsewhere.example/', 200, '<html><body>hi</body></html>', ['Content-Type' => 'text/html']);
         $problem = $merger->check($this->new, 'steele.example');
         self::assertIsString($problem);
-        self::assertStringContainsString('redirects to elsewhere.example', $problem);
+        self::assertStringContainsString("redirects to elsewhere.example, which is not one of this account's verified sites", $problem);
+
+        // Points at another account's endpoint, with only the http-to-https hop: the message names the endpoint, not the hop.
+        $this->http->respond('GET', 'http://steele.example/', 301, '', ['Location' => 'https://steele.example/']);
+        $this->http->respond('GET', 'https://steele.example/', 200, '<html><head><link rel="webmention" href="https://webmention.io/oldname/webmention"></head></html>', ['Content-Type' => 'text/html']);
+        $problem = (string) $merger->check($this->new, 'steele.example');
+        self::assertStringContainsString("steele.example does not redirect to any of this account's sites, and https://steele.example/ points to a different webmention endpoint (https://webmention.io/oldname/webmention).", $problem);
+        self::assertStringNotContainsString('redirects to steele.example', $problem);
 
         // Advertises the new account's endpoint instead: proved.
         $this->http->respond('GET', 'https://steele.example/', 200, '<html><head><link rel="webmention" href="https://webmention.io/www.steele.example/webmention"></head></html>', ['Content-Type' => 'text/html']);

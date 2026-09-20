@@ -82,7 +82,8 @@ final class AccountMerger
         }
 
         // The domain advertises this account's endpoint...
-        if ($this->verifier->verify($into, $domain) === null) {
+        $notAdvertised = $this->verifier->verify($into, $domain);
+        if ($notAdvertised === null) {
             return $old;
         }
 
@@ -116,14 +117,17 @@ final class AccountMerger
                 if (in_array($host, $verified, true)) {
                     return $old;
                 }
-                $seen[$host] = true;
+                // http to https, or to the www. form, is the site itself, not a destination.
+                if (!Url::sameOwner($host, $domain)) {
+                    $seen[$host] = true;
+                }
             }
         }
 
-        $where = $seen === [] ? 'does not redirect anywhere' : 'redirects to ' . implode(', ', array_keys($seen));
+        $where = $seen === [] ? "does not redirect to any of this account's sites" : 'redirects to ' . implode(', ', array_keys($seen)) . ", which is not one of this account's verified sites";
 
-        return "$domain $where, and does not advertise this account's webmention endpoint, so it cannot be shown to be yours. "
-            . "Point it at one of this account's verified sites, or add the endpoint tag to its home page, then try again.";
+        return "$domain $where, and $notAdvertised So it cannot be shown to be yours. "
+            . "Put this account's webmention tag on its home page (both the HTML tag and any Link header), or redirect it to one of this account's verified sites, then try again.";
     }
 
     /**
