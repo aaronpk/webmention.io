@@ -343,7 +343,7 @@ A: In short no, however you should be able to get the same data from the API, an
 
 Written in PHP (8.2+) with no framework: a hand-rolled router, plain PHP templates, PDO for MySQL/MariaDB and ext-redis. The only dependencies are [XRay](https://github.com/aaronpk/XRay), which fetches and parses the source of each webmention, and [indieauth/client](https://github.com/indieweb/indieauth-client-php) for signing in.
 
-Requirements: PHP 8.2 with the curl, mbstring, pdo_mysql, redis and xmlwriter extensions; MySQL or MariaDB; Redis.
+Requirements: PHP 8.2 with the curl, intl, mbstring, pdo_mysql, redis and xmlwriter extensions; MySQL or MariaDB; Redis. (`intl` is what turns an internationalised domain into its punycode form; without it, sites and sign-ins on such a domain are refused.)
 
 ```bash
 composer install

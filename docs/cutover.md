@@ -29,11 +29,13 @@ Both apps use the same database schema and the same Redis keys for webmention st
 
 ## Before the day
 
-1. **Check the server has what the app needs.** It needs PHP 8.2+ with curl, mbstring, pdo_mysql, redis and xmlwriter, plus Composer.
+1. **Check the server has what the app needs.** It needs PHP 8.2+ with curl, intl, mbstring, pdo_mysql, redis and xmlwriter, plus Composer.
 
    ```bash
-   php -v && php -m | grep -E 'curl|mbstring|pdo_mysql|redis|xmlwriter'
+   php -v && php -m | grep -E 'curl|intl|mbstring|pdo_mysql|redis|xmlwriter'
    ```
+
+   `intl` is the newest of these; `apt-get install php8.2-intl` brings the rest of the PHP 8.2 packages up to the same point release with it and restarts php-fpm, so install it before deploying rather than during. It turns an internationalised domain into punycode; `composer install` refuses to run without it.
 
 2. **Deploy the code alongside the Ruby app**, e.g. `/web/sites/webmention.io-php`:
 
@@ -205,6 +207,15 @@ Every `.sql` file below can be applied with `tools/migrate --apply` instead of t
   mysql webmention < database/migrations/2026-09-18-webhook-delivery-attempt.sql
   ```
 
+* **Clean up malformed site domains.** 347 `sites` rows hold something that is not a bare hostname, so they can never verify and never receive: a whole URL from the Ruby add-site form, which validated nothing (`controllers/controller.rb:75`), or a profile URL's path encoded with underscores, from the account name that `controllers/auth.rb:75` built at sign-in and `controller.rb:62` copied into the first site. 36 accounts have never had a single webmention because of it. Needs `php8.2-intl` installed first.
+
+  ```bash
+  php database/migrations/2026-09-29-clean-site-domains.php            # prints what would change
+  php database/migrations/2026-09-29-clean-site-domains.php --apply
+  tools/migrate --mark=2026-09-29-clean-site-domains.php
+  ```
+
+  A row is renamed where the name is free, folded into the account's own row where it is not, and left alone when nothing can be made of it or when a duplicate turns out to hold webmentions. Renaming an underscore row also clears its verification: IndieAuth proved a path, not the whole host, and 16 of those hosts are held by another account as well, `snarfed.org` among them. Run `tools/verify-sites --limit=200 --apply` afterwards to settle the renamed rows. Accounts are never touched — the underscore form is the endpoint name those people published, and `AuthController::domainFor()` still produces it so their sign-ins keep finding the same account.
 * **Re-sanitising stored content is no longer harmful, but still not worth it.** An earlier note here proposed passing old `links.content` through `p3k\XRay\Formats\Format::sanitizeHTML()`, for rows the hosted XRay stored before v2.0.1. Measured on a copy of production, 12% of rows changed, and the change was mostly the removal of `rel="nofollow"`, because XRay's HTMLPurifier configuration allowed no `rel` attribute at all. XRay v2.0.2 fixes that upstream by keeping the link-level values (`nofollow`, `noopener`, `ugc`, `sponsored`) and still dropping page-wide ones such as `author` and `canonical`. So a pass would no longer strip nofollow from roughly 70,000 rows. It is still not worth running: only 50 stored rows come from github.com, which was the original reason.
 * **Audit and repair.** `tools/audit` reports rows pointing at things that no longer exist, URLs with more than one page row, and domains verified on more than one account (each of those is resolved by its owner with "Bring in a site from another account" on the Sites page; signing in with a domain no longer creates such a duplicate, and a verified site whose pages come to advertise another account's endpoint loses its verification on its next check, so add `--recheck-verified-older-than=30` to the nightly `tools/verify-sites` line once the backlog is clear); `tools/repair` fixes the repairable ones (dry run by default, `--apply` to write). Both are computed from the data, so they run against production directly. Run the audit after the cutover, and weekly from cron.
 * **Verification backlog.** `tools/verify-sites --limit=4000 --apply --pause=250` clears the sites that were never checked; it takes a few hours, so run it overnight, then install the nightly cron line above.

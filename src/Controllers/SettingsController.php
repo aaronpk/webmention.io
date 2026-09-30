@@ -865,10 +865,15 @@ final class SettingsController extends Controller
         ));
     }
 
-    /** "https://Example.com/path" → "example.com". Null if there's no usable host. */
+    /**
+     * "https://Example.com/path" → "example.com", "tīkōuka.dev" →
+     * "xn--tkuka-m3a3v.dev". Null if there's no usable host.
+     */
     public static function normalizeDomain(string $input): ?string
     {
-        $input = trim($input);
+        // A hostname never contains a space, so someone who typed one meant
+        // the name without it.
+        $input = (string) preg_replace('/\s+/u', '', $input);
         if ($input === '') {
             return null;
         }
@@ -877,9 +882,38 @@ final class SettingsController extends Controller
             $input = 'http://' . $input;
         }
 
-        $host = Url::host($input);
+        // parse_url rather than Url::host(), which percent-encodes first:
+        // right for a path, wrong for a host, and how site rows holding
+        // "t%c4%abk%c5%8duka.dev" came about.
+        $parts = parse_url($input);
+        if ($parts === false) {
+            return null;
+        }
 
-        return $host !== null && preg_match('/^[a-z0-9.\-_%]+$/', $host) === 1 && str_contains($host, '.') ? $host : null;
+        // "sabrinamedwinter@gmail.com" is an email address, and its host is
+        // the mail provider rather than anyone's site. A profile URL is
+        // refused for the same reason (AuthController::normalizeMe).
+        if (isset($parts['user']) || isset($parts['pass'])) {
+            return null;
+        }
+
+        $host = $parts['host'] ?? null;
+        if (!is_string($host) || $host === '') {
+            return null;
+        }
+
+        $host = strtolower($host);
+
+        if (preg_match('/[^\x00-\x7F]/', $host) === 1) {
+            $host = idn_to_ascii($host, IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46);
+            if (!is_string($host) || $host === '') {
+                return null;
+            }
+        }
+
+        // "_" stays: brandon_swoop.ngrok.io is a real host. "%" does not,
+        // since only the encoding bug above ever put one in a hostname.
+        return preg_match('/^[a-z0-9.\-_]+$/', $host) === 1 && str_contains($host, '.') ? $host : null;
     }
 
     private function tokenFor(Account $user): string
