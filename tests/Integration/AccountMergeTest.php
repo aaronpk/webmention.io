@@ -67,6 +67,26 @@ final class AccountMergeTest extends IntegrationTestCase
         self::assertStringContainsString("Enter the site's domain", (string) $merger->check($this->new, '   '));
     }
 
+    public function testTheOldPerDomainEndpointProvesNothing(): void
+    {
+        // Issue 5: /d/{domain}/webmention named no account, so a site still
+        // advertising it must not let just anyone bring its account in.
+        $victim = $this->createAccount('ruth.example');
+        $this->createSite($victim, 'ruth.example', ['verified_at' => '2026-01-01 00:00:00']);
+        $this->createSite($victim, 'ruth-photos.example', ['verified_at' => '2026-01-01 00:00:00']);
+        $this->http->respond('GET', 'https://ruth.example/', 200, '<html><head><link rel="webmention" href="https://webmention.io/d/ruth.example/webmention"></head></html>', ['Content-Type' => 'text/html']);
+
+        $problem = $this->service(AccountMerger::class)->check($this->new, 'ruth.example');
+        self::assertIsString($problem);
+        self::assertStringContainsString('points to a different webmention endpoint (https://webmention.io/d/ruth.example/webmention)', $problem);
+
+        $csrf = $this->signIn($this->new);
+        $this->request('POST', '/settings/merge-account', post: ['site' => 'ruth.example', 'csrf' => $csrf]);
+        $this->request('POST', '/settings/merge-account/confirm', post: ['old_domain' => 'ruth.example', 'csrf' => $csrf]);
+        self::assertNotNull($this->service(AccountRepository::class)->find($victim->id));
+        self::assertCount(2, $this->service(SiteRepository::class)->listForAccount($victim->id));
+    }
+
     public function testAnAccountIsFoundByItsNameOrByASiteItHolds(): void
     {
         $merger = $this->service(AccountMerger::class);

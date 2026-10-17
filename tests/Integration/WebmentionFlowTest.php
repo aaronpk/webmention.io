@@ -208,17 +208,10 @@ final class WebmentionFlowTest extends IntegrationTestCase
         }
     }
 
-    public function testSiteEndpointChecksTheTargetDomain(): void
+    public function testTheOldPerDomainEndpointIsGone(): void
     {
-        $mismatch = $this->request('POST', '/d/target.example.com/webmention', post: ['source' => self::SOURCE, 'target' => 'http://other.example/x']);
-        self::assertSame(400, $mismatch->status);
-        self::assertSame('Target domain (other.example) does not match the domain of this webmention endpoint (target.example.com)', self::json($mismatch)['error_description']);
-
-        $ok = $this->request('POST', '/d/target.example.com/webmention', post: ['source' => self::SOURCE, 'target' => self::TARGET, 'debug' => '1']);
-        self::assertSame(200, $ok->status);
-        self::assertSame('site', $this->service(LinkRepository::class)->recentForAccount($this->account->id, 1)[0]->endpointType);
-
-        self::assertSame(404, $this->request('POST', '/d/unknown.example/webmention', post: ['source' => self::SOURCE, 'target' => self::TARGET])->status);
+        self::assertSame(404, $this->request('POST', '/d/target.example.com/webmention', post: ['source' => self::SOURCE, 'target' => self::TARGET, 'debug' => '1'])->status);
+        self::assertSame([], $this->service(LinkRepository::class)->recentForAccount($this->account->id, 1));
     }
 
     public function testRemovedLinkDeletesTheMentionAndNotifies(): void

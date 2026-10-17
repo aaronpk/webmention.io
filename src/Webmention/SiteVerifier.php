@@ -64,7 +64,7 @@ final class SiteVerifier
     public function verify(Account $account, string $domain, array $alsoTry = []): ?string
     {
         $domain   = strtolower($domain);
-        $accepted = $this->acceptedEndpoints($account, $domain);
+        $accepted = $this->acceptedEndpoints($account);
         $http     = $this->http->http(self::TIMEOUT);
         $http->set_max_redirects(0);
         $problem  = null;
@@ -147,9 +147,7 @@ final class SiteVerifier
 
     /**
      * The account an endpoint of this service names: "alice.example" for
-     * https://webmention.io/alice.example/webmention. Null for any other URL,
-     * and for the /d/{domain}/webmention form, which any account may claim
-     * and so names nobody.
+     * https://webmention.io/alice.example/webmention. Null for any other URL.
      */
     public function accountNamedBy(string $endpoint): ?string
     {
@@ -160,7 +158,7 @@ final class SiteVerifier
                 continue;
             }
             $parts = explode('/', substr($endpoint, strlen($base)));
-            if (count($parts) === 2 && $parts[1] === 'webmention' && $parts[0] !== 'd' && $parts[0] !== '') {
+            if (count($parts) === 2 && $parts[1] === 'webmention' && $parts[0] !== '') {
                 return rawurldecode($parts[0]);
             }
         }
@@ -183,7 +181,7 @@ final class SiteVerifier
     /**
      * @return list<string>
      */
-    private function acceptedEndpoints(Account $account, string $domain): array
+    private function acceptedEndpoints(Account $account): array
     {
         $names = array_unique(array_filter([(string) $account->username, (string) $account->domain]));
 
@@ -191,7 +189,6 @@ final class SiteVerifier
         // deployment with another BASE_URL still has to recognise.
         $accepted = [];
         foreach (array_unique([$this->config->baseUrl(), self::PUBLIC_BASE]) as $base) {
-            $accepted[] = self::normalize("$base/d/$domain/webmention");
             foreach ($names as $name) {
                 $accepted[] = self::normalize($base . '/' . rawurlencode($name) . '/webmention');
                 $accepted[] = self::normalize("$base/$name/webmention");

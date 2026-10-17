@@ -176,7 +176,6 @@ final class Processor
 
         $row = [
             'protocol'      => $job->protocol,
-            'endpoint_type' => $job->endpointType,
             'is_private'    => $job->isPrivate(),
             // A mention deleted from the dashboard was also blocked; getting
             // here again means it was unblocked, so it comes back.

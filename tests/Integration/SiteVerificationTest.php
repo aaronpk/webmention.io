@@ -155,7 +155,8 @@ final class SiteVerificationTest extends IntegrationTestCase
         self::assertStringContainsString("moved.example (account {$this->alice->id}, verified): unverified: moved.example now advertises the endpoint of the account mallory.example", $lines);
 
         self::assertFalse($sites->find($moved->id)?->isVerified(), 'a domain that names another account has moved');
-        self::assertTrue($sites->find($shared->id)?->isVerified(), 'the /d/ form names nobody, so both keep it');
+        self::assertTrue($sites->find($shared->id)?->isVerified(), 'the old /d/ form names nobody: no longer proof, but not a move either');
+        self::assertStringContainsString('different webmention endpoint', (string) $sites->find($shared->id)?->verificationError);
         self::assertTrue($sites->find($shared2->id)?->isVerified());
         self::assertTrue($sites->find($typo->id)?->isVerified(), 'an endpoint naming no existing account is just a wrong tag');
         self::assertStringContainsString('different webmention endpoint', (string) $sites->find($typo->id)?->verificationError);
@@ -296,9 +297,6 @@ final class SiteVerificationTest extends IntegrationTestCase
         self::assertSame(['https://a.example/1'], $sources(['target' => 'https://shared.example/post']));
         self::assertSame(1, self::json($this->request('GET', '/api/count', ['target' => 'https://shared.example/post']))['count']);
         self::assertSame(['https://m.example/1'], $sources(['token' => $malloryToken]));
-
-        // The per-domain endpoint goes to the verified holder.
-        self::assertSame($aliceSite->id, $sites->findByDomain('shared.example')?->id);
 
         // An unverified site with no verified rival is untouched.
         $lonely = $this->createSite($this->mallory, 'lonely.example');

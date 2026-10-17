@@ -44,13 +44,10 @@ final class SiteArchiveTest extends IntegrationTestCase
         self::assertStringContainsString('<p class="notice">Archived 1 site.</p>', $this->request('GET', '/settings/sites')->body);
         self::assertTrue($this->service(SiteRepository::class)->find($this->old->id)?->isArchived());
 
-        // Both endpoints refuse it.
+        // The endpoint refuses it.
         $refused = $this->request('POST', '/alice.example/webmention', post: ['source' => 'https://carol.example/new', 'target' => 'https://old.example/post']);
         self::assertSame(404, $refused->status);
         self::assertSame(['error' => 'invalid_target', 'error_description' => 'target domain is archived on this account'], self::json($refused));
-        $refused = $this->request('POST', '/d/old.example/webmention', post: ['source' => 'https://carol.example/other', 'target' => 'https://old.example/post']);
-        self::assertSame(404, $refused->status);
-        self::assertSame('target domain is archived on this account', self::json($refused)['error_description']);
 
         // The live site on the same account still receives.
         self::assertSame(201, $this->request('POST', '/alice.example/webmention', post: ['source' => 'https://carol.example/live', 'target' => 'https://alice.example/post'])->status);

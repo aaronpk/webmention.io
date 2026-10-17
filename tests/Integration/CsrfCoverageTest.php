@@ -19,7 +19,7 @@ final class CsrfCoverageTest extends IntegrationTestCase
      * and starting a sign-in has no session yet (it checks the request's
      * origin instead; see AuthFlowTest).
      */
-    private const OPEN = ['/d/{domain}/webmention', '/{username}/webmention', '/auth/start'];
+    private const OPEN = ['/{username}/webmention', '/auth/start'];
 
     public function testEveryPostRouteRequiresTheCsrfToken(): void
     {

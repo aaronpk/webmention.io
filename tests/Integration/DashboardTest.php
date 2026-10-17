@@ -314,7 +314,7 @@ final class DashboardTest extends IntegrationTestCase
         self::assertSame(['mallory.example'], $domains);
     }
 
-    public function testASiteIsAcceptedWithALinkHeaderOrTagOrPerDomainEndpoint(): void
+    public function testASiteIsAcceptedWithALinkHeaderOrTagButNotTheOldPerDomainEndpoint(): void
     {
         $csrf = $this->signIn($this->mallory);
 
@@ -334,7 +334,7 @@ final class DashboardTest extends IntegrationTestCase
         $this->request('POST', '/settings/sites/new', post: ['domain' => 'perdomain.example', 'csrf' => $csrf]);
 
         $domains = array_map(static fn (Site $s): ?string => $s->domain, $this->service(SiteRepository::class)->listForAccount($this->mallory->id));
-        self::assertSame(['mallory.example', 'tag.example', 'perdomain.example'], $domains);
+        self::assertSame(['mallory.example', 'tag.example'], $domains, '/d/{domain}/webmention names no account, so it proves nothing');
     }
 
     public function testACallbackUrlThatCanNeverBeReachedIsRefused(): void

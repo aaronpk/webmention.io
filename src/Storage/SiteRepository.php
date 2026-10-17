@@ -76,16 +76,6 @@ final class SiteRepository
         ]);
     }
 
-    public function findByDomain(string $domain): ?Site
-    {
-        $row = $this->db->one(
-            'SELECT * FROM sites WHERE domain = ? ORDER BY archived_at IS NOT NULL, verified_at IS NULL, id LIMIT 1',
-            [$domain],
-        );
-
-        return $row === null ? null : Site::fromRow($row);
-    }
-
     /** Record that the site advertises its account's endpoint. */
     public function markVerified(int $id): void
     {

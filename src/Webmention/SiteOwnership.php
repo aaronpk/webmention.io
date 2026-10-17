@@ -19,8 +19,7 @@ use Webmention\Storage\SiteRepository;
  * redesign, should not lose its standing. The one exception is a domain
  * whose pages now name a different account of this service: that is not an
  * outage but the domain moving, so the old row loses its verification and
- * says where the domain went. Only the /{account}/webmention form counts as
- * naming an account; /d/{domain}/webmention can be claimed by any account.
+ * says where the domain went.
  */
 final class SiteOwnership
 {

@@ -128,41 +128,7 @@ final class WebmentionController extends Controller
             return $this->archived($request);
         }
 
-        return $this->accept($request, $account, $username, 'account');
-    }
-
-    /** @param array<string, string> $params */
-    public function receiveForSite(Request $request, array $params): Response
-    {
-        if (($invalid = $this->validate($request)) !== null) {
-            return $invalid;
-        }
-
-        $domain  = $params['domain'];
-        $site    = $this->sites->findByDomain($domain);
-        $account = $site === null ? null : $this->accounts->find($site->accountId);
-
-        if ($site === null || $account === null) {
-            return $this->json->respond($request, 404, [
-                'error'             => 'not_found',
-                'error_description' => "site $domain not found",
-            ]);
-        }
-
-        if ($site->isArchived()) {
-            return $this->archived($request);
-        }
-
-        $targetDomain = Url::host((string) $request->input('target'));
-
-        if ($targetDomain !== strtolower((string) $site->domain)) {
-            return $this->json->respond($request, 400, [
-                'error'             => 'invalid_target',
-                'error_description' => "Target domain ($targetDomain) does not match the domain of this webmention endpoint ($domain)",
-            ]);
-        }
-
-        return $this->accept($request, $account, (string) $account->username, 'site');
+        return $this->accept($request, $account, $username);
     }
 
     /** The owner archived the target's site: it keeps its webmentions but takes no new ones. */
@@ -217,7 +183,7 @@ final class WebmentionController extends Controller
         return null;
     }
 
-    private function accept(Request $request, Account $account, string $username, string $endpointType): Response
+    private function accept(Request $request, Account $account, string $username): Response
     {
         $source = (string) $request->input('source');
         $target = (string) $request->input('target');
@@ -283,7 +249,6 @@ final class WebmentionController extends Controller
             target:       $target,
             token:        $token,
             code:         $code,
-            endpointType: $endpointType,
         );
 
         if ($request->has('debug')) {

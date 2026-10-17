@@ -392,7 +392,6 @@ final class Bootstrap
         $r->get('/admin/accounts', [AdminController::class, 'accountList']);
         $r->get('/admin/accounts/{id}', [AdminController::class, 'account']);
 
-        $r->post('/d/{domain}/webmention', [WebmentionController::class, 'receiveForSite']);
         $r->get('/{username}/webmention', [WebmentionController::class, 'form']);
         $r->post('/{username}/webmention', [WebmentionController::class, 'receive']);
         $r->get('/{username}/webmention/{token}', [WebmentionController::class, 'status']);

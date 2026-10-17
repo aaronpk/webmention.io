@@ -15,7 +15,6 @@ final class Job
         public readonly string $target,
         public readonly string $token,
         public readonly ?string $code = null,
-        public readonly string $endpointType = 'account',
         public readonly string $protocol = 'webmention',
     ) {
     }
@@ -29,7 +28,6 @@ final class Job
             target:       (string) ($data['target'] ?? ''),
             token:        (string) ($data['token'] ?? ''),
             code:         isset($data['code']) && is_string($data['code']) && $data['code'] !== '' ? $data['code'] : null,
-            endpointType: ($data['endpoint_type'] ?? '') === 'site' ? 'site' : 'account',
             // Only ever "webmention" now; nothing else may reach the database from the queue.
             protocol:     'webmention',
         );
@@ -44,7 +42,6 @@ final class Job
             'target'        => $this->target,
             'token'         => $this->token,
             'code'          => $this->code,
-            'endpoint_type' => $this->endpointType,
             'protocol'      => $this->protocol,
         ];
     }
