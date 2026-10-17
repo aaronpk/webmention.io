@@ -555,6 +555,45 @@ final class AuthFlowTest extends IntegrationTestCase
         self::assertNull($this->service(AccountRepository::class)->findByDomain('victim.example'));
     }
 
+    public function testTokenEndpointCannotVouchForAUrlByBorrowingItsAuthorizationEndpoint(): void
+    {
+        // Issue 4: the entered page names the victim's authorization endpoint
+        // beside a token endpoint of its own, and the callback is called
+        // directly with a made-up code.
+        $victim = $this->createAccount('nora.example');
+        $this->http->respond('GET', 'https://nora.example/', 200, '<html><head><link rel="authorization_endpoint" href="https://auth.example/auth"></head></html>', ['Content-Type' => 'text/html']);
+        $this->http->respond('GET', 'https://oscar.example/', 200, '<html><head><link rel="authorization_endpoint" href="https://auth.example/auth"><link rel="token_endpoint" href="https://oscar.example/token"></head></html>', ['Content-Type' => 'text/html']);
+        parse_str((string) parse_url($this->startSignIn('https://oscar.example/'), PHP_URL_QUERY), $params);
+
+        $this->http->respond('POST', 'https://auth.example/auth', 400, '{"error":"invalid_grant"}', ['Content-Type' => 'application/json']);
+        $this->http->respond('POST', 'https://oscar.example/token', 200, '{"me":"https://nora.example/"}', ['Content-Type' => 'application/json']);
+
+        $response = $this->request('GET', '/auth/callback', ['code' => 'junk', 'state' => $params['state']]);
+
+        self::assertSame(400, $response->status);
+        self::assertArrayNotHasKey('user_id', $_SESSION);
+        self::assertCount(1, $this->http->posts('https://oscar.example/token'), 'the retry ran, and its answer was refused');
+        self::assertNotNull($this->service(AccountRepository::class)->find($victim->id));
+    }
+
+    public function testTokenEndpointMayReturnAnotherUrlThatDeclaresTheSameEndpoints(): void
+    {
+        // Signing in with one URL and being told it is another of the same
+        // person's, both pointing at the same server pair.
+        $endpoints = '<link rel="authorization_endpoint" href="https://old.example/authorization"><link rel="token_endpoint" href="https://old.example/token">';
+        $this->http->respond('GET', 'https://pat.example/', 200, "<html><head>$endpoints</head></html>", ['Content-Type' => 'text/html']);
+        $this->http->respond('GET', 'https://pat.example/me/', 200, "<html><head>$endpoints</head></html>", ['Content-Type' => 'text/html']);
+        parse_str((string) parse_url($this->startSignIn('https://pat.example/'), PHP_URL_QUERY), $params);
+
+        $this->http->respond('POST', 'https://old.example/authorization', 303, '', ['Location' => '/login']);
+        $this->http->respond('POST', 'https://old.example/token', 200, '{"me":"https://pat.example/me/"}', ['Content-Type' => 'application/json']);
+
+        $response = $this->request('GET', '/auth/callback', ['code' => 'c0de', 'state' => $params['state']]);
+
+        self::assertSame(302, $response->status, $response->body);
+        self::assertNotNull($this->service(AccountRepository::class)->findByDomain('pat.example_me_'));
+    }
+
     public function testAnUnusableAnswerFromTheAuthorizationServerIsLoggedInDetail(): void
     {
         $log = sys_get_temp_dir() . '/webmention-test.log';

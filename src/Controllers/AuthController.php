@@ -234,18 +234,35 @@ final class AuthController extends Controller
 
         // As the library does: a different profile URL than was entered must
         // declare the same authorization endpoint, or anyone's server could
-        // vouch for anyone's URL.
+        // vouch for anyone's URL. Here it is the token endpoint that vouches,
+        // so that must match too: the entered page can name someone else's
+        // authorization endpoint beside a token endpoint of its own.
         $me = (string) Client::normalizeMeURL($me);
-        if ($me !== $entered && Client::discoverAuthorizationEndpoint($me) !== $authEndpoint) {
+        if ($me !== $entered && !self::declaresEndpoints($me, $authEndpoint, $tokenEndpoint)) {
             $error = [
                 'error'             => 'invalid_authorization_endpoint',
-                'error_description' => 'The authorization server of the returned profile URL did not match the initial authorization server',
+                'error_description' => 'The authorization and token endpoints of the returned profile URL did not match the ones that signed you in',
             ];
 
             return $this->failure($error, me: $entered, via: 'indieauth', endpoint: $tokenEndpoint, report: SignInReport::exchange($started, $request->query, $issuer, $attempts, $error, $me, $entered));
         }
 
         return $this->signInAs($me, 'indieauth', SignInReport::exchange($started, $request->query, $issuer, $attempts, null, $me, $entered));
+    }
+
+    /**
+     * Whether $me itself declares both endpoints. The library reads its one
+     * cached metadata document before a page's own links, so that is cleared
+     * first; otherwise a profile with no metadata of its own would be judged
+     * by whichever site's was loaded last.
+     */
+    private static function declaresEndpoints(string $me, string $authEndpoint, string $tokenEndpoint): bool
+    {
+        Client::setMetadata('about:blank', 'null');
+        Client::discoverMetadataEndpoint($me);
+
+        return Client::discoverAuthorizationEndpoint($me) === $authEndpoint
+            && Client::discoverTokenEndpoint($me) === $tokenEndpoint;
     }
 
     /**
