@@ -1,0 +1,25 @@
+#!/bin/sh
+# Munin plugin for webmention.io: webmentions received and processed, the
+# backlog, and the workers. Install as /etc/munin/plugins/webmention and set
+# the URL and the server's STATS_API_KEY in /etc/munin/plugin-conf.d/webmention:
+#
+#   [webmention]
+#   env.url https://webmention.io
+#   env.api_key ...
+#
+#%# family=manual
+#%# capabilities=multigraph
+
+url=${url:-https://webmention.io}
+
+if [ -z "$api_key" ]; then
+    echo "env.api_key is not set" >&2
+    exit 1
+fi
+
+case "$1" in
+    config) path=config ;;
+    *)      path=data ;;
+esac
+
+exec curl -fsS --max-time 20 -H "Authorization: Bearer $api_key" "${url%/}/stats/$path"

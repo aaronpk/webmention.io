@@ -22,6 +22,7 @@ use Webmention\Webmention\Job;
 use Webmention\Webmention\Processor;
 use Webmention\Webmention\Queue;
 use Webmention\Webmention\SiteDeleter;
+use Webmention\Webmention\Stats;
 use Webmention\Webmention\StatusStore;
 use Webmention\Webmention\WorkerHeartbeat;
 use Webmention\Webmention\WebHooks;
@@ -123,12 +124,14 @@ while (!$stop && $done < $maxJobs) {
 
     try {
         $result = $process($job);
+        $container->get(Stats::class)->processed($result);
         [$ignored, $last] = ErrorHandler::drain();
         $log->info("Job {$job->token}: $result" . ($ignored > 0 ? " ($ignored parser warnings, last: $last)" : ''));
     } catch (Throwable $e) {
         $log->exception($e, "Job {$job->token} ({$job->source} -> {$job->target})");
 
         try {
+            $container->get(Stats::class)->processed('internal_error');
             $container->get(StatusStore::class)->error($job->token, $job->source, $job->target, 'internal_error', 'An internal error occurred while processing this webmention');
         } catch (Throwable) {
         }

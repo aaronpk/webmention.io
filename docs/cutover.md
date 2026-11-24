@@ -10,7 +10,8 @@ Both apps use the same database schema and the same Redis keys for webmention st
 * **Sessions don't carry over.** Signed-in users sign in again.
 * **Sign-in uses the user's own IndieAuth server**, discovered from their website, instead of indieauth.com.
 * **Pingback is gone.** `POST /{user}/xmlrpc` and `POST /webmention?forward=` return 404.
-* **FedCM sign-in and the Munin `/stats` endpoints are gone.**
+* **FedCM sign-in is gone.**
+* **The Munin endpoints changed.** `/stats/{webmention,pingback}/{config,data}` became `/stats/config` and `/stats/data`, read by one multigraph plugin (`docs/munin/webmention`), and they need `Authorization: Bearer STATS_API_KEY`. With no key set they return 404.
 * **Bug fixes that change output**: see "Bugs in the Ruby app fixed by the rewrite" below. The ones API consumers could notice:
   * `.jf2` requests that used to fail with a 500 (links with no author photo, targets without a scheme) now return data.
   * Emoji in names and content are stored correctly instead of as `????` (issue 221). The Ruby app's database connection spoke three-byte `utf8`, so the server replaced each byte of a four-byte character with `?` on the way in. This app connects as `utf8mb4`. Rows damaged before the switch are not rewritten; re-sending the webmention refreshes one.

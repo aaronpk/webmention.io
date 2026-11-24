@@ -21,6 +21,7 @@ use Webmention\Webmention\Job;
 use Webmention\Webmention\Processor;
 use Webmention\Webmention\Queue;
 use Webmention\Webmention\RateLimiter;
+use Webmention\Webmention\Stats;
 use Webmention\Webmention\StatusStore;
 
 /**
@@ -70,6 +71,7 @@ final class WebmentionController extends Controller
         private readonly RateLimiter $limiter,
         private readonly Log $log,
         private readonly Config $config,
+        private readonly Stats $stats,
     ) {
         parent::__construct($view);
     }
@@ -99,6 +101,15 @@ final class WebmentionController extends Controller
 
     /** @param array<string, string> $params */
     public function receive(Request $request, array $params): Response
+    {
+        $response = $this->handle($request, $params);
+        $this->stats->received(Stats::receivedOutcome($response->status));
+
+        return $response;
+    }
+
+    /** @param array<string, string> $params */
+    private function handle(Request $request, array $params): Response
     {
         if (($invalid = $this->validate($request)) !== null) {
             return $invalid;
@@ -281,12 +292,15 @@ final class WebmentionController extends Controller
             $result = $this->processor->process($job);
         } catch (Throwable $e) {
             $this->log->exception($e, 'Processing ' . $job->source);
+            $this->stats->processed('internal_error');
 
             return $this->json->respond($request, 500, [
                 'error'             => 'internal_server_error',
                 'error_description' => 'An internal error occurred while processing this webmention',
             ]);
         }
+
+        $this->stats->processed($result);
 
         if ($result === 'success') {
             return $this->json->respond($request, 200, [

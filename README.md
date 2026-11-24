@@ -426,6 +426,20 @@ Ordinary webmentions are shown in full, since their content is public on the web
 
 Workers report in through the `webmention:workers` Redis hash, refreshed on each turn of `bin/worker`'s loop; one that has not been heard from for a minute is shown as stopped, with the time it was last seen.
 
+### Monitoring
+
+`docs/munin/webmention` is a Munin multigraph plugin with four graphs: webmentions received (queued, invalid, unknown target, rate limited, refused because the queue was full), webmentions processed by result, the backlog (queue, web hook retries, site purges), and workers alive and stopped. It fetches `/stats/config` and `/stats/data`, which need `Authorization: Bearer` with `STATS_API_KEY` from `.env`. With no key set, both return 404.
+
+Copy the plugin to `/etc/munin/plugins/webmention`, then create `/etc/munin/plugin-conf.d/webmention` (mode 600, since it holds the key):
+
+```
+[webmention]
+env.url https://webmention.io
+env.api_key ...
+```
+
+Then restart munin-node. The received and processed graphs read ever-increasing counters in the `webmention:stats:received` and `webmention:stats:processed` Redis hashes, and Munin works out the rate. Error codes not listed in `Stats::PROCESSED` are counted as `other`.
+
 ### Security notes for the spec
 
 `docs/spec-feedback.md` collects the points from the security review that concern the Webmention spec itself rather than this implementation.

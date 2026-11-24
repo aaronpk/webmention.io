@@ -18,6 +18,7 @@ use Webmention\Controllers\DashboardController;
 use Webmention\Controllers\MentionsController;
 use Webmention\Controllers\HomeController;
 use Webmention\Controllers\SettingsController;
+use Webmention\Controllers\StatsController;
 use Webmention\Controllers\WebmentionController;
 use Webmention\Http\JsonResponder;
 use Webmention\Http\Session;
@@ -45,6 +46,7 @@ use Webmention\Webmention\SourceActivity;
 use Webmention\Webmention\SiteDeleter;
 use Webmention\Webmention\SiteVerifier;
 use Webmention\Webmention\SourceFetcher;
+use Webmention\Webmention\Stats;
 use Webmention\Webmention\StatusStore;
 use Webmention\Webmention\TargetResolver;
 use Webmention\Webmention\WebhookRetries;
@@ -126,6 +128,7 @@ final class Bootstrap
         $c->set(AccountOverview::class, static fn (Container $c): AccountOverview => new AccountOverview($c->get(LinkRepository::class), $c->get(Redis::class)));
         $c->set(Queue::class, static fn (Container $c): Queue => new Queue($c->get(Redis::class)));
         $c->set(WorkerHeartbeat::class, static fn (Container $c): WorkerHeartbeat => new WorkerHeartbeat($c->get(Redis::class)));
+        $c->set(Stats::class, static fn (Container $c): Stats => new Stats($c->get(Redis::class)));
 
         // The admin section: reading, only.
         $c->set(Admins::class, static fn (): Admins => Admins::fromConfig($config));
@@ -246,6 +249,17 @@ final class Bootstrap
             $c->get(RateLimiter::class),
             $c->get(Log::class),
             $config,
+            $c->get(Stats::class),
+        ));
+
+        $c->set(StatsController::class, static fn (Container $c): StatsController => new StatsController(
+            $c->get(Template::class),
+            $config->get('STATS_API_KEY'),
+            $c->get(Stats::class),
+            $c->get(Queue::class),
+            $c->get(WebhookRetries::class),
+            $c->get(WorkerHeartbeat::class),
+            $c->get(Redis::class),
         ));
 
         $c->set(AuthController::class, static fn (Container $c): AuthController => new AuthController(
@@ -385,6 +399,9 @@ final class Bootstrap
         $r->get('/settings/blocks/mute', [SettingsController::class, 'muteForm']);
 
         // Read-only, and a 404 for anyone ADMIN_USERS does not name.
+        $r->get('/stats/config', [StatsController::class, 'config']);
+        $r->get('/stats/data', [StatsController::class, 'data']);
+
         $r->get('/admin', [AdminController::class, 'overview']);
         $r->get('/admin/activity', [AdminController::class, 'activity']);
         $r->get('/admin/sources', [AdminController::class, 'sources']);

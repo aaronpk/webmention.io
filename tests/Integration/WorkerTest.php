@@ -8,6 +8,7 @@ use Webmention\Tests\Support\IntegrationTestCase;
 use Webmention\Tests\Support\Subprocess;
 use Webmention\Webmention\Job;
 use Webmention\Webmention\Queue;
+use Webmention\Webmention\Stats;
 use Webmention\Webmention\StatusStore;
 
 /**
@@ -53,6 +54,7 @@ final class WorkerTest extends IntegrationTestCase
         self::assertSame('target_not_found', $this->waitForStatus('two'));
         self::assertTrue($this->worker->waitForExit(5), 'Worker did not exit after --max-jobs');
         self::assertStringContainsString('Worker stopping after 2 jobs', $this->workerLog());
+        self::assertSame(2, $this->service(Stats::class)->processedCounts()['target_not_found']);
     }
 
     public function testSkipsUnreadableQueueEntries(): void
