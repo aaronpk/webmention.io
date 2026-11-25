@@ -18,7 +18,7 @@ Wants=network-online.target
 Type=simple
 User=www-data
 WorkingDirectory=/web/sites/webmention.io
-ExecStart=/usr/bin/php -d memory_limit=256M bin/worker --max-jobs=1000 --name=%i
+ExecStart=/usr/bin/php8.4 -d memory_limit=256M bin/worker --max-jobs=1000 --name=%i
 Restart=always
 RestartSec=1
 KillSignal=SIGTERM
