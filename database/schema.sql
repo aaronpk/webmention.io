@@ -1,8 +1,8 @@
 -- Schema for webmention.io, taken from the production database.
 --
--- Legacy tables and columns the application no longer uses (notifications,
--- links.notification_id, debugs) are omitted. Production may still have them;
--- nothing reads or writes them.
+-- Legacy tables and columns from the Ruby app (the notifications and debugs
+-- tables, links.notification_id) are omitted. Nothing reads or writes them;
+-- a database restored from an older dump may still have them.
 
 CREATE TABLE `accounts` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
