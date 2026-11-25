@@ -7,7 +7,7 @@ declare(strict_types=1);
  * Recovers which #fragment each old webmention was sent to, from a backup
  * made before the fragment pages were folded.
  *
- * Step one, where the backup is loaded (see docs/cutover.md) as the tables
+ * Step one, where the backup is loaded as the tables
  * prefold_links and prefold_pages, writes the map:
  *
  *   tools/recover-fragments --export=fragments.tsv

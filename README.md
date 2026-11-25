@@ -390,7 +390,7 @@ composer test
 
 `tools/replay-check LINK_ID...` re-verifies stored webmentions with the current processor, without writing anything, and reports which stored fields would come out differently. Add `--compare-xray=https://xray.p3k.io/parse` to separate parser differences from pages that changed since they were received.
 
-`tools/recover-fragments` fills in `links.target_fragment` for webmentions received before it was recorded, from a map taken out of a backup made before the fragment pages were folded. It writes the map with `--export=FILE` where that backup is loaded, and applies it with `--map=FILE`, dry run until `--apply`. See `docs/cutover.md`.
+`tools/recover-fragments` fills in `links.target_fragment` for webmentions received before it was recorded, from a map taken out of a backup made before the fragment pages were folded. It writes the map with `--export=FILE` where that backup is loaded, and applies it with `--map=FILE`, dry run until `--apply`.
 
 `tools/audit` reports inconsistencies: webmentions or pages whose site or account no longer exists, URLs with more than one page row, aliases and blocked sources pointing at nothing, and a few things it only reports because they need judgement. `tools/repair` puts the repairable ones right, printing what it would do until given `--apply`, one check at a time with `--only=`, and capped with `--limit=`. Both work from the data itself, in batches, and are safe to re-run, so they go straight against production: audit, dry-run repair, compare, then apply.
 
