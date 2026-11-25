@@ -188,6 +188,7 @@ final class Bootstrap
         ));
         $c->set(AvatarArchiver::class, static fn (Container $c): AvatarArchiver => new AvatarArchiver(
             $config,
+            AvatarArchiver::s3FromConfig($config, $c->get(HttpClient::class)),
             $c->get(HttpClient::class),
             $c->get(Log::class),
         ));

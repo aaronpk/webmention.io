@@ -64,7 +64,7 @@ if ($ids === []) {
 }
 
 // Avatar archiving off: author_photo is always the original URL.
-$container = Bootstrap::container(Bootstrap::config()->with(['CA3DB_API_ENDPOINT' => '']));
+$container = Bootstrap::container(Bootstrap::config()->with(['AVATAR_S3_BUCKET' => '']));
 $container->set(Log::class, static fn (): Log => new Log('/dev/null'));
 
 $db        = $container->get(Database::class);

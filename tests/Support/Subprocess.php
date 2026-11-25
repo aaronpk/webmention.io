@@ -48,8 +48,8 @@ final class Subprocess
     {
         return [
             ...Config::parse((string) file_get_contents(Bootstrap::root() . '/.env.testing')),
-            'CA3DB_API_ENDPOINT' => '',
-            'LOG_DIR'            => self::logDir(),
+            'AVATAR_S3_BUCKET' => '',
+            'LOG_DIR'          => self::logDir(),
         ];
     }
 

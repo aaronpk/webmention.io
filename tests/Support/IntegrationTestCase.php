@@ -62,7 +62,7 @@ abstract class IntegrationTestCase extends TestCase
         }
 
         $config = Config::load($envFile)->with([
-            'CA3DB_API_ENDPOINT' => '',
+            'AVATAR_S3_BUCKET' => '',
             // A fixed admin for the admin-section tests. It cannot live in
             // .env.testing, which is not in the repository.
             'ADMIN_USERS' => 'admin.example',

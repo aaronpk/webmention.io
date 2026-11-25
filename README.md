@@ -343,7 +343,7 @@ A: In short no, however you should be able to get the same data from the API, an
 
 Written in PHP (8.2+) with no framework: a hand-rolled router, plain PHP templates, PDO for MySQL/MariaDB and ext-redis. The only dependencies are [XRay](https://github.com/aaronpk/XRay), which fetches and parses the source of each webmention, and [indieauth/client](https://github.com/indieweb/indieauth-client-php) for signing in.
 
-Requirements: PHP 8.2 with the curl, intl, mbstring, pdo_mysql, redis and xmlwriter extensions; MySQL or MariaDB; Redis. (`intl` is what turns an internationalised domain into its punycode form; without it, sites and sign-ins on such a domain are refused.)
+Requirements: PHP 8.2 with the curl, gd, intl, mbstring, pdo_mysql, redis and xmlwriter extensions; MySQL or MariaDB; Redis. (`intl` is what turns an internationalised domain into its punycode form; without it, sites and sign-ins on such a domain are refused.)
 
 ```bash
 composer install
@@ -397,6 +397,10 @@ composer test
 ### Outgoing requests
 
 Every outgoing request (fetching sources, private webmention tokens, web hooks, Aperture, avatar archiving, IndieAuth discovery, site verification) goes through `SafeTransport`. It only allows http and https, on web ports, to public IP addresses that are not this machine's own; it pins the address it checked for the connection, re-checks every redirect, never follows a redirect for a POST, drops `Authorization` and `Cookie` when a redirect leaves the origin, reads at most 2 MB of any response, and gives the whole redirect chain one time budget. To send webmentions from a local test site, set `ALLOW_PRIVATE_NETWORK=1` in `.env`; never in production.
+
+### Avatar archiving
+
+Author photos are copied to an S3 bucket (`AVATAR_S3_*` in `.env`), so a mention keeps its avatar after the author changes or deletes it. Each image is stored once, content-addressed as `{host}/{sha256}.{ext}`, next to a `{key}.meta` text file recording its type, the date and the URL it came from. PNG, JPEG and GIF images taller than 96px are scaled down with GD. SVGs are not archived, because served from this origin they could run script. Objects are written with a public-read ACL, and the stored URL is `AVATAR_URL/{key}.{ext}` (default `BASE_URL/avatar`), which the web server maps onto the bucket. This replaced the separate [ca3db](https://github.com/aaronpk/ca3db-ruby) service and stores objects the same way, so images it archived are reused.
 
 ### Accounts and sites
 
